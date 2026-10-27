@@ -1,3 +1,9 @@
 # Developer scripts
 
-Reserved for developer tooling and repeatable maintenance scripts. No scripts are required for the initial scaffold.
+- `sh scripts/test-api.sh`: disposable PostgreSQL 17 API tests and migration round trip on a Docker host.
+- `python3 scripts/test-api-remote.py technodrome [pytest arguments...]`: transfer the current API snapshot over SSH, run those checks, and retain results locally. Requires Python 3.11+.
+- `python3 scripts/provision-worker.py`: provision the dedicated KVM worker on Technodrome.
+- `sh scripts/worker-ssh.sh`: open an interactive guest session through the NAS.
+- `python3 scripts/test-api-remote.py relicrat-worker`: run the API suite using the guest's own Docker engine.
+
+See [the harness guide](../docs/harness.md) for isolation, evidence, cleanup, and the Symphony pilot.

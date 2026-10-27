@@ -29,7 +29,11 @@ A self-hosted system for managing physical collectibles, including comics, tradi
 
 Create a provisional owned copy → link it to a canonical catalog item and optional release → assign a storage location → find it through search → back up its database record and media.
 
-The first scaffold only starts an API, web placeholder, and PostgreSQL. No domain tables or inventory endpoints are implemented yet.
+The current implementation includes six foundational tables, provisional-copy
+creation/list/retrieval, and photo upload/list/download endpoints. The web app
+remains a placeholder. Catalog reconciliation, storage assignment, search, and
+backup/restore are not implemented. See [the harness guide](../harness.md) for
+executable API verification and its known limitations.
 
 ## Planned key entities
 

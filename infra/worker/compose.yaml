@@ -1,0 +1,16 @@
+services:
+  vm:
+    build: .
+    cpus: 2
+    mem_limit: 5g
+    pids_limit: 128
+    devices:
+      - /dev/kvm:/dev/kvm
+    ports:
+      - "127.0.0.1:22222:2222"
+    volumes:
+      - disk:/data
+      - ./user-data.yaml:/bootstrap/user-data.yaml:ro
+    stop_grace_period: 60s
+volumes:
+  disk:

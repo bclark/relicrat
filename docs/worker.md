@@ -1,0 +1,127 @@
+# Dedicated Technodrome worker
+
+The worker is an Ubuntu 24.04 KVM guest inside a narrowly configured QEMU
+container. Its guest has its own kernel, 40 GB sparse disk, and Docker engine.
+It receives two vCPUs and 4 GB RAM; the outer container is capped at two CPUs
+and 5 GB. The only forwarded service is SSH bound to NAS loopback port 22222.
+No NAS application volumes or Docker socket are mounted into the guest.
+
+The NAS account remains a trusted operator: its Docker privileges can control
+the VM. This is isolation for development, not protection against a compromised
+NAS operator. Guest outbound networking is enabled for package downloads and
+authentication; it is not an egress firewall.
+
+## Provision and connect
+
+From the repository on the Mac:
+
+```sh
+python3 scripts/provision-worker.py
+sh scripts/worker-ssh.sh
+```
+
+First boot installs packages and the pinned, checksum-verified Codex 0.165.0
+and Symphony 0.0.3 executables. Wait for `cloud-init status` to show `done`.
+The Ubuntu base image is checksum-pinned too. If its upstream `current` URL
+changes, verify the replacement against Ubuntu's published checksum before
+updating the pin; do not remove the checksum check.
+Provisioning files live under `/home/bclark/relicrat-worker` on the NAS, and the
+guest disk is the dedicated `relicrat-worker_disk` Docker volume. The operator
+key is generated on the NAS and stays there; only its public key enters the
+guest. No existing Mac or NAS account credentials are copied into the guest.
+
+The NAS rejects SSH TCP forwarding. The connection helper therefore uses two
+ordinary authenticated sessions: Mac → NAS → guest. It does not enable SSH
+agent forwarding or change the NAS SSH configuration. On the first guest
+connection its host key is pinned under the dedicated NAS worker directory;
+later mismatches must be investigated, not silently accepted.
+
+## Codex login
+
+In the guest terminal:
+
+```sh
+codex login --device-auth
+codex login status
+```
+
+Open the displayed OpenAI link in your Mac browser and enter the one-time code.
+If device login is disabled, enable it in ChatGPT security settings (or ask the
+workspace administrator for a managed account). Keep the login code and tokens
+out of chat, Git, and issue descriptions. Credentials are created on this guest.
+
+## GitHub login
+
+Create a fine-grained personal access token in GitHub settings:
+
+- Resource owner: `bclark`.
+- Repository access: only `relicrat`.
+- Expiration: 30 days for this initial pilot.
+- Initially grant **Contents: read-only** for environment setup and validation.
+  An operator can publish the harness using their own GitHub connection without
+  expanding the worker's permissions.
+- Before starting the agent pilot, replace
+  it with a token granting Contents, Issues, and Pull requests read/write for
+  this one repository. Do not grant repository administration or Workflows.
+
+In the guest terminal, run:
+
+```sh
+relicrat-github-login
+git ls-remote https://github.com/bclark/relicrat.git HEAD
+```
+
+Paste the token at the hidden terminal prompt, not into chat. The helper verifies
+repository read access and saves it at `~/.config/relicrat/github-token` with mode
+0600. The Git credential helper returns it only for this repository over HTTPS.
+The token is accessible to this worker user, including its coding agent; this
+pilot does not provide a separate secrets broker. Repository scope and short
+expiration limit its reach. Revoke it in GitHub when the pilot is retired.
+
+## Verification
+
+From the Mac, test the current API snapshot inside the guest's Docker engine:
+
+```sh
+python3 scripts/test-api-remote.py relicrat-worker
+```
+
+Results use the existing local `.harness-results` logs. The special worker target
+uses the two-hop connection helper; ordinary SSH aliases still work unchanged.
+The helper programs have focused credential-scope and private-file-permission
+checks in `infra/worker/tests/test_credentials.py`, run against installed helpers
+on the guest without real credentials or external requests.
+
+Verified on 2026-10-27: cloud-init completed without errors and passed its schema
+check; Codex 0.165.0 and Symphony 0.0.3 launched; four credential-helper tests
+passed. `python3 scripts/test-api-remote.py relicrat-worker` reported 24 passed,
+one expected failure, zero skipped, and a successful migration round trip.
+Test resources were removed. The expected failure remains the photo bug reserved
+for the pilot. Guest OS updates were applied before authentication. Codex login
+and GitHub repository read access have been verified; worker write permissions
+have not been validated. Symphony is not running.
+
+## Operation and boundaries
+
+- No Symphony service is enabled or started automatically. Installing binaries
+  and signing in do not dispatch work or authorize publishing.
+- The current WORKFLOW.md clones over HTTPS using the scoped credential helper.
+  [Pilot issue #6](https://github.com/bclark/relicrat/issues/6) is published without
+  dispatch labels and awaits review of the harness setup.
+- Cloud-init configuration changes do not retrofit an initialized guest. Apply
+  deliberate updates inside the guest or rebuild only after preserving any
+  required work and revoking credentials. Re-provisioning is not a data reset.
+- Shut down gracefully from the guest with `sudo shutdown -h now` before
+  rebuilding/recreating the outer container. Treat direct container termination
+  as a power cut to the VM.
+- To start a stopped VM on the NAS, run `docker compose -p relicrat-worker -f
+  /home/bclark/relicrat-worker/compose.yaml up -d`. Do not use `down --volumes`
+  unless intentionally destroying this worker and its stored credentials.
+- A pre-login bootstrap disk may be retained as `pre-login-v1.qcow2` in the
+  dedicated volume. It contains synthetic setup state, not user collection data.
+
+Sources:
+
+- [Ubuntu cloud-init/QEMU setup](https://ubuntu.com/docs/public-images/public-images-how-to/use-local-cloud-init-ds/)
+- [Codex headless authentication](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
+- [GitHub fine-grained token setup](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)

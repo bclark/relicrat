@@ -24,4 +24,5 @@ dist/
 # Local data
 data/
 backups/
+.harness-results/
 *.sqlite3

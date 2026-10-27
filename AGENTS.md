@@ -12,8 +12,13 @@ Build a trustworthy, self-hosted collectibles inventory and provenance applicati
 - `docs/architecture/overview.md` — domain invariants and planned boundaries.
 - `docs/decisions/` — accepted architecture decisions.
 - The tests, migration history, and calling code related to your change.
+- `docs/harness.md` — executable checks, evidence, and Symphony pilot boundaries.
 
 Treat architecture documentation as design intent, not proof that a feature is implemented.
+
+Run API checks with `sh scripts/test-api.sh` on a Docker host, or
+`python3 scripts/test-api-remote.py relicrat-worker` from the configured Mac.
+Report expected failures and skipped tests explicitly. Never reuse real data.
 
 ## Current stack and boundaries
 
