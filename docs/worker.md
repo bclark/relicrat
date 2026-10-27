@@ -103,6 +103,40 @@ have not been validated. Symphony is not running.
 
 ## Operation and boundaries
 
+### Sandbox preflight
+
+Codex 0.165.0's Linux sandbox needs `bubblewrap`. Ubuntu 24.04 also requires an
+application-specific AppArmor user-namespace allowance for this launcher. The
+bootstrap installs the native package and defines `relicrat-codex-bwrap`, attached
+only to the root-owned `/usr/bin/bwrap`. The global user-namespace restriction
+stays enabled. See [Ubuntu's documented per-application profile approach](https://documentation.ubuntu.com/release-notes/24.04/#unprivileged-user-namespace-restrictions).
+
+On an existing worker, review the profile in the cloud-init template before an
+operator installs it at `/etc/apparmor.d/relicrat-codex-bwrap` and loads it with
+`sudo apparmor_parser -r /etc/apparmor.d/relicrat-codex-bwrap`. Do not disable
+AppArmor globally or change Codex to unrestricted execution to pass this check.
+
+Run from a checkout inside the guest:
+
+```sh
+sh scripts/check-worker-sandbox.sh
+```
+
+This checks direct workspace writes, denial of a direct write outside the
+workspace, and access to the guest Docker daemon using Codex's configured
+sandbox without launching an agent. Docker access itself grants control of the
+guest; these checks do not prevent Docker-mediated guest filesystem access.
+The separate VM is the containment boundary for Docker-capable work.
+
+After PR #7 merged, a fresh `main` checkout again passed four credential-helper
+tests, 24 API tests with one expected failure, and the migration round trip.
+Preflight then found the missing bubblewrap package and Ubuntu denied user
+namespace setup (`bwrap: setting up uid map: Permission denied`). The package
+is installed on the existing guest, but this profile has not been activated and
+the sandbox check has not passed. A `git push --dry-run` permission probe was
+rejected with HTTP 403; the worker still needs repository write access before
+the pilot can publish a branch. Symphony remains stopped.
+
 - No Symphony service is enabled or started automatically. Installing binaries
   and signing in do not dispatch work or authorize publishing.
 - The current WORKFLOW.md clones over HTTPS using the scoped credential helper.
