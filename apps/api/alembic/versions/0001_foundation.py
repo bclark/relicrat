@@ -43,7 +43,6 @@ def upgrade() -> None:
         sa.Column("attributes", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
         *timestamps(),
         sa.UniqueConstraint("catalog_item_id", "release_key"),
-        sa.UniqueConstraint("id", "catalog_item_id"),
     )
     op.create_index("ix_releases_catalog_item_id", "releases", ["catalog_item_id"])
     op.create_table(
@@ -96,9 +95,19 @@ def upgrade() -> None:
         CREATE FUNCTION validate_provisional_copy() RETURNS trigger LANGUAGE plpgsql AS $$
         DECLARE copy_id uuid; valid boolean;
         BEGIN
-            copy_id := CASE WHEN TG_TABLE_NAME = 'media_assets' THEN
-                CASE WHEN TG_OP = 'DELETE' THEN OLD.owned_copy_id ELSE NEW.owned_copy_id END
-                ELSE CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END END;
+            IF TG_TABLE_NAME = 'media_assets' THEN
+                IF TG_OP = 'DELETE' THEN
+                    copy_id := OLD.owned_copy_id;
+                ELSE
+                    copy_id := NEW.owned_copy_id;
+                END IF;
+            ELSE
+                IF TG_OP = 'DELETE' THEN
+                    copy_id := OLD.id;
+                ELSE
+                    copy_id := NEW.id;
+                END IF;
+            END IF;
             SELECT (NULLIF(btrim(coalesce(c.provisional_title, '')), '') IS NOT NULL
                     OR NULLIF(btrim(coalesce(c.description, '')), '') IS NOT NULL
                     OR c.catalog_item_id IS NOT NULL
