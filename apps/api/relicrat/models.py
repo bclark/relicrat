@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -61,7 +61,7 @@ class OwnedCopy(Timestamps, Base):
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         CheckConstraint("identification_status IN ('unidentified', 'partial', 'identified', 'verified')", name="identification_status_valid"),
         CheckConstraint("ownership_status IN ('owned', 'sold', 'traded', 'lost')", name="ownership_status_valid"),
-        UniqueConstraint("id", "catalog_item_id"),
+        ForeignKeyConstraint(["release_id", "catalog_item_id"], ["releases.id", "releases.catalog_item_id"], name="fk_owned_copies_release_same_catalog", ondelete="RESTRICT"),
         Index("ix_owned_copies_catalog_release", "catalog_item_id", "release_id"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -73,7 +73,6 @@ class OwnedCopy(Timestamps, Base):
     ownership_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="owned")
     storage_location_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("storage_locations.id", ondelete="RESTRICT"), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    __mapper_args__ = {}
 
 
 class MediaAsset(Timestamps, Base):
