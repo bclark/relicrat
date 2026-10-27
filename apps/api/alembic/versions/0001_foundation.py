@@ -136,7 +136,7 @@ def upgrade() -> None:
     # Reassignment must validate the *previous* owner too; otherwise moving its
     # only image to another copy could leave it empty.
     op.execute("""
-        CREATE FUNCTION validate_previous_media_owner() RETURNS trigger LANGUAGE plpgsql AS $
+        CREATE FUNCTION validate_previous_media_owner() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
             IF OLD.owned_copy_id IS DISTINCT FROM NEW.owned_copy_id THEN
                 IF EXISTS (
@@ -153,7 +153,7 @@ def upgrade() -> None:
                 END IF;
             END IF;
             RETURN NULL;
-        END $;
+        END $$;
     """)
     op.execute("""
         CREATE CONSTRAINT TRIGGER media_asset_previous_owner_guard
