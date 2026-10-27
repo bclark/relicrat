@@ -124,7 +124,38 @@ def upgrade() -> None:
     """)
 
 
+    # Reassignment must validate the *previous* owner too; otherwise moving its
+    # only image to another copy could leave it empty.
+    op.execute("""
+        CREATE FUNCTION validate_previous_media_owner() RETURNS trigger LANGUAGE plpgsql AS $
+        BEGIN
+            IF OLD.owned_copy_id IS DISTINCT FROM NEW.owned_copy_id THEN
+                IF EXISTS (
+                    SELECT 1 FROM owned_copies c
+                    WHERE c.id = OLD.owned_copy_id
+                      AND c.catalog_item_id IS NULL
+                      AND NULLIF(btrim(coalesce(c.provisional_title, '')), '') IS NULL
+                      AND NULLIF(btrim(coalesce(c.description, '')), '') IS NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM media_assets m WHERE m.owned_copy_id = c.id
+                      )
+                ) THEN
+                    RAISE EXCEPTION 'owned copy % requires a description, title, catalog match, or media asset', OLD.owned_copy_id;
+                END IF;
+            END IF;
+            RETURN NULL;
+        END $;
+    """)
+    op.execute("""
+        CREATE CONSTRAINT TRIGGER media_asset_previous_owner_guard
+        AFTER UPDATE OF owned_copy_id ON media_assets
+        DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+        EXECUTE FUNCTION validate_previous_media_owner();
+    """)
+
+
 def downgrade() -> None:
+    op.execute("DROP FUNCTION validate_previous_media_owner() CASCADE")
     op.execute("DROP FUNCTION validate_provisional_copy() CASCADE")
     op.drop_table("media_assets")
     op.drop_table("owned_copies")
