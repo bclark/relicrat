@@ -94,6 +94,7 @@ The initial scaffold establishes the developer environment; it does **not** deli
 
 - [Architecture overview](docs/architecture/overview.md)
 - [ADR 0001: Modular monolith and stack](docs/decisions/0001-modular-monolith.md)
+- [Development harness and Symphony pilot](docs/harness.md)
 
 The architecture documentation records intended behavior. It is not a claim that integrations or database constraints are already implemented.
 

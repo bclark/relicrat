@@ -1,0 +1,94 @@
+#cloud-config
+hostname: relicrat-worker
+ssh_pwauth: false
+disable_root: true
+users:
+  - name: worker
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: [sudo]
+    ssh_authorized_keys:
+      - @@OPERATOR_SSH_KEY@@
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - python3
+  - docker.io
+  - docker-compose-v2
+write_files:
+  - path: /usr/local/bin/relicrat-github-login
+    permissions: '0755'
+    content: |
+      #!/usr/bin/python3
+      """Store a repository-scoped token from an interactive, hidden prompt."""
+      import getpass
+      import json
+      import os
+      from pathlib import Path
+      import urllib.request
+
+      token = getpass.getpass('Fine-grained GitHub token (hidden): ').strip()
+      if not token:
+          raise SystemExit('No token supplied')
+      request = urllib.request.Request(
+          'https://api.github.com/repos/bclark/relicrat',
+          headers={'Authorization': 'Bearer ' + token,
+                   'Accept': 'application/vnd.github+json'})
+      try:
+          with urllib.request.urlopen(request, timeout=15) as response:
+              repo = json.load(response)
+          if repo.get('full_name') != 'bclark/relicrat':
+              raise ValueError('Unexpected repository')
+      except Exception:
+          raise SystemExit('Repository authentication failed; token was not stored') from None
+      directory = Path.home() / '.config/relicrat'
+      directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+      os.chmod(directory, 0o700)
+      path = directory / 'github-token'
+      descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+      with os.fdopen(descriptor, 'w') as output:
+          output.write(token)
+      os.chmod(path, 0o600)
+      print('Token stored on this worker; repository read access verified.')
+  - path: /usr/local/bin/relicrat-git-credential
+    permissions: '0755'
+    content: |
+      #!/usr/bin/python3
+      import sys
+      from pathlib import Path
+
+      if len(sys.argv) != 2 or sys.argv[1] != 'get':
+          raise SystemExit(0)
+      fields = dict(line.rstrip('\n').split('=', 1) for line in sys.stdin if '=' in line)
+      if (fields.get('protocol') == 'https' and fields.get('host') == 'github.com'
+              and fields.get('path') in ('bclark/relicrat', 'bclark/relicrat.git')):
+          path = Path.home() / '.config/relicrat/github-token'
+          if path.is_file():
+              print('username=x-access-token')
+              print('password=' + path.read_text().strip())
+  - path: /usr/local/bin/install-relicrat-tools
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      set -eu
+      install_dir=$(mktemp -d)
+      trap 'rm -rf -- "$install_dir"' EXIT
+      cd "$install_dir"
+      curl -fL --retry 3 -o codex.tar.gz https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-x86_64-unknown-linux-musl.tar.gz
+      echo 'be635d3486a5bd060d0fff582ae6d30160280c31344dd85719707fa920e187f0  codex.tar.gz' | sha256sum -c
+      tar -xzf codex.tar.gz
+      install -m 0755 codex-x86_64-unknown-linux-musl /usr/local/bin/codex
+      curl -fLO --retry 3 https://github.com/openai/symphony/releases/download/v0.0.3/symphony-v0.0.3-linux_x86_64
+      curl -fLO --retry 3 https://github.com/openai/symphony/releases/download/v0.0.3/symphony-v0.0.3-linux_x86_64.sha256
+      sha256sum -c symphony-v0.0.3-linux_x86_64.sha256
+      install -m 0755 symphony-v0.0.3-linux_x86_64 /usr/local/bin/symphony
+runcmd:
+  - [systemctl, enable, --now, docker]
+  - [usermod, -aG, docker, worker]
+  - [sudo, -u, worker, git, config, --global, credential.useHttpPath, 'true']
+  - [sudo, -u, worker, git, config, --global, credential.helper, /usr/local/bin/relicrat-git-credential]
+  - [/usr/local/bin/install-relicrat-tools]
