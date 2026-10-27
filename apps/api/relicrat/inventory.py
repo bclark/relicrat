@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
 
 class CreateProvisionalCopy(BaseModel):
     title: str | None = Field(default=None, max_length=500)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=10000)
 
     @model_validator(mode="after")
     def require_content(self) -> "CreateProvisionalCopy":
