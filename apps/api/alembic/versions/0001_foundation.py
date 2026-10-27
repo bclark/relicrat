@@ -43,6 +43,7 @@ def upgrade() -> None:
         sa.Column("attributes", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
         *timestamps(),
         sa.UniqueConstraint("catalog_item_id", "release_key"),
+        sa.UniqueConstraint("id", "catalog_item_id"),
     )
     op.create_index("ix_releases_catalog_item_id", "releases", ["catalog_item_id"])
     op.create_table(
@@ -70,7 +71,6 @@ def upgrade() -> None:
         sa.CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         sa.CheckConstraint("identification_status IN ('unidentified', 'partial', 'identified', 'verified')", name="identification_status_valid"),
         sa.CheckConstraint("ownership_status IN ('owned', 'sold', 'traded', 'lost')", name="ownership_status_valid"),
-        sa.UniqueConstraint("id", "catalog_item_id"),
     )
     op.create_index("ix_owned_copies_catalog_item_id", "owned_copies", ["catalog_item_id"])
     op.create_index("ix_owned_copies_storage_location_id", "owned_copies", ["storage_location_id"])
