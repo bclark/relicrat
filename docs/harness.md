@@ -82,8 +82,10 @@ Before launch:
    needed for issues, branches, and draft PRs. Tracker credentials are supplied
    host-side; do not put literal credentials in WORKFLOW.md or logs.
 5. Set SYMPHONY_WORKSPACE_ROOT to an absolute directory owned by the worker.
-   Run the full harness there before starting Symphony. Confirm worker sandbox
-   compatibility with its isolated Docker engine; don't bypass a rejection.
+   Run the full harness and `sh scripts/check-worker-sandbox.sh` there before
+   starting Symphony. Confirm worker sandbox compatibility with its isolated
+   Docker engine; don't bypass a rejection. The worker guide describes Ubuntu's
+   scoped AppArmor profile required for the sandbox launcher.
 6. Use [pilot issue #6](https://github.com/bclark/relicrat/issues/6), also recorded
    in docs/symphony-pilot-issue.md. Create the two dispatch labels if absent and
    apply them only to that one issue when ready.

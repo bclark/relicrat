@@ -19,7 +19,18 @@ packages:
   - python3
   - docker.io
   - docker-compose-v2
+  - bubblewrap
 write_files:
+  - path: /etc/apparmor.d/relicrat-codex-bwrap
+    permissions: '0644'
+    content: |
+      abi <abi/4.0>,
+      include <tunables/global>
+      # Permit this root-owned sandbox launcher to create user namespaces.
+      # Keep kernel.apparmor_restrict_unprivileged_userns enabled globally.
+      profile relicrat-codex-bwrap /usr/bin/bwrap flags=(unconfined) {
+        userns,
+      }
   - path: /usr/local/bin/relicrat-github-login
     permissions: '0755'
     content: |
@@ -87,6 +98,7 @@ write_files:
       sha256sum -c symphony-v0.0.3-linux_x86_64.sha256
       install -m 0755 symphony-v0.0.3-linux_x86_64 /usr/local/bin/symphony
 runcmd:
+  - [apparmor_parser, -r, /etc/apparmor.d/relicrat-codex-bwrap]
   - [systemctl, enable, --now, docker]
   - [usermod, -aG, docker, worker]
   - [sudo, -u, worker, git, config, --global, credential.useHttpPath, 'true']
