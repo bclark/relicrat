@@ -4,6 +4,7 @@ TEST_DATABASE_URL must point to the dedicated test database, not production.
 """
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,12 +29,10 @@ def client():
         with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
             yield session
 
-    test_client_connection = connection
     app.dependency_overrides[get_db] = override_db
     try:
         with TestClient(app) as test_client:
-            test_client._relicrat_test_connection = test_client_connection
-            yield test_client
+            yield test_client, connection
     finally:
         app.dependency_overrides.pop(get_db, None)
         outer.rollback()
@@ -41,11 +40,8 @@ def client():
         engine.dispose()
 
 
-def client_db_connection(client):
-    return client._relicrat_test_connection
-
-
 def test_create_and_retrieve_title_only(client):
+    client, _ = client
     response = client.post("/api/v1/inventory", json={"title": "  Mystery comic  "})
     assert response.status_code == 201, response.text
     body = response.json()
@@ -56,6 +52,7 @@ def test_create_and_retrieve_title_only(client):
 
 
 def test_description_only(client):
+    client, _ = client
     response = client.post("/api/v1/inventory", json={"description": "  Unknown record  "})
     assert response.status_code == 201, response.text
     assert response.json()["description"] == "Unknown record"
@@ -63,21 +60,24 @@ def test_description_only(client):
 
 @pytest.mark.parametrize("payload", [{}, {"title": "  "}, {"description": ""}, {"title": None, "description": None}])
 def test_reject_empty_copy(client, payload):
+    client, _ = client
     assert client.post("/api/v1/inventory", json=payload).status_code == 422
 
 
 def test_missing_copy(client):
+    client, _ = client
     assert client.get(f"/api/v1/inventory/{uuid.uuid4()}").status_code == 404
 
 
 def test_list_newest_first(client):
+    client, connection = client
     a = client.post("/api/v1/inventory", json={"title": "First"}).json()
     b = client.post("/api/v1/inventory", json={"title": "Second"}).json()
     # The fixture uses one outer transaction, so PostgreSQL now() gives both
     # inserts the same timestamp. Set distinct values to test the API ordering.
-    with Session(bind=client_db_connection(client), join_transaction_mode="create_savepoint") as session:
-        session.execute(update(OwnedCopy).where(OwnedCopy.id == uuid.UUID(a["id"])).values(created_at="2026-01-01T00:00:00+00:00"))
-        session.execute(update(OwnedCopy).where(OwnedCopy.id == uuid.UUID(b["id"])).values(created_at="2026-01-02T00:00:00+00:00"))
+    with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
+        session.execute(update(OwnedCopy).where(OwnedCopy.id == uuid.UUID(a["id"])).values(created_at=datetime(2026, 1, 1, tzinfo=timezone.utc)))
+        session.execute(update(OwnedCopy).where(OwnedCopy.id == uuid.UUID(b["id"])).values(created_at=datetime(2026, 1, 2, tzinfo=timezone.utc)))
         session.commit()
     result = client.get("/api/v1/inventory?limit=2").json()
     ids = [item["id"] for item in result]
@@ -86,9 +86,11 @@ def test_list_newest_first(client):
 
 
 def test_invalid_pagination(client):
+    client, _ = client
     assert client.get("/api/v1/inventory?limit=101").status_code == 422
     assert client.get("/api/v1/inventory?offset=-1").status_code == 422
 
 
 def test_reject_oversized_description(client):
+    client, _ = client
     assert client.post("/api/v1/inventory", json={"description": "x" * 10001}).status_code == 422
