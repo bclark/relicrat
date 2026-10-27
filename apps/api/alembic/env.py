@@ -10,7 +10,9 @@ if config.config_file_name:
 database_url = os.getenv("DATABASE_URL")
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
-target_metadata = None
+from relicrat.models import Base
+
+target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     context.configure(url=config.get_main_option("sqlalchemy.url"), target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"})
