@@ -118,7 +118,7 @@ export default function InventoryClient() {
           </section>
         </div>
       </main>
-      <footer>Provisional intake, photos, storage, and search. Catalog identification and production recovery are separate work.</footer>
+      <footer>Provisional intake, photos, manual identification, storage, and search. Authentication and production recovery remain unfinished.</footer>
     </>
   );
 }

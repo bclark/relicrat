@@ -25,9 +25,14 @@ before deciding to save again. Existing record data, photos and history remain
 server-authoritative; unsaved form drafts are page-local and do not survive
 navigation/reload. Switching copies clears that record's unsaved file selection.
 
-Catalog identification/picking, catalog CRUD, valuation, real collection imports,
-authentication and production backup remain out of scope. A displayed catalog
-reference is read-only, not an identification workflow. The separate local
+Manual identification now searches or creates a catalog entry, optionally selects
+a release, and explicitly saves on the same copy with retained history. Creation
+never implies ownership or links the copy by itself. No release specified removes
+a previous edition. Similar names remain separate, with references shown for
+disambiguation. Stale or uncertain writes require Reload copy and review; catalog
+reload alone cannot unlock an uncertain copy. Catalog editing/deletion, automated
+matching, valuation, real imports, authentication and production recovery remain
+out of scope. The worker has a separate offline synthetic backup workflow. The separate local
 progress dashboard is unchanged.
 
 ## Run locally with synthetic data
@@ -62,7 +67,8 @@ of existing data. The supported development trial uses synthetic records only.
 ## Request boundary
 
 Only inventory create/list/get, reconciliation and movement actions/history,
-photo upload/list/download, and storage create/list/get paths are forwarded.
+photo upload/list/download, storage create/list/get and the fixed catalog category/item/release lookup/create
+paths are forwarded.
 UUID path segments and supported methods are allowlisted; clients cannot choose
 upstream hosts or arbitrary API paths. Query strings remain literal and the API
 retains validation authority. No redirect is followed.
@@ -87,7 +93,7 @@ Upstream requests have a 30-second timeout. Saves are never automatically
 retried: after an uncertain outcome, refresh and inspect the inventory/history
 before deciding whether to retry. There is no idempotency key or per-user
 concurrency/rate/memory budget. Authentication, production limits, hardened
-network access and catalog identification remain separate work.
+network access, catalog editing and automated matching remain separate work.
 
 ## Checks
 

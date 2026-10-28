@@ -4,7 +4,7 @@
 
 RelicRat is a self-hosted inventory and collection-management platform for physical collectibles. It is designed for collectors who want to catalog individual items, keep track of where they live, understand their provenance and value, and see what is missing from a collection—without surrendering control of their data.
 
-> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; identification UI, authentication and production recovery remain unfinished.
+> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; authentication and production recovery remain unfinished.
 
 ## What we're building
 
@@ -100,8 +100,10 @@ and explicit revision-checked copy movements with retained history. Literal text
 search finds copies by provisional information and linked catalog/release names.
 See the [inventory API contract](apps/api/INVENTORY.md).
 The add-first web screen supports provisional intake, photo upload/viewing, nested
-storage creation, explicit location changes and literal search. Catalog CRUD and
-identification UI, authentication and production backup remain unimplemented;
+storage creation, explicit location changes and literal search. Manual catalog
+lookup/creation, optional release selection and revision-checked identification
+with history are available in the copy record. Catalog editing/deletion, automated
+matching, authentication and production backup remain unimplemented;
 an [offline operator backup/restore workflow](docs/backup-restore.md) is available
 for synthetic data on the dedicated worker, alongside the disposable recovery
 harness. Production recovery remains unfinished. The complete

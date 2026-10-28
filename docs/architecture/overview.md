@@ -34,7 +34,9 @@ creation/list/retrieval, manual revision-checked reconciliation with retained
 history, photo upload/list/download endpoints, nested storage locations,
 revision-checked copy movement with retained history, and inventory text search.
 The web app supports provisional intake, photos, explicit storage and search.
-Catalog identification remains API-only. Production backup/restore and
+The copy record includes manual catalog lookup/creation, optional release selection
+and explicit revision-checked identification with history. Catalog edits/merges and
+automated identification remain outside this slice. Production backup/restore and
 authentication are not implemented. The synthetic recovery rehearsal is development
 verification only. An [offline operator workflow](../backup-restore.md) can retain
 synthetic database/media bundles and verify a separate fresh restore on the worker;

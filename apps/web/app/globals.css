@@ -565,3 +565,11 @@ footer {
     padding:22px 20px 30px;
   }
 }
+
+.catalog-results { margin: 16px 0; }
+.catalog-choice { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.catalog-choice input { accent-color: var(--accent); width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; margin: 3px 0; }
+.catalog-choice span { min-width: 0; overflow-wrap: anywhere; }
+.catalog-choice small { display: block; color: var(--muted); font-weight: 400; }
+.current-identification { overflow-wrap: anywhere; }
+.identification form { margin-block: 16px; }
