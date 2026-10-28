@@ -25,7 +25,8 @@ No migration, dependency, or deployment change is needed. Substring matching
 can scan the inventory and linked identities; large-collection performance has
 not been measured. Add indexing or a different PostgreSQL search strategy when
 measurements justify it. This is inventory text search only, without location
-subtrees, global catalog search, facets, or a search UI.
+subtrees, global catalog search or facets. The web screen uses this query
+for its inventory list.
 
 # Manual reconciliation
 
@@ -170,7 +171,7 @@ revisions and empty movement history; it cannot recover lost events.
 
 The synthetic recovery fixture retains a nested hierarchy, current assignment,
 two movements, two reconciliations and exact photo bytes after source destruction.
-Authentication, usable frontend/catalog UI, operator production backups,
+Authentication, catalog identification UI, operator production backups,
 container reparenting/history and broader provenance remain unfinished. The first
 vertical slice is incomplete.
 

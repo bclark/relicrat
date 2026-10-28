@@ -389,3 +389,54 @@ The committed npm lockfile records existing web dependencies; Docker uses npm ci
 No new application dependency or database migration was added. Development photo
 and database volumes must be preserved together; down --volumes destroys them.
 Existing unmanaged media is not automatically moved into the new named volume.
+
+## First inventory screen verification (2026-10-28)
+
+Built on merged browser/API main `299aeaffb9cb6b4a6eb78e9e977314b6d4d09810`.
+The owner confirmed add-first and building the working screen directly. This
+bounded screen covers provisional copies, photos, explicit storage, and search;
+it is not catalog identification UI, authentication, or production recovery.
+
+- Host `npm run lint` and `NEXT_TELEMETRY_DISABLED=1 npm run build`: exit 0.
+  An initial CSS alignment warning was corrected before worker verification.
+- Dedicated worker `sh scripts/test-web.sh`: exit 0; production Next build,
+  TypeScript and **10 Node boundary tests** passed, zero skips/failures. Fresh
+  PostgreSQL 17 upgraded through 0003. The HTTP smoke retained copy/history and
+  exact photo bytes after API-container recreation; its own resources cleaned.
+- `npm run test:browser` with isolated Chrome and an operator-provided loopback
+  bridge to a fresh no-port worker stack: **7 passed, zero skipped/failures**.
+  Six fixture-driven cases cover intake, duplicate submission, separate failed
+  photo saves, uncertain writes, outages, unreadable/network responses, read
+  races, storage conflicts, bounded paging, escaped text, keyboard focus and
+  narrow-screen overflow. The seventh drove actual Chrome → production Next →
+  FastAPI → PostgreSQL/media: copy, photo, nested locations, explicit assignment,
+  literal search, page reload, exact photo download and retained movement.
+- The real-write test refuses a nonempty inventory. The two stacks used unique
+  projects, an internal network and no published ports; synthetic data only.
+  The temporary Mac bridge used existing ordinary two-hop SSH sessions into
+  the test web container; no NAS forwarding or permissions were changed.
+- Scoped source archive SHA256:
+  `32eb0c78a34e3775f489f982cd29ef6fd1553e91fbd7da9c42a4f780f8e47613`.
+  Thirteen runtime/test/config file hashes independently matched the tested
+  guest snapshot. The worker audit verified no published ports, exact synthetic
+  fixture state and photo checksum, with Symphony stopped.
+- The first browser attempt hit a test-selector ambiguity with Next's route
+  announcer; the selector now names the actual form error. An early dev-server
+  mobile capture was malformed; final production captures settled focus/scroll
+  and were visually opened and verified before independent review.
+- The layout detector ran once and returned no findings. Independent finish
+  review returned **ship**, with no material UI fixes, scoped to this first
+  synthetic workflow. Root design records describe the built app; the historical
+  progress-dashboard design record is retained separately, with its HTML unchanged.
+- `git diff --check`: exit 0. Playwright is test-only and lockfile-pinned; no
+  application dependency, API domain implementation or migration changed.
+  API pytest, migration downgrade and recovery rehearsal were not rerun. The
+  web harness checks fresh schema upgrade/media persistence, not backup recovery.
+
+After verification the operator stopped both disposable stacks, the temporary
+bridge and the local preview; project resources and logs are checked separately.
+Synthetic-only hands-on use is appropriate after review and a separately started
+private preview. Unsaved drafts remain page-local; catalog identification and
+production deployment are still unfinished. Local ignored evidence is retained
+under `.harness-results/intake-ui/`, including exact commands, failed/final logs,
+source hashes, captures and the independent review verdict.

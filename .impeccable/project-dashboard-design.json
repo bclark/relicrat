@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T03:00:38.451269+00:00",
+  "title": "Design System: RelicRat local project dashboard",
+  "extensions": {
+    "scope": {
+      "targets": [
+        "docs/project-dashboard.html"
+      ],
+      "appliesToProductUI": false,
+      "source": "Built inline CSS and controls; snapshot main-448a16e."
+    },
+    "colorMeta": {
+      "page": {
+        "role": "neutral",
+        "displayName": "Page",
+        "tonalRamp": [
+          "oklch(15% 0.04 210)",
+          "oklch(26% 0.04 210)",
+          "oklch(38% 0.04 210)",
+          "oklch(49% 0.04 210)",
+          "oklch(61% 0.04 210)",
+          "oklch(72% 0.04 210)",
+          "oklch(84% 0.04 210)",
+          "oklch(95% 0.04 210)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(38% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(61% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.04 206)",
+          "oklch(26% 0.04 206)",
+          "oklch(38% 0.04 206)",
+          "oklch(49% 0.04 206)",
+          "oklch(61% 0.04 206)",
+          "oklch(72% 0.04 206)",
+          "oklch(84% 0.04 206)",
+          "oklch(95% 0.04 206)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.04 207)",
+          "oklch(26% 0.04 207)",
+          "oklch(38% 0.04 207)",
+          "oklch(49% 0.04 207)",
+          "oklch(61% 0.04 207)",
+          "oklch(72% 0.04 207)",
+          "oklch(84% 0.04 207)",
+          "oklch(95% 0.04 207)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "tonalRamp": [
+          "oklch(15% 0.04 206)",
+          "oklch(26% 0.04 206)",
+          "oklch(38% 0.04 206)",
+          "oklch(49% 0.04 206)",
+          "oklch(61% 0.04 206)",
+          "oklch(72% 0.04 206)",
+          "oklch(84% 0.04 206)",
+          "oklch(95% 0.04 206)"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "Soft",
+        "tonalRamp": [
+          "oklch(15% 0.04 204)",
+          "oklch(26% 0.04 204)",
+          "oklch(38% 0.04 204)",
+          "oklch(49% 0.04 204)",
+          "oklch(61% 0.04 204)",
+          "oklch(72% 0.04 204)",
+          "oklch(84% 0.04 204)",
+          "oklch(95% 0.04 204)"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Green",
+        "tonalRamp": [
+          "oklch(15% 0.04 160)",
+          "oklch(26% 0.04 160)",
+          "oklch(38% 0.04 160)",
+          "oklch(49% 0.04 160)",
+          "oklch(61% 0.04 160)",
+          "oklch(72% 0.04 160)",
+          "oklch(84% 0.04 160)",
+          "oklch(95% 0.04 160)"
+        ]
+      },
+      "green-bg": {
+        "role": "secondary",
+        "displayName": "Green Bg",
+        "tonalRamp": [
+          "oklch(15% 0.04 148)",
+          "oklch(26% 0.04 148)",
+          "oklch(38% 0.04 148)",
+          "oklch(49% 0.04 148)",
+          "oklch(61% 0.04 148)",
+          "oklch(72% 0.04 148)",
+          "oklch(84% 0.04 148)",
+          "oklch(95% 0.04 148)"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Amber",
+        "tonalRamp": [
+          "oklch(15% 0.04 35)",
+          "oklch(26% 0.04 35)",
+          "oklch(38% 0.04 35)",
+          "oklch(49% 0.04 35)",
+          "oklch(61% 0.04 35)",
+          "oklch(72% 0.04 35)",
+          "oklch(84% 0.04 35)",
+          "oklch(95% 0.04 35)"
+        ]
+      },
+      "amber-bg": {
+        "role": "secondary",
+        "displayName": "Amber Bg",
+        "tonalRamp": [
+          "oklch(15% 0.04 37)",
+          "oklch(26% 0.04 37)",
+          "oklch(38% 0.04 37)",
+          "oklch(49% 0.04 37)",
+          "oklch(61% 0.04 37)",
+          "oklch(72% 0.04 37)",
+          "oklch(84% 0.04 37)",
+          "oklch(95% 0.04 37)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15% 0.04 213)",
+          "oklch(26% 0.04 213)",
+          "oklch(38% 0.04 213)",
+          "oklch(49% 0.04 213)",
+          "oklch(61% 0.04 213)",
+          "oklch(72% 0.04 213)",
+          "oklch(84% 0.04 213)",
+          "oklch(95% 0.04 213)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.04 198)",
+          "oklch(26% 0.04 198)",
+          "oklch(38% 0.04 198)",
+          "oklch(49% 0.04 198)",
+          "oklch(61% 0.04 198)",
+          "oklch(72% 0.04 198)",
+          "oklch(84% 0.04 198)",
+          "oklch(95% 0.04 198)"
+        ]
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Selected",
+        "tonalRamp": [
+          "oklch(15% 0.04 200)",
+          "oklch(26% 0.04 200)",
+          "oklch(38% 0.04 200)",
+          "oklch(49% 0.04 200)",
+          "oklch(61% 0.04 200)",
+          "oklch(72% 0.04 200)",
+          "oklch(84% 0.04 200)",
+          "oklch(95% 0.04 200)"
+        ]
+      },
+      "on-selected": {
+        "role": "neutral",
+        "displayName": "On Selected",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(38% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(61% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      }
+    },
+    "tonalRampNote": "Synthesized preview strips only; not shipped colors or normative usage tokens. Actual light tokens live in DESIGN.md; dark overrides below are source values.",
+    "themeOverrides": {
+      "prefers-color-scheme: dark": {
+        "page": "#111d25",
+        "paper": "#192832",
+        "ink": "#e6edf3",
+        "muted": "#aec0cd",
+        "rule": "#3b505e",
+        "soft": "#253945",
+        "green": "#b0e4c8",
+        "green-bg": "#1c4033",
+        "amber": "#ffda99",
+        "amber-bg": "#49391e",
+        "focus": "#85bbff",
+        "accent": "#9bd1e6",
+        "selected": "#b9d7e6",
+        "on-selected": "#142a37"
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "control-state",
+        "value": "background-color .15s ease-out,color .15s ease-out,border-color .15s ease-out",
+        "purpose": "Links and buttons only under prefers-reduced-motion:no-preference."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack-workflow",
+        "value": "800px"
+      },
+      {
+        "name": "narrow-report",
+        "value": "560px"
+      }
+    ],
+    "focus": {
+      "value": "3px solid var(--focus); outline-offset:4px",
+      "purpose": "Buttons, links and disclosure summaries."
+    }
+  },
+  "components": [
+    {
+      "name": "Print button",
+      "kind": "button",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><button class=\"ds-print\" type=\"button\">Print report</button></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-print{font:inherit;color:var(--ink);border:1px solid var(--rule);background:var(--paper);padding:9px 15px;border-radius:6px;cursor:pointer}.ds-print:hover{background:var(--soft)}.ds-print:focus-visible{outline:3px solid var(--focus);outline-offset:4px}",
+      "refersTo": "print-button"
+    },
+    {
+      "name": "Selected filter",
+      "kind": "button",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><button class=\"ds-filter\" type=\"button\" aria-pressed=\"true\">All work</button></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-filter{font:inherit;font-size:.82rem;border:1px solid var(--selected);border-radius:5px;background:var(--selected);color:var(--on-selected);padding:7px 13px;cursor:pointer}.ds-filter:hover{background:var(--selected)}.ds-filter:focus-visible{outline:3px solid var(--focus);outline-offset:4px}",
+      "refersTo": "filter-selected"
+    },
+    {
+      "name": "Section navigation",
+      "kind": "nav",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><nav class=\"ds-nav\" aria-label=\"Report sections\"><a href=\"#overview\" aria-current=\"page\">Overview</a><a href=\"#completed\">Completed work</a></nav></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-nav{display:flex;gap:28px;border-bottom:1px solid var(--rule);overflow-x:auto}.ds-nav a{padding:12px 0;color:var(--muted);font-size:.9rem;text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}.ds-nav a[aria-current]{color:var(--ink);font-weight:650;border-color:var(--selected)}.ds-nav a:hover{color:var(--ink)}.ds-nav a:focus-visible{outline:3px solid var(--focus);outline-offset:4px}"
+    },
+    {
+      "name": "Completed status",
+      "kind": "chip",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><span class=\"ds-state\">API implemented</span></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-state{display:inline-flex;align-items:center;gap:6px;background:var(--green-bg);color:var(--green);font-size:.75rem;font-weight:600;padding:4px 9px;border-radius:4px;white-space:nowrap}",
+      "refersTo": "state-done"
+    },
+    {
+      "name": "Report panel",
+      "kind": "card",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><section class=\"ds-panel\"><h2>The first collection workflow</h2><p>Recorded capabilities and their boundaries.</p></section></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-panel{background:var(--paper);border:1px solid var(--rule);padding:28px;border-radius:12px}.ds-panel h2{font-size:1.35rem;line-height:1.3;letter-spacing:-.015em;font-weight:650;margin:0 0 10px}.ds-panel p{margin:0 0 12px}",
+      "refersTo": "report-panel"
+    },
+    {
+      "name": "Completed work disclosure",
+      "kind": "custom",
+      "description": "Existing local-report pattern; scoped to docs/project-dashboard.html.",
+      "html": "<div class=\"ds-sample\"><details class=\"ds-entry\"><summary>Manual reconciliation with retained history</summary><p>Preserve the physical copy and record identification changes.</p></details></div>",
+      "css": ".ds-sample{--page:#f3f5f7;--paper:#fff;--ink:#172b3a;--muted:#506373;--rule:#d7dfe5;--soft:#eaf0f4;--green:#176148;--green-bg:#e6f3ec;--amber:#7b4c0c;--amber-bg:#fff0d8;--focus:#165baf;--accent:#265b71;--selected:#193c4e;--on-selected:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55;color:var(--ink)}.ds-entry{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}.ds-entry summary{padding:19px 4px;font-size:.95rem;font-weight:600;cursor:pointer}.ds-entry summary:hover{text-decoration:underline;text-underline-offset:3px}.ds-entry summary:focus-visible{outline:3px solid var(--focus);outline-offset:4px}.ds-entry p{font-size:.9rem;color:var(--muted);padding:0 4px 22px;margin:0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The conservation register",
+    "overview": "This record describes only [docs/project-dashboard.html](docs/project-dashboard.html), the finished local, manually updated development report. Cool paper, navy ink, ruled rows and explicit state labels give factual progress and evidence a readable hierarchy. This descriptive name comes from the existing surface contract; it is not a newly inferred user preference.\n\nThese tokens and rules apply only to this report. They establish no inventory-application identity, permanent hosting decision, preferred build path, or general RelicRat brand. Future product UI design remains open. The artifact is a dated main-448a16e snapshot through merged PR #14; its recorded 43 API tests and stopped worker state are evidence content, not live telemetry.",
+    "keyCharacteristics": [
+      "A compact, text-led register with no decorative imagery.",
+      "Meaningful status text reinforced by restrained green and amber.",
+      "Flat paper panels, ruled rows and responsive density.",
+      "Explicit provenance and manually maintained snapshot context."
+    ],
+    "rules": [
+      {
+        "name": "The Explicit State Rule",
+        "body": "Pair every status color with a readable status label; color alone cannot communicate capability or readiness.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "**Do** apply this record only when editing docs/project-dashboard.html.",
+      "**Do** preserve explicit state labels, evidence links and dated snapshot context.",
+      "**Do** retain keyboard focus, semantic controls, responsive stacking and complete printed evidence."
+    ],
+    "donts": [
+      "**Don't** treat this local report as the inventory application's visual identity or a global build-path preference.",
+      "**Don't** imply a live connection through decorative indicators or changing metrics.",
+      "**Don't** derive application readiness from a status color or a test count alone."
+    ]
+  }
+}

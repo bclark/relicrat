@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
   title: "RelicRat",
@@ -8,7 +9,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: "3rem auto", maxWidth: 720, padding: "0 1rem" }}>
+      <body>
         {children}
       </body>
     </html>
