@@ -97,6 +97,7 @@ vertical slice is not delivered yet.
 
 ## Documentation
 
+- [Project dashboard](docs/project-dashboard.html) — open the self-contained HTML in a browser for completed work, next steps and recorded validation. The snapshot is updated manually after merged milestones.
 - [Architecture overview](docs/architecture/overview.md)
 - [ADR 0001: Modular monolith and stack](docs/decisions/0001-modular-monolith.md)
 - [Development harness and Symphony pilot](docs/harness.md)
