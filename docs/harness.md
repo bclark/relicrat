@@ -702,13 +702,19 @@ operator checkout's ignored `.harness-results/scheduled-backups/`.
 
 The existing Mac recovery key/certificate were packaged into a private mode0600
 local import ZIP; ZIP integrity and expected entries passed. The owner selected
-1Password secure-file storage for the second copy. The native app is locked;
-owner unlock and successful import verification are still pending. This local staging kit is not
-an independent recovery-key copy. No key was sent through chat, Git or the NAS.
+1Password secure-file storage for the second copy and unlocked the native app
+directly. A Document named RelicRat backup recovery key was saved in the Personal
+vault; upload completion was observed. The downloaded vault ZIP matched the
+original byte-for-byte, and its extracted key successfully decrypted a disposable
+OpenSSL CMS envelope. The temporary import kit/download/extracted copies were
+removed after verification; working Mac key/certificate and the vault Document
+were preserved. Independent key custody is verified. No key value was displayed
+in chat, Git or NAS logs.
 
 No app/schema/dependency change was made and no app test suites were rerun for
 these operational/docs changes. The Mac and desktop app must be available for
 local scheduled work; permissions or unavailable infrastructure can still fail a
 run. Routine success stays quiet; new/changed failures or required actions are
-reported. No automatic archive retention, off-site service, independent key-copy
-completion or replacement-host/empty-image-store recovery is claimed.
+reported. No automatic archive retention, off-site backup service or replacement-host/
+empty-image-store recovery is claimed. The independent key copy is separately
+verified as described above.

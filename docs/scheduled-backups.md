@@ -74,3 +74,12 @@ remain distinct recovery requirements. Current use remains synthetic-only.
 
 See [manual encrypted recovery](off-host-backup.md) for capsule format and recovery
 steps, and the [official local scheduling requirements](https://learn.chatgpt.com/docs/automations?surface=app).
+
+## Verified key-copy completion — 2026-10-28
+
+After the owner unlocked 1Password directly, the prepared recovery ZIP was saved
+as **RelicRat backup recovery key** in the **Personal** vault. Upload completion
+was observed. A downloaded vault copy matched the original bytes and its key
+decrypted a disposable authenticated test envelope. Temporary import/download
+copies were removed; the working Mac key and vault Document were preserved.
+Routine backup runs need no vault access or repeated custody confirmation.
