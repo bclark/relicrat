@@ -67,14 +67,20 @@ compose.yaml            Local services
 git clone https://github.com/bclark/relicrat.git
 cd relicrat
 cp .env.example .env
+docker compose up -d db
+docker compose run --rm api alembic upgrade head
 docker compose up --build
 ```
 
-Once the scaffold PR is merged, the intended development URLs are:
+Development URLs (the web screen remains a placeholder):
 
 - Web: http://localhost:3000
 - API health: http://localhost:8000/health
 - API docs: http://localhost:8000/docs
+
+The web server forwards allowlisted `/api/v1/...` requests to the private API.
+Photo files use a dedicated named media volume; apply migrations before API use.
+See [browser/API setup and verification](apps/web/README.md).
 
 **Development only:** The example Compose setup uses local credentials and publishes ports on the host. Do not expose it to the internet or store real collectibles data in it until authentication, secrets, and backup/recovery have been hardened.
 
