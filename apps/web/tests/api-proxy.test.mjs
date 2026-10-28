@@ -165,3 +165,18 @@ test('matches actual browser Host when Next.js normalizes the internal request U
   assert.equal((await forwardApi(missingHost, ['inventory'])).status, 403);
   assert.equal(observed.length, count);
 });
+
+test('catalog paths preserve the same write boundary and reject arbitrary extensions', async () => {
+  for (const path of ['catalog/categories', 'catalog/items', `catalog/items/${id}/releases`]) {
+    assert.equal((await forwardApi(request(path), path.split('/'))).status, 200);
+    assert.equal((await forwardApi(request(path, post()), path.split('/'))).status, 201);
+    assert.equal((await forwardApi(request(path, post('{}', { origin: 'https://untrusted.test' })), path.split('/'))).status, 403);
+  }
+  for (const path of [`catalog/items/${id}`, `catalog/items/${id}/releases/${id}`]) {
+    assert.equal((await forwardApi(request(path), path.split('/'))).status, 200);
+    assert.equal((await forwardApi(request(path, post()), path.split('/'))).status, 405);
+  }
+  for (const path of ['catalog', 'catalog/items/bad', `catalog/items/${id}/delete`, `catalog/categories/${id}`, `catalog/items/${id}/releases/bad`]) {
+    assert.equal((await forwardApi(request(path), path.split('/'))).status, 404);
+  }
+});

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type Location, type Photo, type Movement, type RunSave } from '../lib/inventory-client';
 
+import Identification from './identification';
+
 type Props = { copyId: string; runSave: RunSave; busy: boolean; blocked: boolean; changed: () => void };
 const mergeLocations = (before: Location[], after: Location[]) => [...new Map([...before, ...after].map(item => [item.id, item])).values()];
 
@@ -59,7 +61,7 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
   function failed(problem: unknown) {
     if (problem instanceof ApiError && (problem.uncertain || problem.status === 409)) setReview(true);
     setError(problem instanceof ApiError && problem.status === 409
-      ? 'This copy changed elsewhere. Reload the copy and review its current location before saving again.'
+      ? 'This copy changed elsewhere. Reload the copy and review its current identification and location before saving again.'
       : errorText(problem));
   }
   function locationName(id: string | null) {
@@ -139,13 +141,14 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
       <h3>Photos</h3>
       {photos.length ? <div className="photos">{photos.map((photo, index) => <a key={photo.id} href={`/api/v1/inventory/${copyId}/photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/v1/inventory/${copyId}/photos/${photo.id}`} alt={`Photo ${index + 1} of ${copyName(copy)}`} loading="lazy" /><span>View photo {index + 1}</span></a>)}</div> : <p className="hint">No photos yet. Add a clear view of this physical copy.</p>}
       <form onSubmit={upload} aria-label="Add photo"><fieldset disabled={locked}><label htmlFor="photo">Photo file</label><input ref={photoInput} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files?.[0] || null)} aria-describedby="photo-help" /><p className="hint" id="photo-help">JPEG, PNG, or WebP. Up to 15 MiB. Photos save separately from the copy.</p><button disabled={!file} type="submit">Upload photo</button></fieldset></form>
+      <Identification copy={copy} runSave={runSave} locked={locked} saved={record => { setCopy(record); changed(); }} failed={failed} />
       <h3>Storage</h3>
       <form onSubmit={assign} aria-label="Assign storage"><fieldset disabled={locked}><label htmlFor="copy-location">Location</label><select id="copy-location" value={target} onChange={e => setTarget(e.target.value)}><option value="">Unassigned</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select><button type="submit" disabled={target === (copy.storage_location_id || '')}>Save location</button></fieldset></form>
       <p className="hint">{locations.length} locations loaded.{moreLocations ? ' More may be available.' : ''}</p>
       {moreLocations && <button className="quiet" disabled={busy || readBusy || loading} onClick={() => loadMore('locations')}>Load more locations</button>}
       <details className="new-location"><summary>Create a storage location</summary><form onSubmit={createLocation} aria-label="Create storage"><fieldset disabled={locked}><label htmlFor="location-name">Location name</label><input id="location-name" value={name} maxLength={250} required onChange={e => setName(e.target.value)} placeholder="e.g. Comic box A" /><label htmlFor="location-parent">Inside another location</label><select id="location-parent" value={parent} onChange={e => setParent(e.target.value)}><option value="">No parent location</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select><button type="submit">Create location</button></fieldset></form></details>
       <details className="movement-history"><summary>Movement history · {moves.length}{moreMoves ? '+' : ''} recorded</summary><p className="hint">Oldest first. Locations not loaded above are shown by their full reference.</p>{moves.length ? <ol>{moves.map(move => <li key={move.id}><span>{locationName(move.before_location_id)} to {locationName(move.after_location_id)}</span><small>Revision {move.after_revision} · {new Date(move.created_at).toLocaleString()}</small></li>)}</ol> : <p>No movements recorded.</p>}{moreMoves && <button disabled={busy || readBusy || loading} onClick={() => loadMore('moves')}>Load more movements</button>}</details>
-      <details className="copy-meta"><summary>Copy details</summary><dl><dt>Physical copy ID</dt><dd>{copy.id}</dd><dt>Added</dt><dd>{new Date(copy.created_at).toLocaleString()}</dd><dt>Ownership status</dt><dd>{copy.ownership_status}</dd><dt>Identification</dt><dd>{copy.identification_status}</dd>{copy.catalog_item_id && <><dt>Catalog reference</dt><dd>{copy.catalog_item_id}</dd></>}</dl><p className="hint">Catalog identification and editing are not part of this first screen.</p></details>
+      <details className="copy-meta"><summary>Copy details</summary><dl><dt>Physical copy ID</dt><dd>{copy.id}</dd><dt>Added</dt><dd>{new Date(copy.created_at).toLocaleString()}</dd><dt>Ownership status</dt><dd>{copy.ownership_status}</dd><dt>Identification</dt><dd>{copy.identification_status}</dd>{copy.catalog_item_id && <><dt>Catalog reference</dt><dd>{copy.catalog_item_id}</dd></>}</dl><p className="hint">Manual identification keeps this physical copy and its provisional information. Catalog editing and automatic matching remain unavailable.</p></details>
     </>}
   </section>;
 }

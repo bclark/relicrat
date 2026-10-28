@@ -89,8 +89,9 @@ The harness exercises destructive downgrade only on disposable synthetic data.
 The synthetic recovery rehearsal now retains two reconciliations and all referenced
 identities alongside the original exact photo bytes after source destruction.
 Its quiescent-writer and same-schema-version assumptions remain; this is not
-production backup support. Catalog CRUD/UI,
-authentication, automated matching and broader audit history remain out of scope.
+production backup support. That rehearsal did not exercise catalog creation/UI;
+see the current manual catalog contract below. Authentication, automated matching
+and broader audit history remain out of scope.
 
 ## Storage locations and manual movement (0003)
 
@@ -179,3 +180,48 @@ The hierarchy functions pin their schema lookup to pg_catalog/public with
 pg_temp last. Temporary relations named like the hierarchy or guard cannot
 replace the canonical tables. Focused direct-SQL tests cover both shadowing
 cases, alongside the existing isolation-level races.
+
+# Manual catalog lookup and creation
+
+`GET /api/v1/catalog/items?q=literal&limit=50&offset=0` searches canonical names
+with the same escaped, parameterized substring behavior as inventory search.
+`q` is trimmed, at most 200 characters before trimming, and rejects NUL. Empty
+search lists entries. Order is canonical name then UUID; the database collation
+applies. `GET /catalog/items/{id}` returns one entry. All paths in this section
+have the `/api/v1` prefix. These endpoints never create or change owned copies.
+
+`GET /catalog/categories` lists categories by name/UUID. `POST` takes `name`
+(trimmed, 1–200 characters). `POST /catalog/items` takes `category_id` and
+`canonical_name` (trimmed, 1–500); missing categories return 404.
+`GET /catalog/items/{id}/releases` lists releases of that item by creation time/UUID;
+missing items return 404. `POST` on that collection creates a release with `name`
+(trimmed, 1–500). `GET /catalog/items/{id}/releases/{release_id}` returns 404 if
+the release is missing or belongs to another item. Existing unnamed releases
+remain readable. Lists use limit 1–100 and nonnegative offset, with default 50.
+New names reject NUL; unknown payload fields and malformed UUIDs return 422.
+
+Each manual create generates a separate UUID-based `manual-...` slug/identity key/
+release key using the existing schema. Names are descriptive, not a deduplication
+key. Similar or equal names never silently merge, and there is no upsert,
+rename, deletion, attribute editing, provider matching or catalog verification.
+Search first and choose explicitly; duplicate names are distinguished by reference.
+A category, catalog item, release and copy reconciliation are separate transactions.
+A failed or uncertain reconciliation does not undo a confirmed catalog creation.
+There are no idempotency keys or automatic retries after uncertain outcomes.
+
+The web record now supports this lookup/creation flow followed by an explicit
+Save identification using the existing expected identification revision. The
+No release specified option intentionally removes a previous edition. It does
+not clear the catalog identity. Current entries/releases are fetched independently
+of result pages, so a selection beyond page one is not silently lost. Catalog,
+category, release and identification-history pages are bounded at 20 with a
+one-row lookahead. Read cancellation rejects obsolete responses; unknown/failed
+reads remain errors rather than fabricated identities. Historical references are
+retained in oldest-first history. Drafts remain page-local.
+
+No migration or dependency is added. Existing composite FKs and reconciliation
+transactions still enforce matching catalog/release and preserve physical UUID,
+photos, provisional fields, ownership and independent storage history/revision.
+Authentication and production deployment remain unfinished; synthetic data only.
+Offset pages may shift under concurrent catalog creation. There is no catalog
+uniqueness inference or large-catalog performance guarantee.

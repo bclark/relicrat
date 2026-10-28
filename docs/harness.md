@@ -488,3 +488,61 @@ No web build/browser suite or standalone legacy recovery command was rerun for
 this operator-tooling change. The independent legacy fixture verifier was reused
 inside the new command integration. No app schema/migration or runtime dependency
 changed. These results do not establish production recovery or power-loss safety.
+
+## Manual catalog identification verification (2026-10-28)
+
+Based on merged main `0fd90c424c50ebfe23f29cc3d88d394fa0e368df`.
+This extends the existing inventory record with catalog lookup/creation and an
+explicit revision-checked reconciliation; no schema migration or dependency.
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **90 passed**, zero
+  skips/expected failures, 17 existing warnings; full downgrade to base and
+  upgrade through 0003 succeeded, exit 0. New PostgreSQL checks cover names and
+  fields, literal catalog search and page limits, missing/foreign releases,
+  similar-name identity separation, no implicit ownership, reconciliation and
+  release removal preserving UUID, provisional fields, storage/history and PNG.
+- Host `npm test`: **11 passed**, zero skips/failures. Fixed catalog paths retain
+  same-origin POST checks, bounded bodies, header isolation and method allowlists.
+  An initial sandbox run stalled on its loopback server; it was stopped and rerun
+  with the required local-listener permission. `npm run lint` and the initial
+  production build passed. Final worker production build/typecheck also passed.
+- Dedicated worker `sh scripts/test-web.sh`: exit 0, **11 Node tests passed**,
+  fresh migration through 0003, existing HTTP copy/photo/nested storage/search
+  smoke and exact photo persistence after API-container recreation; cleanup passed.
+- Final `npm run test:browser` with isolated Chrome, the operator's temporary
+  SSH loopback bridge, `RELICRAT_REAL_UI_TEST=1` and screenshot output: **10 passed**,
+  zero skips/failures. The guarded real test refused nonempty inventory and drove
+  production Next/FastAPI/PostgreSQL/media: one copy/photo/nested location,
+  category/item/release creation without implicit ownership/linking, explicit
+  identification then release removal, preserved copy/storage, two retained
+  identification events, canonical-name inventory search and exact photo bytes.
+- Fixture browser cases additionally exercise catalog/release paging, independent
+  selected-release lookup beyond page one, obsolete search cancellation, clearing
+  a release on item changes, stale and uncertain saves requiring Reload copy,
+  no automatic POST retry, escaped catalog names, and existing intake/storage
+  failure, race, keyboard and mobile behavior. Creation drafts remain page-local.
+- Desktop1440/mobile390 production screenshots were opened and validated. A
+  bounded inspection batch removed redundant single-page controls, themed native
+  radios and corrected footer claims; confirmation captures remained valid. The
+  detector ran once and returned no findings. No decorative raster/icon assets.
+- Ten final runtime/test file hashes independently matched the worker snapshot.
+  Test stacks used an internal network and zero published ports, via ordinary SSH
+  sessions without NAS forwarding changes. Symphony stayed stopped. Both test
+  projects removed their containers, volumes, networks and images; independent
+  queries confirmed cleanup. The separate original trial remained running and
+  returned HTTP 200, without upgrading its code or changing its records.
+- Python compilation and `git diff --check`: exit 0. Full local evidence is under
+  ignored `.harness-results/catalog-identification/`.
+
+Catalog editing/merging/deletion, authenticated actors, automated identification,
+production recovery and real collection data remain out of scope. Manual create
+keys are UUID-based; matching names do not infer uniqueness. Offset pages can shift
+under concurrent creation. No backup/restore suite was rerun for this change;
+existing row/history preservation is checked through API/browser integration.
+The completed synthetic vertical workflow is not a production-readiness claim.
+
+The fresh independent finish review found the inherited presentation consistent
+and requested only a PRODUCT.md capability/evidence correction. The documenter
+completed that update and preserved DESIGN.md/design.json byte-for-byte. The
+reviewer’s verdict pass scored its sole material fix resolved, disposition ship;
+that pass is scoped to the documentation fix. Human PR review/merge is separate.

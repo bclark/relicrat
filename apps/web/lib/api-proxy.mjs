@@ -5,6 +5,10 @@ const historyPath = new RegExp(`^inventory/${uuid}/(reconciliations|locations)$`
 const photoPath = new RegExp(`^inventory/${uuid}/photos$`);
 const downloadPath = new RegExp(`^inventory/${uuid}/photos/${uuid}$`);
 const actionPath = new RegExp(`^inventory/${uuid}/(reconcile|location)$`);
+const catalogCollection = /^(catalog\/categories|catalog\/items)$/;
+const catalogItem = new RegExp(`^catalog/items/${uuid}$`);
+const releases = new RegExp(`^catalog/items/${uuid}/releases$`);
+const release = new RegExp(`^catalog/items/${uuid}/releases/${uuid}$`);
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
 /** @param {number} status @param {string} detail */
@@ -15,9 +19,9 @@ function error(status, detail) {
 /** @param {Request} request @param {string[]} segments */
 export async function forwardApi(request, segments) {
   const path = segments.join('/');
-  const methods = path === 'inventory' || path === 'storage-locations' || photoPath.test(path)
+  const methods = path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path)
+    : copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
       ? ['GET'] : actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
