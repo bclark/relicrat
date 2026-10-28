@@ -347,3 +347,45 @@ The combined suite includes storage hierarchy isolation races, shadowing guards,
 reconciliation concurrency, search, and media checks. Migration head 0003 → base
 → head passed; its disposable project/container/network/image were removed.
 Recovery and web checks were not rerun; no new search migration or dependency.
+
+## Browser/API connection verification (2026-10-28)
+
+Built on merged search main `de8ff402f846c2d07acfa83417c62e5c7571b350`.
+The inventory screen remains a placeholder; this adds its same-origin server
+connection and Compose media configuration, without changing API domain code.
+See [web setup and trust boundaries](../apps/web/README.md).
+
+- Host `npm test` in apps/web: 10 passed, zero failures/skips/todos; Node 26.12.1.
+  `npm run lint`: exit 0. Initial host `NEXT_TELEMETRY_DISABLED=1 npm run build`
+  passed; the final production build was also verified in the worker container.
+- Worker `sh scripts/test-web.sh`, bounded externally by a 15-minute timeout:
+  exit 0. Production Next.js 15.5.28 build passed under Node 22; all 10 boundary
+  tests and TypeScript checks passed in that image. PostgreSQL 17 migrated to 0003.
+- The built Next route exercised JSON intake, multipart photo upload, nested
+  storage creation/assignment/history, stale-revision rejection, literal search,
+  rejected cross-site writes/oversized JSON, and exact binary photo download.
+  Recreating the API container retained the same copy/state/history/photo bytes.
+- The first integration attempt failed a legitimate POST with 403: Next.js
+  normalized its internal URL to localhost while the caller used 127.0.0.1.
+  The corrected check compares Origin with actual Host and scheme, ignoring
+  forwarded host headers. A regression covers the normalized URL and spoofed
+  forwarded host. No cross-origin rejection assertions were relaxed.
+- Final transferred source archive SHA256:
+  `aaa42c8b9cc0b5859ec1c0d4a70ead4e1079249c7c8528a5034e6c9bc8f0dcde`.
+  An independent comparison matched all 11 runtime/test/config file hashes to
+  the tested guest snapshot. Compose config checks confirmed loopback-only
+  development ports, server-only internal API origin and a named media mount;
+  the integration stack had no published ports and an internal runtime network.
+- Both integration projects removed their containers, volumes, networks and
+  generated images, including the failed attempt. A separate resource query
+  confirmed zero leftovers. Symphony stayed stopped. Full logs and hashes are
+  retained in ignored `.harness-results/browser-api/` operator evidence.
+- `sh -n scripts/test-web.sh` and `git diff --check`: exit 0. No API pytest suite,
+  migration downgrade or recovery rehearsal was rerun for this web/Compose-only
+  change. The integrated stack verifies migration upgrade and media persistence,
+  not backup/restore, a browser UI, authentication or production readiness.
+
+The committed npm lockfile records existing web dependencies; Docker uses npm ci.
+No new application dependency or database migration was added. Development photo
+and database volumes must be preserved together; down --volumes destroys them.
+Existing unmanaged media is not automatically moved into the new named volume.
