@@ -616,6 +616,38 @@ The reviewer's verdict pass scored that sole documentation fix resolved,
 `disposition: ship`; that verdict pass covers the listed fix. Human PR review,
 merge, private password setup and trial upgrade remain separate next steps.
 
+## PostCSS dependency security verification (2026-10-28)
+
+Based on merged owner-access main `e86827727d64361b00446b8de105eb3bc51feca6`.
+Next 15.5.28 pins PostCSS 8.4.31. A scoped npm override now resolves its copy to
+8.5.32 without a framework upgrade, new direct dependency or schema change.
+The lockfile retains the other package versions. Source-map parsing remains a
+filesystem trust boundary even though this app does not accept uploaded CSS.
+
+- The focused source-map regression was run in the old web image with no network
+  and **failed as expected**, demonstrating access to a disposable external map.
+  It resolves PostCSS through Next and checks absent `from`, parent traversal,
+  symlink escape and retained ordinary local source-map support.
+- Patched host `npm test`: **20 passed**, zero skips/failures. `npm run lint` and
+  `NEXT_TELEMETRY_DISABLED=1 npm run build` passed. `npm ls postcss` confirms Next's
+  actual dependency is 8.5.32. Both `npm audit` and `npm audit --omit=dev` report
+  **zero vulnerabilities** against the registry's current advisory data.
+- Worker `sh scripts/test-web.sh`: production build/typecheck, **20 Node tests**,
+  fresh database migration and authenticated HTTP inventory/photo/storage/search
+  smoke passed. Recreating the API preserved exact photo bytes and history.
+- Isolated Chrome `RELICRAT_REAL_UI_TEST=1 npm run test:browser`: **11 passed**,
+  zero skips/failures, against a separate production web/API/PostgreSQL/media stack.
+  This includes existing catalog/intake behavior and real guest/login/reload/
+  logout/captured-cookie rejection. No screenshots or design changes were needed.
+
+The initial regression assertion was corrected to accept a fully absent map as a
+valid rejection; final assertions still fail on 8.4.31 and pass on 8.5.32.
+Logs are retained under the operator's ignored `.harness-results/postcss-security/`.
+No full API or backup suite was rerun: this patch changes only a web dependency
+and its focused regression. Audit results are dated evidence, not a promise
+against undiscovered vulnerabilities. The running trial remains on merged code
+until this security patch is human-reviewed and merged.
+
 ## First encrypted off-host recovery copy (2026-10-28)
 
 The operator completed the manual procedure in [off-host recovery](off-host-backup.md)
