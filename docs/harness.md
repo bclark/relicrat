@@ -82,10 +82,10 @@ The remote API runner does not transfer or run this recovery harness.
 
 The fixed Compose stack uses the existing API image and PostgreSQL 17 native
 `pg_dump` custom format / `pg_restore`, plus Python standard-library tar archives.
-No new dependency or production behavior is introduced. A provisional copy and
-a generated valid PNG are committed through FastAPI's TestClient with the real
+No new dependency or production behavior is introduced. A provisional copy, two retained manual reconciliations, referenced synthetic
+catalog/release identities, and a generated valid PNG are committed through FastAPI's TestClient with the real
 session dependency. The manifest records API responses, UUIDs, ownership,
-storage key, all copy/photo row columns, timestamps, schema definitions,
+storage key, all copy/photo/history/catalog row columns, timestamps, schema definitions,
 constraints, indexes, triggers, functions, and Alembic revision. The schema
 comparison recognizes PostgreSQL 17's two equivalent deparsing forms for the
 existing status array casts; changed values/operators remain unequal, with
@@ -130,8 +130,9 @@ provides no crash-consistent online snapshots, retention, encryption, scheduling
 external backup destination, disaster recovery guarantee, or evidence for a
 large collection. Authentication, concurrent writers, hostile archive ingestion,
 and recovery across application/schema versions are outside its scope. It does
-not complete the first product vertical slice. There are no migration or
-production deployment changes.
+not complete the first product vertical slice. The reconciliation capability adds migration 0002; see
+[the migration and recovery contract](../apps/api/INVENTORY.md). There is no
+production backup deployment support.
 
 ## Symphony pilot
 
@@ -197,3 +198,38 @@ Upstream references:
 - [Symphony v0.0.3 implementation and configuration](https://github.com/openai/symphony/blob/v0.0.3/elixir/README.md)
 - [Symphony v0.0.3 release and checksums](https://github.com/openai/symphony/releases/tag/v0.0.3)
 - [Harness engineering](https://openai.com/index/harness-engineering/)
+
+
+## GH-13 reconciliation verification (2026-10-28)
+
+Source baseline: `74de7fa4f2789a0539aa681557312695c1f627a6`, with issue workspace
+changes published in the GH-13 draft PR. Local full logs are under ignored
+`.harness-results/gh-13/`. The dedicated guest engine is `relicrat-worker` and
+uses the operator-supplied disposable `BUILDX_CONFIG`.
+
+- Baseline `sh scripts/test-api.sh`: 25 passed; zero skipped/expected failures;
+  downgrade to base and upgrade succeeded; project resources removed.
+- Final `sh scripts/test-api.sh`: 43 passed, zero skipped/expected failures;
+  exit 0, including existing-record migration round trip, deterministic competing
+  row-lock requests, and the full downgrade-to-base/upgrade-to-head sequence.
+  Six warnings: one existing Starlette/httpx warning and five Alembic configuration
+  deprecations exposed by the migration test. Project resources removed.
+- `sh scripts/test-backup-restore.sh`: exit 0 after source destruction; both
+  events, referenced identities, row/schema equality and exact photo bytes verified.
+- `sh scripts/test-backup-restore.sh --missing-media`: expected exit 1 after
+  injection, specifically `Photo download failed: HTTP 404`.
+- `sh scripts/test-backup-restore.sh --corrupt-media`: expected exit 1 after
+  injection, specifically `Downloaded photo bytes differ`.
+- All recovery runs reported project cleanup checked, without remaining resources.
+  The damage runs are deliberate harness failures, not pytest expected failures.
+- `git diff --check` and Python source compilation: exit 0.
+- The first extended recovery run correctly reported a schema comparison
+  difference caused by PostgreSQL 17's equivalent array cast deparsing for the
+  new history status check. An exact normalization rule with changed-value and
+  changed-operator negative controls covers that predicate; no schema or media
+  equality assertions were removed.
+
+The new tests use real commits and independent sessions for history persistence,
+event-write rollback and competing reconciliation requests. The migration test
+round-trips 0002 on synthetic pre-existing records in the disposable test database;
+the full harness also downgrades through base and upgrades through 0002.
