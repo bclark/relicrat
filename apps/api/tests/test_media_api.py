@@ -128,8 +128,6 @@ def test_failed_photo_commit_removes_file(client, monkeypatch):
             MediaAsset.owned_copy_id == uuid.UUID(copy_id))) is None
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="Known bug: refresh failure deletes a committed photo; Symphony pilot")
 def test_refresh_failure_preserves_committed_photo(tmp_path, monkeypatch):
     # Use real commits and independent sessions: savepoint fixtures cannot prove
     # that data survives a committed transaction followed by a read failure.

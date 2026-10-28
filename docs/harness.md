@@ -38,10 +38,11 @@ Use pytest arguments after the host to narrow a reproduction:
 python3 scripts/test-api-remote.py relicrat-worker tests/test_media_api.py::test_refresh_failure_preserves_committed_photo --runxfail
 ```
 
-The photo refresh regression is deliberately marked `xfail(strict=True)` until
-the pilot fixes it. `--runxfail` exposes the real failure. A normal run must
-report that expected failure, never describe the entire suite as passing.
-The companion failed-commit test checks that rollback still removes the file.
+The photo refresh regression injects a post-commit read failure and uses a fresh
+database session to verify that the committed metadata and exact uploaded bytes
+survive. The companion failed-commit test checks that rollback still removes
+the file. The pilot removed the strict expected-failure marker after verifying
+the fix with `--runxfail`; the regression now runs as a normal passing test.
 
 ## Limits
 

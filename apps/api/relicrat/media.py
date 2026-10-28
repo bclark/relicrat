@@ -85,11 +85,12 @@ def upload_photo(copy_id: UUID, file: UploadFile = File(...), db: Session = Depe
     try:
         db.add(asset)
         db.commit()
-        db.refresh(asset)
     except Exception:
         db.rollback()
         destination.unlink(missing_ok=True)
         raise
+    # Once committed, a read failure must not remove the stored photo.
+    db.refresh(asset)
     return asset
 
 
