@@ -138,3 +138,17 @@ external media, external writers, hostile archive ingestion and schema-version
 conversion are outside this workflow. Retaining both files on the same worker is
 not protection against loss of that worker. Do not start using real collection data
 on the strength of this workflow alone.
+
+## Owner credentials and restored sessions
+
+With migration 0004, auth/session tables are included in row fingerprints and
+PostgreSQL dumps. Owner environment credentials are not included. Hashes can
+still be sensitive: keep bundles private. The restored app remains stopped and
+unconfigured. Before promotion, generate fresh owner configuration with a **new
+session secret**; reusing the old password hash/secret could resurrect an older
+session, including one revoked after the backup. See [owner access](owner-access.md).
+
+Backup configuration checks hash Compose's fully resolved model in memory so
+`env_file` settings are compared to the running container correctly. Stale
+configuration still fails before stopping writers. No secrets are printed or
+saved in temporary configuration files by this check.

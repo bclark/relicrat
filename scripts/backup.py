@@ -93,7 +93,11 @@ def backup(args):
     # A stale Compose file or rebuilt tag must never select a different helper
     # image/environment/volume than the app whose backup we are taking.
     for name, container in (('api', api), ('db', db)):
-        expected_hash = output(compose + ['config', '--hash', name]).split()[-1]
+        # Compose's --hash does not resolve env_file like `up` does. Hash the
+        # fully resolved model in memory; credentials never enter a temp file.
+        expected_hash = subprocess.check_output(
+            DOCKER + ['compose', '-p', args.project, '-f', '-', 'config', '--hash', name],
+            input=json.dumps(config), text=True).strip().split()[-1]
         require(container['Config']['Labels'].get('com.docker.compose.config-hash') == expected_hash,
                 f'{name} Compose configuration differs from running container')
     image = config['services']['api'].get('image', args.project + '-api')

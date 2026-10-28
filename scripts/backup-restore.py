@@ -3,6 +3,7 @@ import difflib
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tarfile
@@ -110,6 +111,9 @@ def seed():
     Image.new('RGB', (4, 4), (45, 110, 201)).save(output, format='PNG')
     photo_bytes = output.getvalue()
     with TestClient(app) as api:
+        access = api.post('/api/v1/auth/login', json={'password': os.environ['RELICRAT_TEST_OWNER_PASSWORD']})
+        require(access.status_code == 200, 'Synthetic owner login failed')
+        api.headers['Authorization'] = 'Bearer ' + access.json()['token']
         response = api.post(BASE, json={
             'title': 'Synthetic unidentified comic',
             'description': 'Recovery fixture only; blue cover, issue unknown.',
@@ -181,6 +185,9 @@ def verify():
             fromfile='source', tofile='restored')), flush=True)
         raise RuntimeError('Restored database rows/schema/revision differ')
     with TestClient(app) as api:
+        access = api.post('/api/v1/auth/login', json={'password': os.environ['RELICRAT_TEST_OWNER_PASSWORD']})
+        require(access.status_code == 200, 'Synthetic owner login failed')
+        api.headers['Authorization'] = 'Bearer ' + access.json()['token']
         copy = expected['copy']
         photo = expected['photo']
         response = api.get(f"{BASE}/{copy['id']}")

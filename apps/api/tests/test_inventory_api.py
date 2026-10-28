@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
+from auth_helpers import sign_in
 from sqlalchemy import create_engine, update
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,7 @@ def client():
     app.dependency_overrides[get_db] = override_db
     try:
         with TestClient(app) as test_client:
+            sign_in(test_client)
             yield test_client, connection
     finally:
         app.dependency_overrides.pop(get_db, None)

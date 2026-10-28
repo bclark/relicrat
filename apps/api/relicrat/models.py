@@ -144,3 +144,24 @@ class CopyLocationEvent(Base):
     after_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     operation: Mapped[str] = mapped_column(String(30), nullable=False, server_default="manual")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class OwnerSession(Base):
+    """Revocable, time-bounded owner access; never store raw bearer tokens."""
+    __tablename__ = 'owner_sessions'
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    credential_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OwnerLoginGuard(Base):
+    __tablename__ = 'owner_login_guard'
+    __table_args__ = (CheckConstraint('id = 1', name='owner_guard_singleton'),
+                      CheckConstraint('failures >= 0 AND failures <= 5', name='owner_guard_failures'))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

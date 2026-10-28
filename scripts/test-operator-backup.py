@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import secrets
+import shlex
 import subprocess
 import sys
 import tarfile
@@ -33,7 +34,7 @@ def main():
                 'volumes': ['database:/var/lib/postgresql/data'],
                 'healthcheck': {'test': ['CMD-SHELL', 'pg_isready -U relicrat_recovery -d relicrat_recovery'],
                                 'interval': '2s', 'timeout': '5s', 'retries': 30}},
-            'api': {'build': {'context': str(ROOT / 'apps/api')}, 'environment': {
+            'api': {'env_file': [str(ROOT/'infra/docker/owner-test.env')], 'build': {'context': str(ROOT / 'apps/api')}, 'environment': {
                 'DATABASE_URL': 'postgresql+psycopg://relicrat_recovery:disposable-recovery-only@db:5432/relicrat_recovery',
                 'MEDIA_ROOT': '/media', 'PYTHONPATH': '/app'},
                 'volumes': ['media:/media', f'{evidence}:/evidence',
@@ -88,7 +89,9 @@ def main():
             restored_compose = DOCKER + ['compose', '-p', state['project'], '-f', state['compose']]
             # Reuse the independent existing fixture verifier: every row/schema,
             # both reconciliation events, both movements, nested storage and PNG.
-            run(restored_compose + ['run', '--rm', '--no-deps', '-e', 'PYTHONPATH=/app',
+            synthetic = dict(line.split('=', 1) for line in shlex.split((ROOT/'infra/docker/owner-test.env').read_text(), comments=True))
+            owner_env = [part for key, value in synthetic.items() for part in ('-e', key+'='+value)]
+            run(restored_compose + ['run', '--rm', '--no-deps', *owner_env, '-e', 'PYTHONPATH=/app',
                 '-v', f'{evidence}:/evidence:ro', '-v', f'{ROOT}/scripts/backup-restore.py:/rehearsal/backup-restore.py:ro',
                 'api', 'python', '/rehearsal/backup-restore.py', 'verify'])
             require(not output(restored_compose + ['ps', '-q', '--status', 'running', 'api']), 'Restore exposed app')

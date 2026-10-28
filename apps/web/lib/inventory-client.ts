@@ -26,6 +26,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       ? 'Save could not be confirmed. Reload and inspect the record before trying again.'
       : 'Cannot reach the inventory. Check the service, then reload.', 0);
   }
+  if (response.status === 401) { window.location.replace('/login'); throw new ApiError('Session ended. Sign in again.', 401); }
   let body;
   try { body = await response.json(); }
   catch { throw new ApiError('The service returned an unreadable response. Reload before trying again.', response.ok ? 502 : response.status); }

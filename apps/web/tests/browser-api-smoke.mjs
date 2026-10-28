@@ -5,7 +5,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 assert.equal(process.env.RELICRAT_SYNTHETIC_SMOKE, '1', 'Use scripts/test-web.sh on the dedicated worker');
 const origin = 'http://127.0.0.1:3000';
-const webFetch = (url, options = {}) => fetch(url, { ...options, signal: AbortSignal.timeout(5000) });
+let cookie = '';
+const webFetch = (url, options = {}) => fetch(url, { ...options, headers: { ...options.headers, ...(cookie ? { cookie } : {}) }, signal: AbortSignal.timeout(15000) });
 const photoBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const fixture = '/tmp/relicrat-browser-smoke.json';
 async function get(path) {
@@ -23,10 +24,17 @@ async function save(path, body, status = 201) {
 // Wait only for the disposable container's production Next.js/API startup.
 let ready = false;
 for (let attempt = 0; attempt < 60; attempt++) {
-  try { if ((await webFetch(`${origin}/api/v1/inventory`)).ok) { ready = true; break; } } catch {}
+  try {
+    if ((await fetch(`${process.env.RELICRAT_API_URL}/health`, { signal: AbortSignal.timeout(1000) })).ok &&
+        (await webFetch(`${origin}/api/v1/inventory`)).status === 401) { ready = true; break; }
+  } catch {}
   await new Promise(resolve => setTimeout(resolve, 500));
 }
 assert.ok(ready, 'Disposable web/API stack did not become ready');
+const access = await webFetch(`${origin}/api/v1/auth/login`, { method: 'POST', headers: { origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: process.env.RELICRAT_TEST_OWNER_PASSWORD }) });
+assert.equal(access.status, 200, await access.clone().text());
+cookie = access.headers.get('set-cookie').split(';')[0];
+assert.equal(JSON.stringify(await access.json()).includes('token'), false);
 if (process.argv[2] === 'seed') {
   assert.deepEqual(await get('inventory'), [], 'Refusing to seed a nonempty inventory');
   assert.deepEqual(await get('storage-locations'), [], 'Refusing to seed nonempty storage');

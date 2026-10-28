@@ -9,6 +9,7 @@ import time
 
 import pytest
 from fastapi.testclient import TestClient
+from auth_helpers import sign_in
 from PIL import Image
 from sqlalchemy import create_engine, delete, event, select, text
 from sqlalchemy.exc import DBAPIError
@@ -49,6 +50,7 @@ def setup(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = override
     try:
         with TestClient(app) as api:
+            sign_in(api)
             yield api, engine, copy_id, ids, release_id
     finally:
         app.dependency_overrides.pop(get_db, None)

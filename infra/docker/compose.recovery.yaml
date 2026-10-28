@@ -25,6 +25,7 @@ services:
   restore-db:
     <<: *database
   source-api:
+    env_file: owner-test.env
     <<: *api
     environment:
       DATABASE_URL: postgresql+psycopg://relicrat_recovery:disposable-recovery-only@source-db:5432/relicrat_recovery
@@ -35,6 +36,7 @@ services:
       - evidence:/evidence
       - ../../scripts/backup-restore.py:/rehearsal/backup-restore.py:ro
   restore-api:
+    env_file: owner-test.env
     <<: *api
     environment:
       DATABASE_URL: postgresql+psycopg://relicrat_recovery:disposable-recovery-only@restore-db:5432/relicrat_recovery

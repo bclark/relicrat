@@ -573,3 +573,11 @@ footer {
 .catalog-choice small { display: block; color: var(--muted); font-weight: 400; }
 .current-identification { overflow-wrap: anywhere; }
 .identification form { margin-block: 16px; }
+
+.access-shell { max-width: 480px; margin: 12vh auto; padding: 28px; }
+.access-shell h1 { margin-top: 32px; }
+.access-shell form { margin-block: 28px; }
+.access-shell button[type=submit] { background: var(--accent); color: var(--paper); }
+.owner-controls { margin-left: auto; }
+.owner-controls .error { max-width: 32ch; }
+@media (max-width: 650px) { .access-shell { margin: 5vh auto; padding: 24px 20px; } .masthead { flex-wrap: wrap; } }

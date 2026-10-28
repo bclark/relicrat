@@ -5,6 +5,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from auth_helpers import sign_in
 from PIL import Image
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ def client(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = override_db
     try:
         with TestClient(app) as test_client:
+            sign_in(test_client)
             yield test_client, connection, tmp_path / "media"
     finally:
         app.dependency_overrides.pop(get_db, None)
@@ -157,6 +159,7 @@ def test_refresh_failure_preserves_committed_photo(tmp_path, monkeypatch):
     try:
         data = png_bytes()
         with TestClient(app, raise_server_exceptions=False) as api:
+            sign_in(api)
             response = api.post(f"/api/v1/inventory/{copy_id}/photos",
                                 files={"file": ("photo.png", data, "image/png")})
             assert response.status_code == 500
