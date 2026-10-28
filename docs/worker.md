@@ -139,20 +139,34 @@ sandbox without launching an agent. Docker access itself grants control of the
 guest; these checks do not prevent Docker-mediated guest filesystem access.
 The separate VM is the containment boundary for Docker-capable work.
 
-After PR #7 merged, a fresh `main` checkout again passed four credential-helper
-tests, 24 API tests with one expected failure, and the migration round trip.
-Preflight then found the missing bubblewrap package and Ubuntu denied user
-namespace setup (`bwrap: setting up uid map: Permission denied`). The package
-is installed on the existing guest, but this profile has not been activated and
-the sandbox check has not passed. A `git push --dry-run` permission probe was
-rejected with HTTP 403; the worker still needs repository write access before
-the pilot can publish a branch. Symphony remains stopped.
+After PR #8 merged and the worker token was updated, the sandbox check and
+`git push --dry-run` passed. The scoped AppArmor profile is active; the global
+user namespace restriction remains enabled. Initial pilot attempts exposed an
+incompatible policy object, a missing Codex companion, and Docker build metadata
+writes outside the workspace. The protocol and package corrections above address
+the first two failures.
+
+Before starting Symphony, give Docker build metadata its own disposable cache:
+
+```sh
+export BUILDX_CONFIG=$(mktemp -d /tmp/relicrat-buildx.XXXXXXXXXX)
+# Run the sandboxed harness and Symphony with this environment.
+# After Symphony and its child processes stop:
+rm -rf -- "$BUILDX_CONFIG"
+unset BUILDX_CONFIG
+```
+
+The monitored pilot launcher does this per run. `/tmp` is writable under the
+existing sandbox; no extra writable roots are needed. Verify the full harness
+inside `codex sandbox` with this environment before dispatch, since a Docker
+daemon connectivity check alone does not exercise client-side build writes.
 
 - No Symphony service is enabled or started automatically. Installing binaries
   and signing in do not dispatch work or authorize publishing.
 - The current WORKFLOW.md clones over HTTPS using the scoped credential helper.
-  [Pilot issue #6](https://github.com/bclark/relicrat/issues/6) is published without
-  dispatch labels and awaits review of the harness setup.
+  [Pilot issue #6](https://github.com/bclark/relicrat/issues/6) is the only issue
+  authorized for the monitored pilot. Its dispatch label is removed on handoff
+  or a blocker.
 - Cloud-init configuration changes do not retrofit an initialized guest. Apply
   deliberate updates inside the guest or rebuild only after preserving any
   required work and revoking credentials. Re-provisioning is not a data reset.
