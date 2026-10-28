@@ -15,7 +15,7 @@ from sqlalchemy import inspect, select, text
 
 from relicrat.database import session_factory
 from relicrat.main import app
-from relicrat.models import Category, CatalogItem, Release, ReconciliationEvent, MediaAsset, OwnedCopy
+from relicrat.models import Category, CatalogItem, Release, ReconciliationEvent, MediaAsset, OwnedCopy, StorageLocation, CopyLocationEvent, StorageHierarchyGuard
 
 EVIDENCE = Path('/evidence')
 MEDIA = Path('/media')
@@ -95,7 +95,7 @@ def snapshot():
             WHERE n.nspname = 'public' ORDER BY p.proname, p.oid
         """)).scalars().all()
         rows = {}
-        for model in (Category, CatalogItem, Release, OwnedCopy, MediaAsset, ReconciliationEvent):
+        for model in (Category, CatalogItem, Release, OwnedCopy, MediaAsset, ReconciliationEvent, StorageLocation, CopyLocationEvent, StorageHierarchyGuard):
             rows[model.__tablename__] = [
                 {column.name: getattr(row, column.name) for column in model.__table__.columns}
                 for row in db.scalars(select(model).order_by(model.id))
@@ -139,6 +139,15 @@ def seed():
             })
             require(response.status_code == 200, response.text)
             copy = response.json()
+        root = api.post('/api/v1/storage-locations', json={'name': 'Synthetic room'}).json()
+        child = api.post('/api/v1/storage-locations', json={'name': 'Synthetic box', 'parent_id': root['id']}).json()
+        for revision, location in enumerate((root, child)):
+            response = api.post(f"{BASE}/{copy['id']}/location", json={
+                'storage_location_id': location['id'], 'expected_storage_revision': revision})
+            require(response.status_code == 200, response.text)
+            copy = response.json()
+        movements = api.get(f"{BASE}/{copy['id']}/locations").json()
+        require(len(movements) == 2, 'Movement history missing')
         history = api.get(f"{BASE}/{copy['id']}/reconciliations").json()
         require(len(history) == 2, 'Reconciliation history missing')
     state = snapshot()
@@ -147,7 +156,7 @@ def seed():
     require(photo['sha256'] == hashlib.sha256(photo_bytes).hexdigest(), 'Upload checksum mismatch')
     require((MEDIA / key).read_bytes() == photo_bytes, 'Upload bytes mismatch')
     EVIDENCE.joinpath('original.png').write_bytes(photo_bytes)
-    manifest = dict(copy=copy, photo=photo, history=history, storage_key=key, database=state)
+    manifest = dict(copy=copy, photo=photo, history=history, movements=movements, locations=[root, child], storage_key=key, database=state)
     EVIDENCE.joinpath('manifest.json').write_text(json.dumps(manifest, indent=2))
     print(json.dumps(manifest, indent=2), flush=True)
 
@@ -179,6 +188,9 @@ def verify():
         require(api.get(BASE).json() == [copy], 'Inventory list differs')
         require(api.get(f"{BASE}/{copy['id']}/reconciliations").json() == expected['history'],
                 'Reconciliation history differs')
+        require(api.get(f"{BASE}/{copy['id']}/locations").json() == expected['movements'], 'Movement history differs')
+        for location in expected['locations']:
+            require(api.get(f"/api/v1/storage-locations/{location['id']}").json() == location, 'Location differs')
         response = api.get(f"{BASE}/{copy['id']}/photos")
         require(response.status_code == 200 and response.json() == [photo], 'Photo metadata differs')
         response = api.get(f"{BASE}/{copy['id']}/photos/{photo['id']}")

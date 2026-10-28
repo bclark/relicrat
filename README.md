@@ -89,15 +89,17 @@ The first vertical slice is intentionally narrow:
 5. Back up the database and media.
 
 The API supports provisional copies, photos, and manual catalog/release reconciliation
-with revision checks and retained identification history, plus literal text search
-across provisional information and linked catalog/release names. See the
-[inventory API contract](apps/api/INVENTORY.md). Storage assignment,
-catalog CRUD/UI, authentication and production backup remain unimplemented;
+with revision checks and retained identification history, nested storage locations,
+and explicit revision-checked copy movements with retained history. Literal text
+search finds copies by provisional information and linked catalog/release names.
+See the [inventory API contract](apps/api/INVENTORY.md).
+Catalog CRUD/UI, authentication and production backup remain unimplemented;
 the synthetic recovery harness is development verification only. The complete
 vertical slice is not delivered yet.
 
 ## Documentation
 
+- [Project dashboard](docs/project-dashboard.html) — open the self-contained HTML in a browser for completed work, next steps and recorded validation. The snapshot is updated manually after merged milestones.
 - [Architecture overview](docs/architecture/overview.md)
 - [ADR 0001: Modular monolith and stack](docs/decisions/0001-modular-monolith.md)
 - [Development harness and Symphony pilot](docs/harness.md)

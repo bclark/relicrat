@@ -215,12 +215,20 @@ def test_search_preserves_copy_history_and_photo(search_inventory, tmp_path, mon
     photo = uploaded.json()
     response = api.post(f"{base}/reconcile", json={"catalog_item_id": str(item_id), "release_id": str(release_id), "expected_revision": 0})
     assert response.status_code == 200, response.text
+    location = api.post("/api/v1/storage-locations", json={"name": "Synthetic search shelf"})
+    assert location.status_code == 201, location.text
+    assigned = api.post(f"{base}/location", json={"storage_location_id": location.json()["id"], "expected_storage_revision": 0})
+    assert assigned.status_code == 200, assigned.text
+    movements = api.get(f"{base}/locations").json()
+    assert len(movements) == 1
     before = api.get(base).json()
+    assert before["storage_revision"] == 1
     history = api.get(f"{base}/reconciliations").json()
     assert len(history) == 1
     assert search(api, "Copper") == [before]
     assert search(api, "no match") == []
     assert api.get(base).json() == before
     assert api.get(f"{base}/reconciliations").json() == history
+    assert api.get(f"{base}/locations").json() == movements
     assert api.get(f"{base}/photos").json() == [photo]
     assert api.get(f"{base}/photos/{photo['id']}").content == data

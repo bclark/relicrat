@@ -40,6 +40,7 @@ class InventoryCopy(BaseModel):
     release_id: UUID | None
     storage_location_id: UUID | None
     identification_status: str
+    storage_revision: int
     identification_revision: int
     ownership_status: str
     created_at: datetime
@@ -134,4 +135,44 @@ def reconciliation_history(copy_id: UUID,
     return list(db.scalars(select(ReconciliationEvent)
                           .where(ReconciliationEvent.owned_copy_id == copy_id)
                           .order_by(ReconciliationEvent.after_revision.asc())
+                          .limit(limit).offset(offset)).all())
+
+
+class AssignLocation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    storage_location_id: UUID | None
+    expected_storage_revision: int = Field(ge=0, le=2147483646, strict=True)
+
+
+class LocationEventInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    owned_copy_id: UUID
+    before_location_id: UUID | None
+    after_location_id: UUID | None
+    before_revision: int
+    after_revision: int
+    operation: str
+    created_at: datetime
+
+
+@router.post("/{copy_id}/location", response_model=InventoryCopy)
+def assign_copy_location(copy_id: UUID, payload: AssignLocation, db: Session = Depends(get_db)) -> OwnedCopy:
+    from relicrat.storage import AssignmentError, assign_location
+    try:
+        return assign_location(db, copy_id, payload.storage_location_id, payload.expected_storage_revision)
+    except AssignmentError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from None
+
+
+@router.get("/{copy_id}/locations", response_model=list[LocationEventInfo])
+def location_history(copy_id: UUID,
+                     limit: int = Query(default=50, ge=1, le=100),
+                     offset: int = Query(default=0, ge=0),
+                     db: Session = Depends(get_db)):
+    from relicrat.models import CopyLocationEvent
+    get_copy(copy_id, db)
+    return list(db.scalars(select(CopyLocationEvent)
+                          .where(CopyLocationEvent.owned_copy_id == copy_id)
+                          .order_by(CopyLocationEvent.after_revision.asc())
                           .limit(limit).offset(offset)).all())

@@ -234,10 +234,83 @@ event-write rollback and competing reconciliation requests. The migration test
 round-trips 0002 on synthetic pre-existing records in the disposable test database;
 the full harness also downgrades through base and upgrades through 0002.
 
+## GH-16 storage verification (2026-10-28)
+
+Source baseline: `448a16e1896a007b6335155b8d9b30c73d455f97` plus this
+issue's workspace changes. Migration head is `0003_storage`. Logs are preserved
+locally under ignored `.harness-results/gh-16/`; branch/commit identifiers for
+published contents are recorded in the draft PR. No dashboard files were changed.
+The dedicated guest engine and operator-supplied disposable `BUILDX_CONFIG`
+were used; no external data or host services were accessed.
+
+- Baseline `sh scripts/test-api.sh`: exit 0, 43 passed, zero skipped/expected
+  failures, six existing deprecation warnings. Head→base→head succeeded through
+  0002; project `relicrat-test-1793156881-4` removed its database, image and network.
+- Final `sh scripts/test-api.sh`: exit 0, **65 passed**, zero skipped/expected
+  failures, 17 warnings (one Starlette/httpx and 16 Alembic configuration
+  deprecations). Head→base→head succeeded through 0003; project
+  `relicrat-test-1793157121-3` removed its database, image and network.
+- `sh scripts/test-backup-restore.sh`: exit 0, project
+  `relicrat-recovery-np1udximt9`. After source DB/media destruction, verified all
+  row columns/schema, nested locations, current assignment, two movements,
+  two reconciliations, referenced identities and exact photo bytes.
+- `sh scripts/test-backup-restore.sh --missing-media`: intended exit 1 after
+  injection, specifically `Photo download failed: HTTP 404`; project
+  `relicrat-recovery-scg3qmz9jn` reported cleanup checked.
+- `sh scripts/test-backup-restore.sh --corrupt-media`: intended exit 1 after
+  injection, specifically `Downloaded photo bytes differ`; project
+  `relicrat-recovery-acgx1jgsfi` reported cleanup checked.
+- Positive recovery also reported cleanup checked; no remaining project resources
+  were reported. Damage-mode failures are deliberate, not skipped database checks.
+- `git diff --check` and Python source compilation with built-in `compile` passed.
+
+Focused checks use real commits/fresh sessions for event persistence and rollback,
+exact photo metadata/bytes and retained identification history, overlapping row-lock
+requests, and independent concurrent identification/storage revisions. Direct SQL
+checks cover revision/event FKs and uniqueness, self/long/multi-row cycles, a
+160-level hierarchy, valid multi-row rotation and absent coordination state.
+Opposing parent changes on different rows establish both snapshots before the
+competing commit and wait for observed PostgreSQL lock overlap. READ COMMITTED
+rejects the cycle with 23514; REPEATABLE READ rejects the stale guard write with
+40001. Committed graph state remains valid. Migration tests preserve legacy
+records, reject a preexisting longer cycle atomically, and round-trip 0003 with
+populated movement history on disposable data.
+
+The migration takes an exclusive location-table lock while validating/installing;
+hierarchy mutations serialize on a singleton guard write and scan the final graph.
+Large-collection load has not been tested. Downgrade destroys movement history and
+revisions and removes cycle protection while retaining current assignments; see
+[the concrete DB/media backup and recovery procedure](../apps/api/INVENTORY.md).
+The recovery rehearsal remains quiescent and same-version only. Authentication,
+search, usable frontend/catalog UI, operator production backups, container
+reparenting/history and broader provenance remain unfinished. The first vertical
+slice is incomplete.
+
+### GH-16 independent review: schema lookup boundary
+
+Two direct-SQL regressions reproduced temporary relation shadowing of the new
+hierarchy check and coordination table. Both failed before the correction.
+Migration 0003 now pins each hierarchy function to pg_catalog/public with pg_temp
+last; the two regressions pass without changing or weakening the cycle checks.
+Migrations 0001 and 0002 remain unchanged.
+
+Final operator verification used the storage source plus this correction:
+
+- `sh scripts/test-api.sh tests/test_storage.py::test_hierarchy_guard_uses_canonical_relations`:
+  2 passed after the fix (2 failed before it); migration head/base/head passed.
+- `sh scripts/test-api.sh`: 67 passed, zero skipped/expected failures, 17
+  deprecation warnings; migration round trip through 0003 passed.
+- `sh scripts/test-backup-restore.sh`: exit 0 after source destruction; hierarchy,
+  guard state, assignments, movement/identification history and exact bytes passed.
+- Both recovery damage modes retained their intended exit 1: missing download
+  HTTP 404 and differing photo bytes, respectively.
+- `git diff --check` passed. Logs are retained in the issue workspace under
+  ignored `.harness-results/operator-review/`; only disposable data was used.
+
 ## Inventory text search verification (2026-10-28)
 
-Built on merged main `448a16e1896a007b6335155b8d9b30c73d455f97`, independently
-of the open storage/dashboard PRs. The operator ran
+Initially built on main `448a16e1896a007b6335155b8d9b30c73d455f97`,
+before storage/dashboard PRs merged. The operator ran
 `python3 scripts/test-api-remote.py relicrat-worker`, which executes
 `sh scripts/test-api.sh` on the isolated guest with disposable PostgreSQL 17.
 
@@ -245,15 +318,32 @@ of the open storage/dashboard PRs. The operator ran
 - Before implementation, `python3 scripts/test-api-remote.py relicrat-worker
   tests/test_inventory_api.py::test_search_each_field_and_trim --maxfail=1`:
   expected exit 1; search returned an unrelated copy because `q` was ignored.
-- Final full suite: 62 passed, zero skipped/expected failures, exit 0, including
+- Before integration with storage, full suite: 62 passed, zero skipped/expected failures, exit 0, including
   literal wildcard/backslash/quote handling, NUL/length validation, catalog-only
   exclusion, multiple-copy pagination, and unchanged history/photo bytes.
   Six existing Starlette/httpx and Alembic configuration deprecation warnings.
-- The final API snapshot SHA256 is
+- That API snapshot SHA256 is
   `a6a7737e1e7969e15f1f51f410e362b18b80ef0bbd24013c66eae5e1fdc8cf22`.
   Head → base → head migrations succeeded; each run removed its own disposable
   project. Full output and exit statuses are retained in ignored local harness logs.
 - `git diff --check` passed. No migration, dependency, deployment, or permission
   changes. Recovery and web checks were not run for this read-only API change;
-  neither large-collection performance nor integration with unmerged storage
-  PR #17 is claimed. Symphony remained stopped.
+  large-collection performance is unmeasured. Symphony remained stopped.
+  These initial results precede the combined verification below.
+
+
+### Combined verification after storage/dashboard merge
+
+Integrated merged main `5ee13b8deb872895c3396a6a8b7b0f2d101ca91d`, retaining
+storage and dashboard changes and resolving status-document conflicts. No deployed
+migration was edited. Extended the unchanged-state search check to first assign
+a storage location and then verify the same storage revision and movement event.
+
+`python3 scripts/test-api-remote.py relicrat-worker` passed with **86 passed,
+zero skipped/expected failures**, exit 0 and 17 existing deprecation warnings.
+Snapshot SHA256:
+`1d35384fe8e82e24c3e799866a0ba95c0c5e62e16f1aa7d1b62eddafb8415841`.
+The combined suite includes storage hierarchy isolation races, shadowing guards,
+reconciliation concurrency, search, and media checks. Migration head 0003 → base
+→ head passed; its disposable project/container/network/image were removed.
+Recovery and web checks were not rerun; no new search migration or dependency.
