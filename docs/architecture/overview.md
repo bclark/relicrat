@@ -36,8 +36,9 @@ revision-checked copy movement with retained history, and inventory text search.
 The web app supports provisional intake, photos, explicit storage and search.
 The copy record includes manual catalog lookup/creation, optional release selection
 and explicit revision-checked identification with history. Catalog edits/merges and
-automated identification remain outside this slice. Production backup/restore and
-authentication are not implemented. The synthetic recovery rehearsal is development
+automated identification remain outside this slice. Single-owner password access now protects the web and API; see
+[owner setup and session boundaries](../owner-access.md). Production backup/restore
+is not implemented. The synthetic recovery rehearsal is development
 verification only. An [offline operator workflow](../backup-restore.md) can retain
 synthetic database/media bundles and verify a separate fresh restore on the worker;
 it does not provide production recovery or automatic cutover. See the [inventory API contract](../../apps/api/INVENTORY.md). See [the harness guide](../harness.md) for

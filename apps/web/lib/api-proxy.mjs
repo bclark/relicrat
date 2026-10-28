@@ -1,3 +1,4 @@
+import { apiOrigin, checkRequest, jsonError as error, sessionToken } from './server-security.mjs';
 /** Browser access to the fixed internal API; no client-selected upstreams. */
 const uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const copyPath = new RegExp(`^inventory/${uuid}$`);
@@ -11,13 +12,12 @@ const releases = new RegExp(`^catalog/items/${uuid}/releases$`);
 const release = new RegExp(`^catalog/items/${uuid}/releases/${uuid}$`);
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
-/** @param {number} status @param {string} detail */
-function error(status, detail) {
-  return Response.json({ detail }, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
-}
-
 /** @param {Request} request @param {string[]} segments */
 export async function forwardApi(request, segments) {
+  const rejected = checkRequest(request);
+  if (rejected) return rejected;
+  const token = sessionToken(request.headers);
+  if (!token) return error(401, 'Sign in to continue');
   const path = segments.join('/');
   const methods = path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
@@ -25,29 +25,15 @@ export async function forwardApi(request, segments) {
       ? ['GET'] : actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
-  // Next.js can normalize request.url to localhost. Use the actual Host header,
-  // never X-Forwarded-Host, and require an exact scheme/host/port origin.
-  if (request.method === 'POST') {
-    let sameOrigin = false;
-    try {
-      const value = request.headers.get('origin') || '';
-      const origin = new URL(value);
-      sameOrigin = origin.origin === value && origin.host === request.headers.get('host') &&
-        origin.protocol === new URL(request.url).protocol;
-    } catch { /* Missing, null, or malformed origins are rejected. */ }
-    if (!sameOrigin) return error(403, 'Open RelicRat directly before saving changes');
-  }
   let upstream;
   try {
-    upstream = new URL(process.env.RELICRAT_API_URL || 'http://127.0.0.1:8000');
-    if (!['http:', 'https:'].includes(upstream.protocol) || upstream.username || upstream.password ||
-        upstream.pathname !== '/' || upstream.search || upstream.hash) throw new Error('Invalid API origin');
+    upstream = apiOrigin();
   } catch {
     return error(503, 'The internal API connection is not configured correctly');
   }
   upstream.pathname = `/api/v1/${path}`;
   upstream.search = new URL(request.url).search;
-  const headers = new Headers();
+  const headers = new Headers({ Authorization: `Bearer ${token}` });
   let body;
   if (request.method === 'POST') {
     const contentType = request.headers.get('content-type') || '';

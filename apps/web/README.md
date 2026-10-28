@@ -3,7 +3,7 @@
 The add-first inventory screen supports provisional copies, photos, explicit
 storage changes, and inventory search. Use synthetic records and test photos only.
 The server exposes the existing inventory/storage API at `/api/v1/...` on the same
-origin; this is not authentication or a production deployment.
+origin behind single-owner authentication. This remains a synthetic development deployment.
 
 ## First screen
 
@@ -31,24 +31,17 @@ never implies ownership or links the copy by itself. No release specified remove
 a previous edition. Similar names remain separate, with references shown for
 disambiguation. Stale or uncertain writes require Reload copy and review; catalog
 reload alone cannot unlock an uncertain copy. Catalog editing/deletion, automated
-matching, valuation, real imports, authentication and production recovery remain
+matching, valuation, real imports and production recovery remain
 out of scope. The worker has a separate offline synthetic backup workflow. The separate local
 progress dashboard is unchanged.
 
 ## Run locally with synthetic data
 
-From the repository root, after copying `.env.example` to `.env`:
-
-```sh
-docker compose up -d db
-docker compose run --rm api alembic upgrade head
-docker compose up --build
-```
-
-All development ports remain bound to host loopback. Web is on
-`http://localhost:3000`; the upstream API is also available locally on port 8000.
-Do not expose these services or enter real collection data. Apply migrations
-explicitly before API use; startup does not migrate an existing database.
+Follow [owner setup](../../docs/owner-access.md) before starting Compose. Pass both
+`.env` and ignored `.env.owner` on every Compose command. Only the web port is
+published on loopback at the configured origin (default `http://127.0.0.1:3000`).
+API and database ports are internal. Apply migrations before starting the app.
+Use synthetic data only.
 
 Inside Compose, the web server reads `RELICRAT_API_URL=http://api:8000` at runtime.
 For a host-run web server it defaults to `http://127.0.0.1:8000`; set the variable
@@ -73,27 +66,25 @@ UUID path segments and supported methods are allowlisted; clients cannot choose
 upstream hosts or arbitrary API paths. Query strings remain literal and the API
 retains validation authority. No redirect is followed.
 
-POST requires `Origin` to exactly match the request scheme and actual Host header,
-and JSON
-content type except for multipart photo uploads. Browser `fetch` supplies this
+Every request requires the actual Host and protocol to match `RELICRAT_WEB_ORIGIN`.
+POST additionally requires an exact matching Origin and JSON content type except for multipart photo uploads. Browser `fetch` supplies this
 origin; missing/null/cross-origin values receive 403. Forwarded host headers are
-not trusted. This also handles Next.js normalizing its internal URL to localhost. This blocks cross-site
-form uploads too. Do not treat this check as user authentication, or assume a
-reverse proxy with a different public origin works without deliberate testing.
+not trusted. These checks supplement the owner session and block cross-site form uploads.
+A reverse proxy requires deliberate end-to-end testing at its configured origin.
 
 The route reads at most 64 KiB of JSON or 16 MiB of multipart body, regardless
 of Content-Length. The API independently validates image bytes and its existing
 15 MiB image limit. Multipart bytes and photo downloads are preserved exactly.
-No browser cookies, Authorization or forwarded headers go to the API; only the
-request content type is forwarded. Browser responses retain upstream status and
+Only the recognized HttpOnly owner cookie is translated to an API Bearer header.
+Unrelated cookies, browser Authorization and forwarded headers never reach the API.
+The request content type is forwarded. Browser responses retain upstream status and
 content type, with no-store/nosniff, without upstream cookies/internal headers.
 
 API connection failures return 502; invalid operator configuration returns 503.
 Upstream requests have a 30-second timeout. Saves are never automatically
 retried: after an uncertain outcome, refresh and inspect the inventory/history
 before deciding whether to retry. There is no idempotency key or per-user
-concurrency/rate/memory budget. Authentication, production limits, hardened
-network access, catalog editing and automated matching remain separate work.
+concurrency/rate/memory budget. Production limits, hardened network access, catalog editing and automated matching remain separate work.
 
 ## Checks
 
@@ -142,17 +133,17 @@ or application runtime dependency was added. Use a modern Chromium installation
 existing test browser. Tests create isolated browser contexts, without your
 regular browser profile.
 
-Start this app on a loopback-only test port, then run in another terminal:
+Use a fresh disposable worker stack from `infra/docker/compose.web-test.yaml` with
+its public synthetic owner fixture. Set `RELICRAT_TEST_WEB_ORIGIN` to the exact
+loopback URL served by `scripts/private-preview.py`. The browser runner signs in
+through the actual owner endpoint before intercepting domain fixtures. It needs a
+running API/session database even for fixture cases. Never use a collection app.
 
 ```sh
-# apps/web, first terminal
-npm run build
-npm run start -- --hostname 127.0.0.1 --port 63112
-# apps/web, second terminal
-npm run test:browser
+RELICRAT_TEST_WEB_URL=http://127.0.0.1:TEST_PORT RELICRAT_REAL_UI_TEST=1 npm run test:browser
 ```
 
-By default, all API calls in browser scenarios are intercepted with clearly
+By default, domain API calls in fixture scenarios are intercepted with clearly
 synthetic in-memory fixtures. These cover empty/error/no-match states, title and
 notes intake, duplicate in-flight submission, photo failure/size validation,
 explicit nested storage/movement, pagination, stale revisions, delayed reads,
@@ -166,7 +157,7 @@ For the verified operator run, a temporary loopback bridge relayed only test
 HTTP requests through the existing two-hop SSH helper into a fresh no-port worker
 container. The test drove actual Chrome → production Next.js → FastAPI →
 PostgreSQL/media, then reloaded the page and checked exact photo bytes and storage
-history. That bridge is local test tooling, not a deployment or supported remote
-access feature; no NAS TCP-forwarding settings changed. It and the synthetic
+history. The versioned `scripts/private-preview.py` helper provides this limited synthetic
+SSH preview access; no NAS TCP-forwarding settings changed. It and the synthetic
 stack were removed after verification. A usable hands-on trial requires a
 separately started private preview with synthetic data.

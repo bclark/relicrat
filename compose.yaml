@@ -13,8 +13,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
   api:
     build:
       context: ./apps/api
@@ -22,10 +20,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-relicrat}:${POSTGRES_PASSWORD:-change-me-local-only}@db:5432/${POSTGRES_DB:-relicrat}
       MEDIA_ROOT: /var/lib/relicrat/media
+      RELICRAT_OWNER_PASSWORD_HASH: ${RELICRAT_OWNER_PASSWORD_HASH:?Run scripts/configure-owner.py}
+      RELICRAT_SESSION_SECRET: ${RELICRAT_SESSION_SECRET:?Run scripts/configure-owner.py}
     volumes:
       - media_data:/var/lib/relicrat/media
-    ports:
-      - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -35,6 +33,8 @@ services:
     restart: unless-stopped
     environment:
       RELICRAT_API_URL: http://api:8000
+      RELICRAT_WEB_ORIGIN: ${RELICRAT_WEB_ORIGIN:?Set the private browser origin}
+      RELICRAT_ALLOW_LOOPBACK_HTTP: ${RELICRAT_ALLOW_LOOPBACK_HTTP:-0}
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:

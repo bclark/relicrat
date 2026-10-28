@@ -1,3 +1,10 @@
+# Owner access
+
+All inventory, catalog, storage, history and photo endpoints require a current
+owner Bearer session. Browser clients use the private Next.js cookie gateway.
+Only minimal GET /health and bounded POST /api/v1/auth/login are anonymous.
+See [owner access](../../docs/owner-access.md) for the authentication contract.
+
 # Inventory text search
 
 `GET /api/v1/inventory?q=blue%20cover&limit=50&offset=0` returns physical

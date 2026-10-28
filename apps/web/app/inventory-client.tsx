@@ -1,5 +1,7 @@
 'use client';
 
+import SignOut from './sign-out';
+
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type RunSave } from '../lib/inventory-client';
 import CopyDetail from './copy-detail';
@@ -77,9 +79,9 @@ export default function InventoryClient() {
   return (
     <>
       <a className="skip-link" href="#add-find">Skip to adding a find</a>
-      <header className="masthead"><a className="brand" href="/">RelicRat</a><span>Your collection, one copy at a time.</span></header>
+      <header className="masthead"><a className="brand" href="/">RelicRat</a><span>Your collection, one copy at a time.</span><SignOut /></header>
       <main>
-        <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Authentication and production backups are not ready.</span></div>
+        <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
         <div className="workspace">
           <div className="workbench">
             <section className="intake" aria-labelledby="add-find">
@@ -118,7 +120,7 @@ export default function InventoryClient() {
           </section>
         </div>
       </main>
-      <footer>Provisional intake, photos, manual identification, storage, and search. Authentication and production recovery remain unfinished.</footer>
+      <footer>Provisional intake, photos, manual identification, storage, and search. Production recovery and broader deployment hardening remain unfinished.</footer>
     </>
   );
 }

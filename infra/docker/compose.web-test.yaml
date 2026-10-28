@@ -14,6 +14,7 @@ services:
       timeout: 5s
       retries: 30
   api:
+    env_file: owner-test.env
     build:
       context: ../../apps/api
     environment:
@@ -29,6 +30,9 @@ services:
       context: ../../apps/web
     environment:
       RELICRAT_API_URL: http://api:8000
+      RELICRAT_WEB_ORIGIN: ${RELICRAT_TEST_WEB_ORIGIN:-http://127.0.0.1:3000}
+      RELICRAT_ALLOW_LOOPBACK_HTTP: '1'
+      RELICRAT_TEST_OWNER_PASSWORD: synthetic-only-owner-password
       RELICRAT_SYNTHETIC_SMOKE: '1'
       NEXT_TELEMETRY_DISABLED: '1'
     depends_on:

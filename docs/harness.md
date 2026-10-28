@@ -546,3 +546,72 @@ and requested only a PRODUCT.md capability/evidence correction. The documenter
 completed that update and preserved DESIGN.md/design.json byte-for-byte. The
 reviewer’s verdict pass scored its sole material fix resolved, disposition ship;
 that pass is scoped to the documentation fix. Human PR review/merge is separate.
+
+## Single-owner access verification (2026-10-28)
+
+Based on merged main `1455b4eb04c3684e41209c12ce93f73e697c06fa` (PR #25).
+The owner chose an SSH-provisioned password. Migration 0004 adds revocable owner
+sessions and a serialized failed-login guard; no collection rows are rewritten
+and no runtime dependency is added. The existing trial has not been upgraded.
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **97 passed**, zero skips
+  or expected failures, 20 warnings; full downgrade to base and upgrade through
+  0004 succeeded. Auth tests cover anonymous data/upload/docs denial, bounded
+  login and sanitized validation, token-hash-only storage, logout replay,
+  expiry, password/secret rotation, concurrent failed-login throttling, missing
+  configuration and auth migration preservation of an existing copy. Existing
+  domain tests sign in through the actual login endpoint.
+- `sh scripts/test-web.sh` on the dedicated worker: production build/typecheck,
+  **19 Node tests**, zero skips/failures, and fresh migrations passed. HTTP smoke
+  verifies authenticated copy/photo/storage/search and exact photo persistence
+  after API recreation. Both passes completed; scoped cleanup exited 0.
+- Host Node tests, TypeScript check and production Next.js build also passed.
+  Boundary checks cover HTTPS and loopback cookie policy, Host/Origin pinning,
+  cookie-to-Bearer isolation, token-free browser JSON, login limits/errors,
+  session lookup and confirmed server-side logout before cookie deletion.
+- `npm run test:browser` with `RELICRAT_REAL_UI_TEST=1`, isolated Chrome and a
+  loopback SSH bridge to the disposable no-port worker stack: **11 passed**, zero
+  skips/failures. The existing real inventory/catalog workflow still preserves
+  physical-copy UUID, photo bytes, storage and reconciliation history. The new
+  flow verifies guest redirects, wrong/right password, HttpOnly/Strict cookie,
+  no JavaScript token access, no-store pages, cross-origin write rejection,
+  anonymous photo denial, reload persistence and logout-cookie replay denial.
+- `python3 scripts/test-operator-backup.py`: positive capture/restart, source
+  destruction, fresh restore and independent fixture verification passed; five
+  damaged-bundle modes were rejected. Stale Compose settings still fail before
+  stopping writers. The test now includes auth tables and supplies synthetic
+  credentials only to its independent verifier; actual restores remain stopped
+  without owner configuration. Cleanup of all owned resources passed.
+- `python3 -m unittest discover -s scripts -p 'test_*.py' -v`: **11 passed**.
+  Python compilation and `git diff --check` passed. Setup
+  checks verify private exclusive output, no secret stdout, password verification,
+  unsafe-origin refusal and refusal when hidden password entry is unavailable.
+  The bridge checks host/origin/path/length guards and selective cookie forwarding.
+- Desktop/mobile inventory and login-error captures were inspected. A mobile
+  login capture was replaced from a fresh fixed-size context after a resize
+  rendering artifact; no UI change was needed. The detector ran once and returned
+  no findings. No decorative asset or design-system change was introduced.
+
+An early web smoke failed because it checked gateway readiness before the
+recreated API was ready; the final check waits for API health as well. The first
+operator run exposed Compose `--hash` omitting env_file resolution; the tool now
+hashes the fully resolved model through stdin, preserving stale-config rejection
+without a credential-bearing temporary file. Final integrations passed.
+
+Local logs are under ignored `.harness-results/owner-authentication/` in the
+operator's main checkout. This evidence covers synthetic development only.
+HTTPS ingress, public deployment, MFA, multi-user permissions, large-load budgets,
+off-host backup and production recovery remain unverified/out of scope. Restore
+promotion requires a fresh session secret, as documented in owner-access.md.
+
+All 41 changed runtime/test source hashes matched the worker snapshot. Root
+development Compose rendered successfully with public synthetic credentials; it
+was not launched. The separate disposable browser stack and Mac bridge were
+removed after verification. The existing trial on port 56742 still returned 200.
+
+The fresh finish reviewer matched all four captures to the inherited Operate
+system and requested only PRODUCT.md truth/persistence corrections. The shipped
+documenter updated those claims and preserved DESIGN.md/design.json byte-for-byte.
+The reviewer's verdict pass scored that sole documentation fix resolved,
+`disposition: ship`; that verdict pass covers the listed fix. Human PR review,
+merge, private password setup and trial upgrade remain separate next steps.

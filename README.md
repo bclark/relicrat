@@ -4,7 +4,7 @@
 
 RelicRat is a self-hosted inventory and collection-management platform for physical collectibles. It is designed for collectors who want to catalog individual items, keep track of where they live, understand their provenance and value, and see what is missing from a collection—without surrendering control of their data.
 
-> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; authentication and production recovery remain unfinished.
+> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; single-owner authentication is implemented, while production deployment and recovery remain unfinished.
 
 ## What we're building
 
@@ -67,22 +67,24 @@ compose.yaml            Local services
 git clone https://github.com/bclark/relicrat.git
 cd relicrat
 cp .env.example .env
-docker compose up -d db
-docker compose run --rm api alembic upgrade head
-docker compose up --build
+python3 scripts/configure-owner.py --origin http://127.0.0.1:3000 --allow-loopback-http
+docker compose --env-file .env --env-file .env.owner up -d db
+docker compose --env-file .env --env-file .env.owner run --rm api alembic upgrade head
+docker compose --env-file .env --env-file .env.owner up --build
 ```
 
 Development URLs (synthetic data only):
 
-- Web: http://localhost:3000
-- API health: http://localhost:8000/health
-- API docs: http://localhost:8000/docs
+- Web: http://127.0.0.1:3000 (owner password required)
+- API and PostgreSQL: internal Compose network only; no published ports.
+- API documentation routes are disabled.
 
+See [owner setup and private access](docs/owner-access.md) for SSH setup, rotation and recovery.
 The web server forwards allowlisted `/api/v1/...` requests to the private API.
 Photo files use a dedicated named media volume; apply migrations before API use.
 See [browser/API setup and verification](apps/web/README.md).
 
-**Development only:** The example Compose setup uses local credentials and publishes ports on the host. Do not expose it to the internet or store real collectibles data in it until authentication, secrets, and backup/recovery have been hardened.
+**Development only:** Only the web port is bound to host loopback. The example still uses development database credentials. Do not expose it to the internet or store real collection data until production secrets, network access and off-host recovery are verified.
 
 ## First milestone
 
@@ -103,7 +105,8 @@ The add-first web screen supports provisional intake, photo upload/viewing, nest
 storage creation, explicit location changes and literal search. Manual catalog
 lookup/creation, optional release selection and revision-checked identification
 with history are available in the copy record. Catalog editing/deletion, automated
-matching, authentication and production backup remain unimplemented;
+matching and production backup remain unimplemented. Single-owner access protects
+the application;
 an [offline operator backup/restore workflow](docs/backup-restore.md) is available
 for synthetic data on the dedicated worker, alongside the disposable recovery
 harness. Production recovery remains unfinished. The complete
@@ -114,6 +117,8 @@ vertical slice is not delivered yet.
 - [Project dashboard](docs/project-dashboard.html) — open the self-contained HTML in a browser for completed work, next steps and recorded validation. The snapshot is updated manually after merged milestones.
 - [Architecture overview](docs/architecture/overview.md)
 - [ADR 0001: Modular monolith and stack](docs/decisions/0001-modular-monolith.md)
+- [Owner setup and private access](docs/owner-access.md)
+- [ADR 0002: Single-owner access](docs/decisions/0002-single-owner-access.md)
 - [Development harness and Symphony pilot](docs/harness.md)
 
 The architecture documentation records intended behavior. It is not a claim that integrations or database constraints are already implemented.

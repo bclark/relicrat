@@ -9,12 +9,18 @@ assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const id = number => `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`;
 const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
+const ownerPassword = 'synthetic-only-owner-password';
 let browser;
+async function signIn(context) {
+  const response = await context.request.post(base + '/api/v1/auth/login', { data: { password: ownerPassword }, headers: { Origin: new URL(base).origin } });
+  assert.equal(response.status(), 200, await response.text());
+}
 before(async () => { browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined }); });
 after(async () => { await browser?.close(); });
 async function fixture(t, initial = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
   t.after(() => context.close());
+  await signIn(context);
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, [], 'Unexpected browser errors'));
@@ -255,6 +261,7 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
 
 test('real browser creates one synthetic copy, photo and nested location through the production stack', { skip: process.env.RELICRAT_REAL_UI_TEST !== '1' }, async t => {
   const context = await browser.newContext(); t.after(() => context.close());
+  await signIn(context);
   const page = await context.newPage(); await page.goto(base);
   const initial = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.deepEqual(initial, [], 'Refusing to write to a nonempty live inventory');
@@ -397,4 +404,53 @@ test('obsolete catalog searches are cancelled and changing catalog clears the se
   assert.equal(await page.getByRole('radio', { name: /Old catalog/ }).count(), 0);
   assert.equal(await page.getByLabel('Edition or variant', { exact: true }).inputValue(), '');
   assert.equal(await page.locator('.catalog-results img').count(), 0);
+});
+
+test('private owner login blocks guests, protects photos, and logout invalidates captured cookies', async t => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
+  t.after(() => context.close());
+  const page = await context.newPage(); await page.goto(base);
+  await page.waitForURL('**/login');
+  assert.equal(await page.getByRole('heading', { name: 'Add a find', exact: true }).count(), 0);
+  for (const path of ['inventory', 'catalog/items', 'storage-locations']) assert.equal((await context.request.get(`${base}/api/v1/${path}`)).status(), 401);
+  await page.getByLabel('Owner password', { exact: true }).fill('incorrect-synthetic-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Password not recognized' }).waitFor();
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
+    await page.screenshot({ path: `${output}/login-desktop.png`, fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: `${output}/login-mobile.png`, fullPage: true, animations: 'disabled' });
+  }
+  await page.getByLabel('Owner password', { exact: true }).fill(ownerPassword);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('heading', { name: 'Add a find', exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, '/');
+  const cookies = await context.cookies();
+  const session = cookies.find(cookie => cookie.name === 'relicrat_loopback_session');
+  assert.ok(session?.httpOnly); assert.equal(session.sameSite, 'Strict');
+  assert.ok(!(await page.evaluate(() => document.cookie)).includes(session.value));
+  const signed = await context.request.get(base);
+  assert.match(signed.headers()['cache-control'], /no-store/);
+  const blocked = await context.request.post(`${base}/api/v1/inventory`, { data: { title: 'Must not exist' }, headers: { Origin: 'https://evil.test' } });
+  assert.equal(blocked.status(), 403);
+  const copies = await (await context.request.get(`${base}/api/v1/inventory`)).json();
+  if (copies.length) {
+    const cid = copies[0].id;
+    const photos = await (await context.request.get(`${base}/api/v1/inventory/${cid}/photos`)).json();
+    if (photos.length) {
+      const guest = await browser.newContext(); t.after(() => guest.close());
+      const path = `${base}/api/v1/inventory/${cid}/photos/${photos[0].id}`;
+      assert.equal((await guest.request.get(path)).status(), 401);
+      assert.equal((await context.request.get(path)).status(), 200);
+    }
+  }
+  await page.reload(); await page.getByRole('button', { name: 'Sign out', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.waitForURL('**/login');
+  const replay = await browser.newContext(); t.after(() => replay.close()); await replay.addCookies(cookies);
+  assert.equal((await replay.request.get(`${base}/api/v1/inventory`)).status(), 401);
+  await page.goto(base); await page.waitForURL('**/login');
+  assert.equal(await page.getByRole('heading', { name: 'Add a find', exact: true }).count(), 0);
 });

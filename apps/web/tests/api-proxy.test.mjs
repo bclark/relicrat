@@ -4,7 +4,8 @@ import { after, before, test } from 'node:test';
 import { forwardApi } from '../lib/api-proxy.mjs';
 
 const id = '00000000-0000-0000-0000-000000000001';
-const origin = 'http://relicrat.test:3000';
+const origin = 'https://relicrat.test:3000';
+const token = 'a'.repeat(43);
 const observed = [];
 let apiOrigin;
 const server = createServer(async (request, response) => {
@@ -31,14 +32,17 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   apiOrigin = `http://127.0.0.1:${server.address().port}`;
   process.env.RELICRAT_API_URL = apiOrigin;
+  process.env.RELICRAT_WEB_ORIGIN = origin;
 });
 after(async () => {
   await new Promise(resolve => server.close(resolve));
   delete process.env.RELICRAT_API_URL;
+  delete process.env.RELICRAT_WEB_ORIGIN;
 });
 function request(path = 'inventory', options = {}) {
   const headers = new Headers(options.headers);
   headers.set('host', new URL(origin).host);
+  headers.append('cookie', `__Host-relicrat_session=${token}`);
   return new Request(`${origin}/api/v1/${path}`, { ...options, headers });
 }
 function post(body = '{}', headers = {}) {
@@ -53,7 +57,8 @@ test('forwards literal query and strips credentials and internal response header
   assert.deepEqual(await response.json(), { synthetic: true });
   const upstream = observed.at(-1);
   assert.equal(upstream.url, '/api/v1/inventory?q=50%25_%5C&limit=2');
-  for (const name of ['cookie', 'authorization', 'x-forwarded-host']) assert.equal(upstream.headers[name], undefined);
+  assert.equal(upstream.headers.authorization, `Bearer ${token}`);
+  for (const name of ['cookie', 'x-forwarded-host']) assert.equal(upstream.headers[name], undefined);
   assert.equal(response.headers.get('set-cookie'), null);
   assert.equal(response.headers.get('x-internal-detail'), null);
   assert.equal(response.headers.get('cache-control'), 'no-store');
@@ -88,7 +93,7 @@ test('same-origin JSON saves preserve body and upstream validation failures', as
 
 test('rejects missing, null and mismatched origins, including multipart', async () => {
   const count = observed.length;
-  for (const supplied of [undefined, 'null', 'https://evil.test', 'http://relicrat.test:3001', 'https://relicrat.test:3000']) {
+  for (const supplied of [undefined, 'null', 'https://evil.test', 'http://relicrat.test:3001', 'http://relicrat.test:3000']) {
     const options = post();
     if (supplied === undefined) delete options.headers.origin;
     else options.headers.origin = supplied;
@@ -154,8 +159,8 @@ test('interrupted request body is rejected before the API receives a save', asyn
 
 
 test('matches actual browser Host when Next.js normalizes the internal request URL', async () => {
-  const direct = new Request('http://localhost:3000/api/v1/inventory', post('{}', {
-    origin: 'http://127.0.0.1:3000', host: '127.0.0.1:3000',
+  const direct = new Request('https://localhost:3000/api/v1/inventory', post('{}', {
+    origin, host: new URL(origin).host, cookie: `__Host-relicrat_session=${token}`,
   }));
   assert.equal((await forwardApi(direct, ['inventory'])).status, 201);
   const count = observed.length;
@@ -179,4 +184,14 @@ test('catalog paths preserve the same write boundary and reject arbitrary extens
   for (const path of ['catalog', 'catalog/items/bad', `catalog/items/${id}/delete`, `catalog/categories/${id}`, `catalog/items/${id}/releases/bad`]) {
     assert.equal((await forwardApi(request(path), path.split('/'))).status, 404);
   }
+});
+
+
+test('anonymous and forged browser bearer headers cannot reach protected upstream data', async () => {
+  const count = observed.length;
+  for (const path of ['inventory', `inventory/${id}/photos/${id}`, 'catalog/items', 'storage-locations']) {
+    const guest = new Request(`${origin}/api/v1/${path}`, { headers: { host: new URL(origin).host, Authorization: `Bearer ${token}` } });
+    assert.equal((await forwardApi(guest, path.split('/'))).status, 401);
+  }
+  assert.equal(observed.length, count);
 });

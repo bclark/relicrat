@@ -7,7 +7,7 @@ def test_foundation_and_reconciliation_tables():
     assert set(Base.metadata.tables) == {
         "categories", "catalog_items", "releases", "owned_copies",
         "storage_locations", "media_assets", "reconciliation_events",
-        "copy_location_events", "storage_hierarchy_guard",
+        "copy_location_events", "storage_hierarchy_guard", "owner_sessions", "owner_login_guard",
     }
 
 
