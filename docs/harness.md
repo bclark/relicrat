@@ -233,3 +233,76 @@ The new tests use real commits and independent sessions for history persistence,
 event-write rollback and competing reconciliation requests. The migration test
 round-trips 0002 on synthetic pre-existing records in the disposable test database;
 the full harness also downgrades through base and upgrades through 0002.
+
+## GH-16 storage verification (2026-10-28)
+
+Source baseline: `448a16e1896a007b6335155b8d9b30c73d455f97` plus this
+issue's workspace changes. Migration head is `0003_storage`. Logs are preserved
+locally under ignored `.harness-results/gh-16/`; branch/commit identifiers for
+published contents are recorded in the draft PR. No dashboard files were changed.
+The dedicated guest engine and operator-supplied disposable `BUILDX_CONFIG`
+were used; no external data or host services were accessed.
+
+- Baseline `sh scripts/test-api.sh`: exit 0, 43 passed, zero skipped/expected
+  failures, six existing deprecation warnings. Head→base→head succeeded through
+  0002; project `relicrat-test-1793156881-4` removed its database, image and network.
+- Final `sh scripts/test-api.sh`: exit 0, **65 passed**, zero skipped/expected
+  failures, 17 warnings (one Starlette/httpx and 16 Alembic configuration
+  deprecations). Head→base→head succeeded through 0003; project
+  `relicrat-test-1793157121-3` removed its database, image and network.
+- `sh scripts/test-backup-restore.sh`: exit 0, project
+  `relicrat-recovery-np1udximt9`. After source DB/media destruction, verified all
+  row columns/schema, nested locations, current assignment, two movements,
+  two reconciliations, referenced identities and exact photo bytes.
+- `sh scripts/test-backup-restore.sh --missing-media`: intended exit 1 after
+  injection, specifically `Photo download failed: HTTP 404`; project
+  `relicrat-recovery-scg3qmz9jn` reported cleanup checked.
+- `sh scripts/test-backup-restore.sh --corrupt-media`: intended exit 1 after
+  injection, specifically `Downloaded photo bytes differ`; project
+  `relicrat-recovery-acgx1jgsfi` reported cleanup checked.
+- Positive recovery also reported cleanup checked; no remaining project resources
+  were reported. Damage-mode failures are deliberate, not skipped database checks.
+- `git diff --check` and Python source compilation with built-in `compile` passed.
+
+Focused checks use real commits/fresh sessions for event persistence and rollback,
+exact photo metadata/bytes and retained identification history, overlapping row-lock
+requests, and independent concurrent identification/storage revisions. Direct SQL
+checks cover revision/event FKs and uniqueness, self/long/multi-row cycles, a
+160-level hierarchy, valid multi-row rotation and absent coordination state.
+Opposing parent changes on different rows establish both snapshots before the
+competing commit and wait for observed PostgreSQL lock overlap. READ COMMITTED
+rejects the cycle with 23514; REPEATABLE READ rejects the stale guard write with
+40001. Committed graph state remains valid. Migration tests preserve legacy
+records, reject a preexisting longer cycle atomically, and round-trip 0003 with
+populated movement history on disposable data.
+
+The migration takes an exclusive location-table lock while validating/installing;
+hierarchy mutations serialize on a singleton guard write and scan the final graph.
+Large-collection load has not been tested. Downgrade destroys movement history and
+revisions and removes cycle protection while retaining current assignments; see
+[the concrete DB/media backup and recovery procedure](../apps/api/INVENTORY.md).
+The recovery rehearsal remains quiescent and same-version only. Authentication,
+search, usable frontend/catalog UI, operator production backups, container
+reparenting/history and broader provenance remain unfinished. The first vertical
+slice is incomplete.
+
+### GH-16 independent review: schema lookup boundary
+
+Two direct-SQL regressions reproduced temporary relation shadowing of the new
+hierarchy check and coordination table. Both failed before the correction.
+Migration 0003 now pins each hierarchy function to pg_catalog/public with pg_temp
+last; the two regressions pass without changing or weakening the cycle checks.
+Migrations 0001 and 0002 remain unchanged.
+
+Final operator verification used the storage source plus this correction:
+
+- `sh scripts/test-api.sh tests/test_storage.py::test_hierarchy_guard_uses_canonical_relations`:
+  2 passed after the fix (2 failed before it); migration head/base/head passed.
+- `sh scripts/test-api.sh`: 67 passed, zero skipped/expected failures, 17
+  deprecation warnings; migration round trip through 0003 passed.
+- `sh scripts/test-backup-restore.sh`: exit 0 after source destruction; hierarchy,
+  guard state, assignments, movement/identification history and exact bytes passed.
+- Both recovery damage modes retained their intended exit 1: missing download
+  HTTP 404 and differing photo bytes, respectively.
+- `git diff --check` passed. Logs are retained in the issue workspace under
+  ignored `.harness-results/operator-review/`; only disposable data was used.

@@ -27,6 +27,7 @@ def test_upgrade_initializes_existing_copy_and_roundtrip():
         with engine.connect() as conn:
             after = dict(conn.execute(text('SELECT * FROM owned_copies WHERE id = :id'), {'id': cid}).mappings().one())
             assert after.pop('identification_revision') == 0
+            assert after.pop('storage_revision') == 0
             assert after == before
             assert conn.scalar(text('SELECT count(*) FROM reconciliation_events')) == 0
         command.downgrade(config, '0001_foundation')
