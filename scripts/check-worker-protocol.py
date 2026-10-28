@@ -4,7 +4,9 @@ Run on the Ubuntu worker; yaml and jsonschema are provided by cloud-init.
 An optional first argument selects a workflow file for before/after checks.
 """
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,6 +14,14 @@ import threading
 
 import jsonschema
 import yaml
+
+codex = shutil.which('codex')
+if not codex:
+    raise SystemExit('Missing codex executable')
+host = Path(codex).resolve().with_name('codex-code-mode-host')
+if not os.access(host, os.X_OK):
+    raise SystemExit(f'Missing executable Codex companion: {host}')
+subprocess.run([str(host), '--help'], check=True, timeout=10, stdout=subprocess.DEVNULL)
 
 workflow = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'WORKFLOW.md'
 config = yaml.safe_load(workflow.read_text().split('---', 2)[1])['codex']

@@ -89,10 +89,10 @@ write_files:
       install_dir=$(mktemp -d)
       trap 'rm -rf -- "$install_dir"' EXIT
       cd "$install_dir"
-      curl -fL --retry 3 -o codex.tar.gz https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-x86_64-unknown-linux-musl.tar.gz
-      echo 'be635d3486a5bd060d0fff582ae6d30160280c31344dd85719707fa920e187f0  codex.tar.gz' | sha256sum -c
+      curl -fL --retry 3 -o codex.tar.gz https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-package-x86_64-unknown-linux-musl.tar.gz
+      echo 'e97c4463d7f146692a955d7b0e1c8cf48f97cd4d616cd45c5dcab2e8d9743316  codex.tar.gz' | sha256sum -c
       tar -xzf codex.tar.gz
-      install -m 0755 codex-x86_64-unknown-linux-musl /usr/local/bin/codex
+      install -m 0755 bin/codex bin/codex-code-mode-host /usr/local/bin/
       curl -fLO --retry 3 https://github.com/openai/symphony/releases/download/v0.0.3/symphony-v0.0.3-linux_x86_64
       curl -fLO --retry 3 https://github.com/openai/symphony/releases/download/v0.0.3/symphony-v0.0.3-linux_x86_64.sha256
       sha256sum -c symphony-v0.0.3-linux_x86_64.sha256
