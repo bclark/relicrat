@@ -1,0 +1,53 @@
+# Synthetic recovery only. No published ports or external/production volumes.
+x-database: &database
+  image: postgres:17-alpine
+  environment:
+    POSTGRES_DB: relicrat_recovery
+    POSTGRES_USER: relicrat_recovery
+    POSTGRES_PASSWORD: disposable-recovery-only
+  tmpfs:
+    - /var/lib/postgresql/data
+  volumes:
+    - evidence:/evidence
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U relicrat_recovery -d relicrat_recovery"]
+    interval: 2s
+    timeout: 5s
+    retries: 30
+x-api: &api
+  build:
+    context: ../../apps/api
+  entrypoint: []
+  command: ["python", "/rehearsal/backup-restore.py", "verify"]
+services:
+  source-db:
+    <<: *database
+  restore-db:
+    <<: *database
+  source-api:
+    <<: *api
+    environment:
+      DATABASE_URL: postgresql+psycopg://relicrat_recovery:disposable-recovery-only@source-db:5432/relicrat_recovery
+      MEDIA_ROOT: /media
+      PYTHONPATH: /app
+    volumes:
+      - source-media:/media
+      - evidence:/evidence
+      - ../../scripts/backup-restore.py:/rehearsal/backup-restore.py:ro
+  restore-api:
+    <<: *api
+    environment:
+      DATABASE_URL: postgresql+psycopg://relicrat_recovery:disposable-recovery-only@restore-db:5432/relicrat_recovery
+      MEDIA_ROOT: /media
+      PYTHONPATH: /app
+    volumes:
+      - restored-media:/media
+      - evidence:/evidence
+      - ../../scripts/backup-restore.py:/rehearsal/backup-restore.py:ro
+volumes:
+  source-media:
+  restored-media:
+  evidence:
+networks:
+  default:
+    internal: true

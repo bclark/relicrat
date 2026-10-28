@@ -1,5 +1,6 @@
 # Developer scripts
 
+- `sh scripts/test-backup-restore.sh [--missing-media|--corrupt-media]`: synthetic recovery on the dedicated guest; damage modes must fail. See the harness guide for evidence and destructive cleanup.
 - `sh scripts/test-api.sh`: disposable PostgreSQL 17 API tests and migration round trip on a Docker host.
 - `python3 scripts/test-api-remote.py technodrome [pytest arguments...]`: transfer the current API snapshot over SSH, run those checks, and retain results locally. Requires Python 3.11+.
 - `python3 scripts/provision-worker.py`: provision the dedicated KVM worker on Technodrome.
