@@ -679,3 +679,42 @@ Saved image identities were validated, but loading into an empty image store was
 not tested. Separate protected key custody remains unconfirmed. No application,
 schema, dependency, production deployment or public-network change was made for
 this operational/docs milestone; no application suites were rerun for these docs.
+
+## Daily backup task and key-custody preparation (2026-10-28)
+
+The operator enabled a daily task in this existing local chat at 03:00 in the
+operator's America/New_York timezone. It uses the current deployed-release record
+and [the bounded daily contract](scheduled-backups.md), not a working branch or
+previous rollout snapshot. The native task returned ACTIVE and its saved daily
+hour was checked; it has not yet reached its first scheduled invocation.
+
+Before activation, the complete operation was run manually once against the
+current authenticated synthetic trial: genuinely fresh offline capture and app
+restart; exact image/source export; authenticated encrypted Mac transfer; copied
+artifact decryption and all member/OCI identity hashes; fresh offline restore
+matching all rows, migration state and media checksums. The newly owned successful
+verification project was stopped and removed, with container/volume/network
+cleanup independently checked. Only that run's temporary staging/plaintext was
+removed after verification; previous encrypted archives and retained manual
+restores were preserved. The live login still returned HTTP200. Both machines
+passed the minimum5GiB capacity preflight. Private evidence is under the original
+operator checkout's ignored `.harness-results/scheduled-backups/`.
+
+The existing Mac recovery key/certificate were packaged into a private mode0600
+local import ZIP; ZIP integrity and expected entries passed. The owner selected
+1Password secure-file storage for the second copy and unlocked the native app
+directly. A Document named RelicRat backup recovery key was saved in the Personal
+vault; upload completion was observed. The downloaded vault ZIP matched the
+original byte-for-byte, and its extracted key successfully decrypted a disposable
+OpenSSL CMS envelope. The temporary import kit/download/extracted copies were
+removed after verification; working Mac key/certificate and the vault Document
+were preserved. Independent key custody is verified. No key value was displayed
+in chat, Git or NAS logs.
+
+No app/schema/dependency change was made and no app test suites were rerun for
+these operational/docs changes. The Mac and desktop app must be available for
+local scheduled work; permissions or unavailable infrastructure can still fail a
+run. Routine success stays quiet; new/changed failures or required actions are
+reported. No automatic archive retention, off-site backup service or replacement-host/
+empty-image-store recovery is claimed. The independent key copy is separately
+verified as described above.
