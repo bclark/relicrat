@@ -59,5 +59,88 @@ The harness exercises destructive downgrade only on disposable synthetic data.
 The synthetic recovery rehearsal now retains two reconciliations and all referenced
 identities alongside the original exact photo bytes after source destruction.
 Its quiescent-writer and same-schema-version assumptions remain; this is not
-production backup support. Storage assignment, search, catalog CRUD/UI,
+production backup support. Search, catalog CRUD/UI,
 authentication, automated matching and broader audit history remain out of scope.
+
+## Storage locations and manual movement (0003)
+
+`POST /api/v1/storage-locations` creates a location with `name` (trimmed,
+1–250 characters), optional existing `parent_id`, optional `kind` (up to 100)
+and `description` (up to 10000). Strings are trimmed. Unknown fields, invalid
+UUIDs and invalid lengths return 422; a missing parent returns 404.
+`GET /api/v1/storage-locations` lists by creation time then UUID, ascending,
+with `limit=50` (1–100) and nonnegative `offset=0`.
+`GET /api/v1/storage-locations/{id}` returns one location or 404. Responses
+include UUID, parent UUID, name, kind, description and creation/update timestamps.
+There are no location rename, reparent or deletion endpoints.
+
+`POST /api/v1/inventory/{copy_id}/location` accepts the complete target:
+
+```json
+{"storage_location_id":"existing-location-uuid", "expected_storage_revision":0}
+```
+
+Both fields are required. Explicit null location unassigns the copy. The revision
+must be an integer (not boolean/string), 0–2147483646. Unknown fields and invalid
+UUIDs return 422. Inventory responses expose independent `storage_revision`,
+initially zero for existing copies. Missing/deleted copies or missing targets
+return 404; stale storage revisions return 409, including stale identical targets.
+The service locks and reloads the copy. At the current revision an identical
+target returns unchanged timestamps, revision and history. A real change advances
+only storage revision, current location and ORM `updated_at`; identification,
+provisional information, ownership, creation time and photos remain unchanged.
+Identification and storage serialize on the same copy lock but use independent
+revision counters. Movement and its event commit or roll back together.
+
+`GET /api/v1/inventory/{copy_id}/locations?limit=50&offset=0` returns manual
+movement events in ascending resulting storage revision order. Pagination uses
+the same limits. Each event contains UUID, copy UUID, nullable before/after
+location UUIDs, before/after revision, `operation: manual` and transaction time
+`created_at`. FKs restrict deleting referenced copies/locations; checks require a
+changed target and a nonnegative single revision step, with one resulting
+revision per copy. History has no mutation endpoints or actor attribution and
+is not tamper-proof against a privileged database editor. Direct SQL copy updates
+do not automatically generate history or update timestamps.
+
+Apply additive migration `0003_storage` before serving this API. Migrations 0001
+and 0002 are unchanged. The migration takes an ACCESS EXCLUSIVE lock on locations,
+checks the legacy topology, and installs protection in the same transaction.
+A legacy cycle fails with a diagnostic and rolls back installation; an operator
+must review and repair the topology separately, preserving records.
+
+Every hierarchy INSERT/UPDATE/DELETE first actually updates one narrow singleton
+guard row, holding its write lock until transaction completion. An AFTER STATEMENT
+trigger recursively checks the final graph after INSERT/UPDATE, including all
+rows from multi-row statements. The functions are volatile (PostgreSQL's default).
+At READ COMMITTED the check gets fresh visibility after a competing guard writer
+commits; a cycle fails with SQLSTATE 23514. At REPEATABLE READ, an older snapshot
+conflicts with the actual guard write and fails with 40001. SERIALIZABLE may also
+require a whole-transaction retry. Missing guard state fails closed with 23514.
+Callers must roll back rejected transactions and review/retry from a fresh
+snapshot; no automatic retry policy is provided. This deliberately serializes
+hierarchy mutations and scans the graph, favoring correctness for this first
+storage task; large hierarchies have not been load tested. It follows PostgreSQL's
+[consistency/locking guidance](https://www.postgresql.org/docs/17/applevel-consistency.html)
+and [statement trigger visibility](https://www.postgresql.org/docs/17/trigger-datachanges.html).
+
+Downgrade to 0002 removes **all movement events, storage revisions and new cycle
+protection**, retaining current assignments, location records, identification and
+media. Before a nondisposable downgrade, stop every API/job/SQL writer, run
+`pg_dump --format=custom --file=pre-0003.dump relicrat` using the operator's secured
+connection configuration, and archive the configured media root with
+`tar -C "$MEDIA_ROOT" -cf pre-0003-media.tar .`. Keep both artifacts, checksums,
+application revision and secured configuration together outside the live volumes.
+Restore the dump with `pg_restore --exit-on-error --dbname=relicrat_recovery
+pre-0003.dump` into a new empty database, extract media to a separate empty root,
+and verify row counts, history, assignments and exact photo downloads using the
+matching application revision **before** downgrading. These commands describe an
+operator procedure, not a supported production backup tool. To recover after
+downgrade, stop writers and restore that verified DB/media pair to separate clean
+targets, verify again, then switch configuration. Re-upgrading initializes zero
+revisions and empty movement history; it cannot recover lost events.
+
+The synthetic recovery fixture retains a nested hierarchy, current assignment,
+two movements, two reconciliations and exact photo bytes after source destruction.
+Authentication, search, usable frontend/catalog UI, operator production backups,
+container reparenting/history and broader provenance remain unfinished. The first
+vertical slice is incomplete.

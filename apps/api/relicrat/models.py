@@ -59,6 +59,7 @@ class OwnedCopy(Timestamps, Base):
     __tablename__ = "owned_copies"
     __table_args__ = (
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
+        CheckConstraint("storage_revision >= 0", name="storage_revision_nonnegative"),
         CheckConstraint("identification_revision >= 0", name="identification_revision_nonnegative"),
         CheckConstraint("identification_status IN ('unidentified', 'partial', 'identified', 'verified')", name="identification_status_valid"),
         CheckConstraint("ownership_status IN ('owned', 'sold', 'traded', 'lost')", name="ownership_status_valid"),
@@ -72,6 +73,7 @@ class OwnedCopy(Timestamps, Base):
     description: Mapped[str | None] = mapped_column(Text)
     identification_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="unidentified")
     identification_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    storage_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     ownership_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="owned")
     storage_location_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("storage_locations.id", ondelete="RESTRICT"), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -112,6 +114,32 @@ class ReconciliationEvent(Base):
     after_release_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     before_status: Mapped[str] = mapped_column(String(30), nullable=False)
     after_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    before_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    after_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    operation: Mapped[str] = mapped_column(String(30), nullable=False, server_default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class StorageHierarchyGuard(Base):
+    """Singleton written by PostgreSQL hierarchy statement triggers."""
+    __tablename__ = "storage_hierarchy_guard"
+    __table_args__ = (CheckConstraint("id = 1", name="storage_guard_singleton"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+
+class CopyLocationEvent(Base):
+    __tablename__ = "copy_location_events"
+    __table_args__ = (
+        UniqueConstraint("owned_copy_id", "after_revision"),
+        CheckConstraint("before_revision >= 0 AND after_revision = before_revision + 1", name="location_revision_step"),
+        CheckConstraint("operation = 'manual'", name="location_manual"),
+        CheckConstraint("before_location_id IS DISTINCT FROM after_location_id", name="location_changed"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("owned_copies.id", ondelete="RESTRICT"), nullable=False)
+    before_location_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("storage_locations.id", ondelete="RESTRICT"))
+    after_location_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("storage_locations.id", ondelete="RESTRICT"))
     before_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     after_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     operation: Mapped[str] = mapped_column(String(30), nullable=False, server_default="manual")

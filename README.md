@@ -89,8 +89,9 @@ The first vertical slice is intentionally narrow:
 5. Back up the database and media.
 
 The API supports provisional copies, photos, and manual catalog/release reconciliation
-with revision checks and retained identification history. See the
-[inventory API contract](apps/api/INVENTORY.md). Storage assignment, search,
+with revision checks and retained identification history, nested storage locations,
+and explicit revision-checked copy movements with retained history. See the
+[inventory API contract](apps/api/INVENTORY.md). Search,
 catalog CRUD/UI, authentication and production backup remain unimplemented;
 the synthetic recovery harness is development verification only. The complete
 vertical slice is not delivered yet.
