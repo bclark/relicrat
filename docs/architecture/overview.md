@@ -36,7 +36,9 @@ revision-checked copy movement with retained history, and inventory text search.
 The web app supports provisional intake, photos, explicit storage and search.
 Catalog identification remains API-only. Production backup/restore and
 authentication are not implemented. The synthetic recovery rehearsal is development
-verification only. See the [inventory API contract](../../apps/api/INVENTORY.md). See [the harness guide](../harness.md) for
+verification only. An [offline operator workflow](../backup-restore.md) can retain
+synthetic database/media bundles and verify a separate fresh restore on the worker;
+it does not provide production recovery or automatic cutover. See the [inventory API contract](../../apps/api/INVENTORY.md). See [the harness guide](../harness.md) for
 executable API verification and its known limitations.
 
 ## Planned key entities

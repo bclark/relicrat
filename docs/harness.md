@@ -440,3 +440,51 @@ private preview. Unsaved drafts remain page-local; catalog identification and
 production deployment are still unfinished. Local ignored evidence is retained
 under `.harness-results/intake-ui/`, including exact commands, failed/final logs,
 source hashes, captures and the independent review verdict.
+
+
+## Offline operator backup verification
+
+See [the backup/restore runbook](backup-restore.md) for retained synthetic bundles,
+app downtime/restart, exact image requirements and fresh offline restore.
+`python3 -m unittest discover -s scripts -p test_backup.py -v` exercises local
+bundle/archive/capture-lock boundaries. `python3 scripts/test-operator-backup.py`
+on the dedicated worker invokes the actual commands using only fresh synthetic
+projects, destroys its source before restore, reuses the independent row/schema/API
+verifier and rejects damaged dump/missing media/corrupt media/unsafe tar/changed row fingerprints. It removes
+only its own projects. This is separate from the existing disposable rehearsal and
+never targets the hands-on preview.
+
+Verification recorded on 2026-10-28, based on merged main
+`2101a56f850f00d8dc87a4904093153aeb21760d`:
+
+- Local and worker `python3 -m unittest discover -s scripts -p test_backup.py -v`:
+  **6 passed**, zero failures/skips. Covers archive/bundle damage and competing
+  capture locks, including release after an exception.
+- Dedicated worker `python3 scripts/test-operator-backup.py`: **exit 0**. Actual
+  commands restarted the app after failed/successful capture, refused overwrite
+  and stale Compose configuration before downtime, then restored after deleting
+  the source DB/media. The independent fixture verifier compared all seeded
+  row/schema values, UUIDs, reconciliation/movement history and exact API PNG
+  download. An extra unreferenced hard-linked regular file survived as bytes.
+- Five deliberate damage cases each exited **1 at the expected boundary**:
+  dump checksum mismatch, missing photo, corrupt photo with updated tar checksum,
+  unsafe tar member, and changed expected row fingerprint with updated checksum.
+  Restore remained offline/incomplete. Checksum failure created no restore target.
+- Cleanup and an independent Docker query found no test/restore containers,
+  volumes or networks. The original hands-on preview's three containers remained
+  running and its Mac loopback page returned HTTP 200; it was not a capture target.
+- `python3 scripts/test-api-remote.py relicrat-worker`: **86 passed**, zero
+  skips/expected failures, 17 existing warnings; migration downgrade to base and
+  upgrade through 0003 succeeded, exit 0, isolated resources removed.
+- Python compilation and `git diff --check`: exit 0. Worker hashes independently
+  matched all three final runtime/test files. Local evidence is retained under
+  ignored `.harness-results/operator-backup/`.
+- An early transfer included macOS metadata sidecars and failed migration loading;
+  a clean source transfer corrected it. A later test-only random name included an
+  underscore invalid in Docker's generated image reference; hexadecimal project
+  IDs fixed it. Final runs passed without reducing recovery assertions.
+
+No web build/browser suite or standalone legacy recovery command was rerun for
+this operator-tooling change. The independent legacy fixture verifier was reused
+inside the new command integration. No app schema/migration or runtime dependency
+changed. These results do not establish production recovery or power-loss safety.

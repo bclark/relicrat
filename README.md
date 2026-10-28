@@ -102,7 +102,9 @@ See the [inventory API contract](apps/api/INVENTORY.md).
 The add-first web screen supports provisional intake, photo upload/viewing, nested
 storage creation, explicit location changes and literal search. Catalog CRUD and
 identification UI, authentication and production backup remain unimplemented;
-the synthetic recovery harness is development verification only. The complete
+an [offline operator backup/restore workflow](docs/backup-restore.md) is available
+for synthetic data on the dedicated worker, alongside the disposable recovery
+harness. Production recovery remains unfinished. The complete
 vertical slice is not delivered yet.
 
 ## Documentation

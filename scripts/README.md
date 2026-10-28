@@ -1,5 +1,9 @@
 # Developer scripts
 
+- `python3 scripts/backup.py create ...` / `restore ...`: offline synthetic operator backup and fresh verified restore; see [the runbook](../docs/backup-restore.md).
+- `python3 scripts/test-operator-backup.py`: disposable integration of the actual operator commands on the dedicated worker.
+- `python3 -m unittest discover -s scripts -p test_backup.py -v`: local bundle/archive/locking boundary checks.
+
 - `sh scripts/test-backup-restore.sh [--missing-media|--corrupt-media]`: synthetic recovery on the dedicated guest; damage modes must fail. See the harness guide for evidence and destructive cleanup.
 - `sh scripts/test-api.sh`: disposable PostgreSQL 17 API tests and migration round trip on a Docker host.
 - `python3 scripts/test-api-remote.py technodrome [pytest arguments...]`: transfer the current API snapshot over SSH, run those checks, and retain results locally. Requires Python 3.11+.
