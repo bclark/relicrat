@@ -233,3 +233,27 @@ The new tests use real commits and independent sessions for history persistence,
 event-write rollback and competing reconciliation requests. The migration test
 round-trips 0002 on synthetic pre-existing records in the disposable test database;
 the full harness also downgrades through base and upgrades through 0002.
+
+## Inventory text search verification (2026-10-28)
+
+Built on merged main `448a16e1896a007b6335155b8d9b30c73d455f97`, independently
+of the open storage/dashboard PRs. The operator ran
+`python3 scripts/test-api-remote.py relicrat-worker`, which executes
+`sh scripts/test-api.sh` on the isolated guest with disposable PostgreSQL 17.
+
+- Baseline: 43 passed, zero skipped/expected failures, exit 0 and migration round trip.
+- Before implementation, `python3 scripts/test-api-remote.py relicrat-worker
+  tests/test_inventory_api.py::test_search_each_field_and_trim --maxfail=1`:
+  expected exit 1; search returned an unrelated copy because `q` was ignored.
+- Final full suite: 62 passed, zero skipped/expected failures, exit 0, including
+  literal wildcard/backslash/quote handling, NUL/length validation, catalog-only
+  exclusion, multiple-copy pagination, and unchanged history/photo bytes.
+  Six existing Starlette/httpx and Alembic configuration deprecation warnings.
+- The final API snapshot SHA256 is
+  `a6a7737e1e7969e15f1f51f410e362b18b80ef0bbd24013c66eae5e1fdc8cf22`.
+  Head → base → head migrations succeeded; each run removed its own disposable
+  project. Full output and exit statuses are retained in ignored local harness logs.
+- `git diff --check` passed. No migration, dependency, deployment, or permission
+  changes. Recovery and web checks were not run for this read-only API change;
+  neither large-collection performance nor integration with unmerged storage
+  PR #17 is claimed. Symphony remained stopped.

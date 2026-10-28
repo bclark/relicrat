@@ -31,8 +31,8 @@ Create a provisional owned copy → link it to a canonical catalog item and opti
 
 The current implementation includes six foundational tables, provisional-copy
 creation/list/retrieval, manual revision-checked reconciliation with retained
-history, and photo upload/list/download endpoints. The web app
-remains a placeholder. Storage assignment, search, and production
+history, inventory text search, and photo upload/list/download endpoints. The web app
+remains a placeholder. Storage assignment and production
 backup/restore are not implemented. The synthetic recovery rehearsal is development
 verification only. See the [inventory API contract](../../apps/api/INVENTORY.md). See [the harness guide](../harness.md) for
 executable API verification and its known limitations.
