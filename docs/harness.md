@@ -702,8 +702,8 @@ operator checkout's ignored `.harness-results/scheduled-backups/`.
 
 The existing Mac recovery key/certificate were packaged into a private mode0600
 local import ZIP; ZIP integrity and expected entries passed. The owner selected
-password-manager secure-file storage for the second copy, but vault/provider and
-successful import confirmation are still pending. This local staging kit is not
+1Password secure-file storage for the second copy. The native app is locked;
+owner unlock and successful import verification are still pending. This local staging kit is not
 an independent recovery-key copy. No key was sent through chat, Git or the NAS.
 
 No app/schema/dependency change was made and no app test suites were rerun for
