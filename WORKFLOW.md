@@ -24,10 +24,12 @@ agent:
 codex:
   command: codex app-server
   approval_policy:
-    reject:
-      sandbox_approval: true
-      rules: true
-      mcp_elicitations: true
+    granular:
+      sandbox_approval: false
+      rules: false
+      skill_approval: false
+      request_permissions: false
+      mcp_elicitations: false
   thread_sandbox: workspace-write
   turn_sandbox_policy:
     type: workspaceWrite

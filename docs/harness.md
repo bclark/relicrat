@@ -82,7 +82,8 @@ Before launch:
    needed for issues, branches, and draft PRs. Tracker credentials are supplied
    host-side; do not put literal credentials in WORKFLOW.md or logs.
 5. Set SYMPHONY_WORKSPACE_ROOT to an absolute directory owned by the worker.
-   Run the full harness and `sh scripts/check-worker-sandbox.sh` there before
+   Run the full harness, `sh scripts/check-worker-sandbox.sh`, and
+   `python3 scripts/check-worker-protocol.py` there before
    starting Symphony. Confirm worker sandbox compatibility with its isolated
    Docker engine; don't bypass a rejection. The worker guide describes Ubuntu's
    scoped AppArmor profile required for the sandbox launcher.
