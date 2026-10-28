@@ -2,8 +2,8 @@
 
 The first off-host recovery copy is stored on the operator's Mac, outside
 Technodrome. It protects against losing the worker/NAS while the Mac and its
-recovery key remain available. It is not off-site storage, scheduled backup,
-retention management or production disaster recovery. Continue using synthetic
+recovery key remain available. The [daily operator-chat schedule](scheduled-backups.md) repeats this procedure.
+It is not off-site storage, retention management or production disaster recovery. Continue using synthetic
 records until the remaining recovery/deployment requirements are verified.
 
 This procedure composes existing tools: `scripts/backup.py`, Docker image export,
