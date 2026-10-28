@@ -647,3 +647,35 @@ No full API or backup suite was rerun: this patch changes only a web dependency
 and its focused regression. Audit results are dated evidence, not a promise
 against undiscovered vulnerabilities. The running trial remains on merged code
 until this security patch is human-reviewed and merged.
+
+## First encrypted off-host recovery copy (2026-10-28)
+
+The operator completed the manual procedure in [off-host recovery](off-host-backup.md)
+against the merged authenticated synthetic trial at
+`e86827727d64361b00446b8de105eb3bc51feca6`. Existing offline capture commands
+briefly stopped/restarted only its web/API writers. Exact API/db/web images and
+reviewed Git source were included without owner environment credentials.
+
+The complete capsule was streamed over the existing SSH helper into native
+OpenSSL CMS authenticated encryption on the Mac. The roughly 455 MiB archive is
+outside Git in a private directory; the separate private decryption key never
+went to the NAS. An encryption/decryption roundtrip and changed-ciphertext rejection
+were checked with disposable bytes. The actual copied archive then authenticated,
+and every member hash and all three saved image identities verified. Initial image
+verification stopped on an OCI-vs-configuration-hash mismatch; using actual OCI
+manifest/index digests resolved the check without changing the exported data.
+
+The backup recovered from that Mac archive was uploaded into a separate private
+location and restored to fresh offline volumes. The existing restore verifier
+matched all rows, migration state and exact media checksums. The resulting
+project was retained stopped, with no API/web started. Temporary decrypted Mac
+data was removed. The live trial's login still returned HTTP200. Private logs
+and receipts remain under ignored `.harness-results/off-host-backup/`; durable
+recovery instructions and a non-secret receipt accompany the encrypted archive.
+
+This is a verified manual off-host copy on a separate computer, not off-site
+storage, automated scheduling/retention or a full replacement-host rehearsal.
+Saved image identities were validated, but loading into an empty image store was
+not tested. Separate protected key custody remains unconfirmed. No application,
+schema, dependency, production deployment or public-network change was made for
+this operational/docs milestone; no application suites were rerun for these docs.
