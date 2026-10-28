@@ -285,3 +285,24 @@ The recovery rehearsal remains quiescent and same-version only. Authentication,
 search, usable frontend/catalog UI, operator production backups, container
 reparenting/history and broader provenance remain unfinished. The first vertical
 slice is incomplete.
+
+### GH-16 independent review: schema lookup boundary
+
+Two direct-SQL regressions reproduced temporary relation shadowing of the new
+hierarchy check and coordination table. Both failed before the correction.
+Migration 0003 now pins each hierarchy function to pg_catalog/public with pg_temp
+last; the two regressions pass without changing or weakening the cycle checks.
+Migrations 0001 and 0002 remain unchanged.
+
+Final operator verification used the storage source plus this correction:
+
+- `sh scripts/test-api.sh tests/test_storage.py::test_hierarchy_guard_uses_canonical_relations`:
+  2 passed after the fix (2 failed before it); migration head/base/head passed.
+- `sh scripts/test-api.sh`: 67 passed, zero skipped/expected failures, 17
+  deprecation warnings; migration round trip through 0003 passed.
+- `sh scripts/test-backup-restore.sh`: exit 0 after source destruction; hierarchy,
+  guard state, assignments, movement/identification history and exact bytes passed.
+- Both recovery damage modes retained their intended exit 1: missing download
+  HTTP 404 and differing photo bytes, respectively.
+- `git diff --check` passed. Logs are retained in the issue workspace under
+  ignored `.harness-results/operator-review/`; only disposable data was used.

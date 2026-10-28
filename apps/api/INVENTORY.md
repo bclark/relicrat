@@ -144,3 +144,8 @@ two movements, two reconciliations and exact photo bytes after source destructio
 Authentication, search, usable frontend/catalog UI, operator production backups,
 container reparenting/history and broader provenance remain unfinished. The first
 vertical slice is incomplete.
+
+The hierarchy functions pin their schema lookup to pg_catalog/public with
+pg_temp last. Temporary relations named like the hierarchy or guard cannot
+replace the canonical tables. Focused direct-SQL tests cover both shadowing
+cases, alongside the existing isolation-level races.

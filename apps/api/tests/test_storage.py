@@ -294,3 +294,22 @@ def test_deep_graph_and_valid_multirow_rotation(setup):
                          dict(first=ids[0], last=ids[-1]))
         conn.rollback()
         assert conn.scalar(select(StorageLocation.id).where(StorageLocation.id == ids[0])) is None
+
+
+@pytest.mark.parametrize("shadow", ["storage_locations", "storage_hierarchy_guard"])
+def test_hierarchy_guard_uses_canonical_relations(setup, shadow):
+    _, engine, _, _, _, locations = setup
+    a, _, c = [location["id"] for location in locations]
+    with engine.connect() as conn:
+        if shadow == "storage_locations":
+            conn.execute(text("CREATE TEMP TABLE storage_locations (id uuid, parent_id uuid)"))
+            with pytest.raises(DBAPIError, match="hierarchy contains a cycle"):
+                conn.execute(text("UPDATE public.storage_locations SET parent_id = :c WHERE id = :a"), dict(a=a, c=c))
+        else:
+            conn.execute(text("CREATE TEMP TABLE storage_hierarchy_guard (LIKE public.storage_hierarchy_guard INCLUDING ALL)"))
+            conn.execute(text("INSERT INTO pg_temp.storage_hierarchy_guard (id) VALUES (1)"))
+            before = conn.scalar(text("SELECT generation FROM public.storage_hierarchy_guard WHERE id = 1"))
+            conn.execute(text("UPDATE public.storage_locations SET name = name WHERE id = :a"), dict(a=a))
+            assert conn.scalar(text("SELECT generation FROM public.storage_hierarchy_guard WHERE id = 1")) == 1 - before
+            assert conn.scalar(text("SELECT generation FROM pg_temp.storage_hierarchy_guard WHERE id = 1")) == 0
+        conn.rollback()

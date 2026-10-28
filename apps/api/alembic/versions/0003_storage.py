@@ -16,8 +16,10 @@ depends_on = None
 def upgrade():
     # Block graph writes until validation and trigger installation commit together.
     op.execute("LOCK TABLE storage_locations IN ACCESS EXCLUSIVE MODE")
+    # Bind invariant checks to canonical relations, not caller-created temp tables.
     op.execute("""
-        CREATE FUNCTION check_storage_graph() RETURNS void LANGUAGE plpgsql AS $$
+        CREATE FUNCTION check_storage_graph() RETURNS void LANGUAGE plpgsql
+        SET search_path = pg_catalog, public, pg_temp AS $$
         BEGIN
             IF EXISTS (
                 WITH RECURSIVE paths AS (
@@ -40,7 +42,8 @@ def upgrade():
                     sa.CheckConstraint("id = 1", name="storage_guard_singleton"))
     op.execute("INSERT INTO storage_hierarchy_guard (id) VALUES (1)")
     op.execute("""
-        CREATE FUNCTION serialize_storage_graph() RETURNS trigger LANGUAGE plpgsql AS $$
+        CREATE FUNCTION serialize_storage_graph() RETURNS trigger LANGUAGE plpgsql
+        SET search_path = pg_catalog, public, pg_temp AS $$
         BEGIN
             UPDATE storage_hierarchy_guard SET generation = 1 - generation WHERE id = 1;
             IF NOT FOUND THEN
@@ -50,7 +53,8 @@ def upgrade():
         END $$
     """)
     op.execute("""
-        CREATE FUNCTION validate_storage_graph() RETURNS trigger LANGUAGE plpgsql AS $$
+        CREATE FUNCTION validate_storage_graph() RETURNS trigger LANGUAGE plpgsql
+        SET search_path = pg_catalog, public, pg_temp AS $$
         BEGIN
             PERFORM check_storage_graph();
             RETURN NULL;
