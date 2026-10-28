@@ -15,7 +15,7 @@ from sqlalchemy import inspect, select, text
 
 from relicrat.database import session_factory
 from relicrat.main import app
-from relicrat.models import MediaAsset, OwnedCopy
+from relicrat.models import Category, CatalogItem, Release, ReconciliationEvent, MediaAsset, OwnedCopy
 
 EVIDENCE = Path('/evidence')
 MEDIA = Path('/media')
@@ -33,11 +33,15 @@ def canonical_check(expression):
     for column, values in (
         ('identification_status', ('unidentified', 'partial', 'identified', 'verified')),
         ('ownership_status', ('owned', 'sold', 'traded', 'lost')),
+        ('before_status', ('unidentified', 'partial', 'identified', 'verified')),
     ):
         elements = ', '.join(f"'{value}'::character varying" for value in values)
         original = f"{column}::text = ANY (ARRAY[{elements}]::text[])"
         restored_elements = ', '.join(f"'{value}'::character varying::text" for value in values)
         restored = f"{column}::text = ANY (ARRAY[{restored_elements}])"
+        if column == 'before_status':
+            original = f"({original}) AND after_status::text = 'identified'::text"
+            restored = f"({restored}) AND after_status::text = 'identified'::text"
         if expression == restored:
             return original
     return expression
@@ -50,6 +54,11 @@ def check_canonicalization():
     require(canonical_check(restored) == original, 'Cast equivalence check failed')
     for changed in (restored.replace("'lost'", "'missing'"), restored.replace(' = ANY', ' <> ALL')):
         require(canonical_check(changed) != original, 'Changed predicate was hidden')
+    original_status = "(before_status::text = ANY (ARRAY['unidentified'::character varying, 'partial'::character varying, 'identified'::character varying, 'verified'::character varying]::text[])) AND after_status::text = 'identified'::text"
+    restored_status = "(before_status::text = ANY (ARRAY['unidentified'::character varying::text, 'partial'::character varying::text, 'identified'::character varying::text, 'verified'::character varying::text])) AND after_status::text = 'identified'::text"
+    require(canonical_check(restored_status) == original_status, 'History cast equivalence failed')
+    for changed in (restored_status.replace("'verified'", "'invalid'"), restored_status.replace("after_status::text =", "after_status::text <>")):
+        require(canonical_check(changed) != original_status, 'Changed history predicate hidden')
     require(canonical_check('byte_size >= 0') == 'byte_size >= 0', 'Unrelated check changed')
 
 
@@ -86,7 +95,7 @@ def snapshot():
             WHERE n.nspname = 'public' ORDER BY p.proname, p.oid
         """)).scalars().all()
         rows = {}
-        for model in (OwnedCopy, MediaAsset):
+        for model in (Category, CatalogItem, Release, OwnedCopy, MediaAsset, ReconciliationEvent):
             rows[model.__tablename__] = [
                 {column.name: getattr(row, column.name) for column in model.__table__.columns}
                 for row in db.scalars(select(model).order_by(model.id))
@@ -111,13 +120,34 @@ def seed():
                             files={'file': ('synthetic.png', photo_bytes, 'image/png')})
         require(response.status_code == 201, response.text)
         photo = response.json()
+        # Catalog CRUD is outside this rehearsal; seed only synthetic identities.
+        with session_factory()() as db:
+            category = Category(slug='synthetic-comics', name='Synthetic comics')
+            db.add(category)
+            db.flush()
+            item = CatalogItem(category_id=category.id, canonical_name='Synthetic comic', identity_key='fixture')
+            db.add(item)
+            db.flush()
+            release = Release(catalog_item_id=item.id, release_key='synthetic-edition')
+            db.add(release)
+            db.commit()
+            item_id, release_id = str(item.id), str(release.id)
+        for revision, release_value in ((0, release_id), (1, None)):
+            response = api.post(f"{BASE}/{copy['id']}/reconcile", json={
+                'catalog_item_id': item_id, 'release_id': release_value,
+                'expected_revision': revision,
+            })
+            require(response.status_code == 200, response.text)
+            copy = response.json()
+        history = api.get(f"{BASE}/{copy['id']}/reconciliations").json()
+        require(len(history) == 2, 'Reconciliation history missing')
     state = snapshot()
     key = state['rows']['media_assets'][0]['storage_key']
     require(photo['owned_copy_id'] == copy['id'], 'Photo ownership mismatch')
     require(photo['sha256'] == hashlib.sha256(photo_bytes).hexdigest(), 'Upload checksum mismatch')
     require((MEDIA / key).read_bytes() == photo_bytes, 'Upload bytes mismatch')
     EVIDENCE.joinpath('original.png').write_bytes(photo_bytes)
-    manifest = dict(copy=copy, photo=photo, storage_key=key, database=state)
+    manifest = dict(copy=copy, photo=photo, history=history, storage_key=key, database=state)
     EVIDENCE.joinpath('manifest.json').write_text(json.dumps(manifest, indent=2))
     print(json.dumps(manifest, indent=2), flush=True)
 
@@ -147,6 +177,8 @@ def verify():
         response = api.get(f"{BASE}/{copy['id']}")
         require(response.status_code == 200 and response.json() == copy, 'Inventory differs')
         require(api.get(BASE).json() == [copy], 'Inventory list differs')
+        require(api.get(f"{BASE}/{copy['id']}/reconciliations").json() == expected['history'],
+                'Reconciliation history differs')
         response = api.get(f"{BASE}/{copy['id']}/photos")
         require(response.status_code == 200 and response.json() == [photo], 'Photo metadata differs')
         response = api.get(f"{BASE}/{copy['id']}/photos/{photo['id']}")
@@ -154,7 +186,7 @@ def verify():
         require(response.headers['content-type'] == photo['content_type'], 'Download type differs')
         require(response.content == EVIDENCE.joinpath('original.png').read_bytes(), 'Downloaded photo bytes differ')
         require(hashlib.sha256(response.content).hexdigest() == photo['sha256'], 'Download checksum differs')
-    print('Verified UUIDs, inventory, ownership, all row columns, schema, migration head and exact photo bytes.', flush=True)
+    print('Verified UUIDs, reconciliations and referenced identities, inventory, ownership, all row columns, schema, migration head and exact photo bytes.', flush=True)
 
 
 def main():

@@ -3,10 +3,10 @@ from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint
 from relicrat.models import Base
 
 
-def test_six_foundation_tables():
+def test_foundation_and_reconciliation_tables():
     assert set(Base.metadata.tables) == {
         "categories", "catalog_items", "releases", "owned_copies",
-        "storage_locations", "media_assets",
+        "storage_locations", "media_assets", "reconciliation_events",
     }
 
 
