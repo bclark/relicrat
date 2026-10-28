@@ -1,3 +1,32 @@
+# Inventory text search
+
+`GET /api/v1/inventory?q=blue%20cover&limit=50&offset=0` returns physical
+copies whose provisional title, description, current catalog canonical name, or
+current release name contains the search text, case-insensitively using
+PostgreSQL's database collation. Surrounding whitespace is trimmed; omitted,
+empty, or whitespace-only `q` uses the original unfiltered listing. The input
+limit is 200 characters before trimming; longer input and NUL characters
+(which PostgreSQL text cannot store) return 422.
+
+Search treats `%`, `_`, backslashes, quotes, and SQL-looking input as literal
+text. SQLAlchemy binds parameters and escapes LIKE pattern characters. It is
+one substring, not a token/query language: no stemming, ranking, typo correction,
+or accent folding. NULL fields do not prevent another field matching.
+
+Responses retain the existing inventory shape and newest-first order
+(`created_at DESC, id DESC`), with limit 1–100 and nonnegative offset. Only
+non-deleted physical copies are returned; catalog records alone never imply
+ownership, and distinct copies of the same identity remain distinct. As with the
+existing list endpoint, sold/traded/lost records are included. Offset pagination
+is deterministic for a fixed dataset; concurrent writes can shift page boundaries.
+Search does not modify copies, identification, storage, history, or photos.
+
+No migration, dependency, or deployment change is needed. Substring matching
+can scan the inventory and linked identities; large-collection performance has
+not been measured. Add indexing or a different PostgreSQL search strategy when
+measurements justify it. This is inventory text search only, without location
+subtrees, global catalog search, facets, or a search UI.
+
 # Manual reconciliation
 
 `POST /api/v1/inventory/{copy_id}/reconcile` accepts:
@@ -59,7 +88,7 @@ The harness exercises destructive downgrade only on disposable synthetic data.
 The synthetic recovery rehearsal now retains two reconciliations and all referenced
 identities alongside the original exact photo bytes after source destruction.
 Its quiescent-writer and same-schema-version assumptions remain; this is not
-production backup support. Search, catalog CRUD/UI,
+production backup support. Catalog CRUD/UI,
 authentication, automated matching and broader audit history remain out of scope.
 
 ## Storage locations and manual movement (0003)
@@ -141,7 +170,7 @@ revisions and empty movement history; it cannot recover lost events.
 
 The synthetic recovery fixture retains a nested hierarchy, current assignment,
 two movements, two reconciliations and exact photo bytes after source destruction.
-Authentication, search, usable frontend/catalog UI, operator production backups,
+Authentication, usable frontend/catalog UI, operator production backups,
 container reparenting/history and broader provenance remain unfinished. The first
 vertical slice is incomplete.
 

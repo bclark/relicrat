@@ -7,11 +7,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from relicrat.database import get_db
-from relicrat.models import OwnedCopy, ReconciliationEvent
+from relicrat.models import CatalogItem, OwnedCopy, ReconciliationEvent, Release
 from relicrat.reconciliation import ReconciliationError, reconcile
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -70,6 +70,7 @@ def get_copy(copy_id: UUID, db: Session = Depends(get_db)) -> OwnedCopy:
 
 @router.get("", response_model=list[InventoryCopy])
 def list_copies(
+    q: str | None = Query(default=None, max_length=200, pattern=r"^[^\x00]*$"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -81,6 +82,16 @@ def list_copies(
         .limit(limit)
         .offset(offset)
     )
+    if q and (term := q.strip()):
+        # Match literal text; SQLAlchemy escapes LIKE wildcards and binds values.
+        stmt = stmt.outerjoin(CatalogItem, OwnedCopy.catalog_item_id == CatalogItem.id).outerjoin(
+            Release, OwnedCopy.release_id == Release.id
+        ).where(or_(
+            OwnedCopy.provisional_title.icontains(term, autoescape=True),
+            OwnedCopy.description.icontains(term, autoescape=True),
+            CatalogItem.canonical_name.icontains(term, autoescape=True),
+            Release.name.icontains(term, autoescape=True),
+        ))
     return list(db.scalars(stmt).all())
 
 

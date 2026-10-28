@@ -306,3 +306,44 @@ Final operator verification used the storage source plus this correction:
   HTTP 404 and differing photo bytes, respectively.
 - `git diff --check` passed. Logs are retained in the issue workspace under
   ignored `.harness-results/operator-review/`; only disposable data was used.
+
+## Inventory text search verification (2026-10-28)
+
+Initially built on main `448a16e1896a007b6335155b8d9b30c73d455f97`,
+before storage/dashboard PRs merged. The operator ran
+`python3 scripts/test-api-remote.py relicrat-worker`, which executes
+`sh scripts/test-api.sh` on the isolated guest with disposable PostgreSQL 17.
+
+- Baseline: 43 passed, zero skipped/expected failures, exit 0 and migration round trip.
+- Before implementation, `python3 scripts/test-api-remote.py relicrat-worker
+  tests/test_inventory_api.py::test_search_each_field_and_trim --maxfail=1`:
+  expected exit 1; search returned an unrelated copy because `q` was ignored.
+- Before integration with storage, full suite: 62 passed, zero skipped/expected failures, exit 0, including
+  literal wildcard/backslash/quote handling, NUL/length validation, catalog-only
+  exclusion, multiple-copy pagination, and unchanged history/photo bytes.
+  Six existing Starlette/httpx and Alembic configuration deprecation warnings.
+- That API snapshot SHA256 is
+  `a6a7737e1e7969e15f1f51f410e362b18b80ef0bbd24013c66eae5e1fdc8cf22`.
+  Head → base → head migrations succeeded; each run removed its own disposable
+  project. Full output and exit statuses are retained in ignored local harness logs.
+- `git diff --check` passed. No migration, dependency, deployment, or permission
+  changes. Recovery and web checks were not run for this read-only API change;
+  large-collection performance is unmeasured. Symphony remained stopped.
+  These initial results precede the combined verification below.
+
+
+### Combined verification after storage/dashboard merge
+
+Integrated merged main `5ee13b8deb872895c3396a6a8b7b0f2d101ca91d`, retaining
+storage and dashboard changes and resolving status-document conflicts. No deployed
+migration was edited. Extended the unchanged-state search check to first assign
+a storage location and then verify the same storage revision and movement event.
+
+`python3 scripts/test-api-remote.py relicrat-worker` passed with **86 passed,
+zero skipped/expected failures**, exit 0 and 17 existing deprecation warnings.
+Snapshot SHA256:
+`1d35384fe8e82e24c3e799866a0ba95c0c5e62e16f1aa7d1b62eddafb8415841`.
+The combined suite includes storage hierarchy isolation races, shadowing guards,
+reconciliation concurrency, search, and media checks. Migration head 0003 → base
+→ head passed; its disposable project/container/network/image were removed.
+Recovery and web checks were not rerun; no new search migration or dependency.
