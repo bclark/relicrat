@@ -2,8 +2,10 @@
 
 This is an initial **trusted-operator, synthetic-only workflow on the dedicated
 `relicrat-worker` guest**. It backs up a running single-writer db/api[/web] Compose
-project. It is not production disaster recovery. Authentication, encrypted/off-host
-storage, scheduling, retention and recovery across application versions remain open.
+project. It is not production disaster recovery. Single-owner authentication is implemented,
+and a [manual encrypted off-host recovery copy](off-host-backup.md) has been
+verified. Scheduling, retention, independent off-site/key custody and recovery
+across application versions remain open.
 
 ## Before capture
 
