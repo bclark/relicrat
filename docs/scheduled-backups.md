@@ -69,8 +69,10 @@ and, ideally, verifies that the stored copy can decrypt a disposable test archiv
 Do not delete or rotate the working key as part of scheduling.
 
 Daily scheduling does not provide off-site storage, automatic archive retention,
-independent key custody or a replacement-host/empty-image-store rehearsal. These
-remain distinct recovery requirements. Current use remains synthetic-only.
+independent key custody or a full replacement-host rehearsal. These remain
+distinct recovery requirements; a separate [empty-store image/data recovery
+rehearsal](empty-engine-recovery.md) has passed for the tested archive/release.
+Current use remains synthetic-only.
 
 See [manual encrypted recovery](off-host-backup.md) for capsule format and recovery
 steps, and the [official local scheduling requirements](https://learn.chatgpt.com/docs/automations?surface=app).

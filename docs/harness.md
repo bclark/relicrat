@@ -718,3 +718,37 @@ run. Routine success stays quiet; new/changed failures or required actions are
 reported. No automatic archive retention, off-site backup service or replacement-host/
 empty-image-store recovery is claimed. The independent key copy is separately
 verified as described above.
+
+## Empty-image-store recovery verification (2026-10-28)
+
+The actual encrypted Mac archive for deployed source `ed8d0e3` recovered into
+a disposable Docker engine with an independently empty containerd content store.
+Authenticated decryption, every capsule member hash and exact archived source
+bytes passed before upload. The engine had zero images, containers and volumes,
+a different engine ID, private mount/network/PID namespaces and no external
+route. An expected restore attempt rejected the absent image before creating
+resources. `docker image load --input images.tar.gz` then loaded all three saved
+IDs; each matched the authenticated capsule.
+
+The archived `scripts/backup.py` module's existing restore function ran
+with only its process-local Docker target pointed at the disposable socket.
+Its PostgreSQL restore verifier matched every row, migration head, referenced
+photo and complete media checksum inventory in fresh volumes. The saved web
+image ran `npm test` with network disabled: **20 passed, 0 failed, 0 skipped**.
+No build, pull, owner credential transfer, restored API/web server or promotion
+was needed. See [the rehearsal record](empty-engine-recovery.md) for isolation
+and three failed environment probes corrected before the passing fresh run.
+
+The successful project's containers/network/volumes, temporary daemons, owned
+cgroup, all four attempt directories and earlier test namespace were removed.
+Live trial IDs, image IDs, starts, running state and mounts matched before/after.
+After cleanup, the loopback login returned HTTP200 and unauthenticated
+`/api/v1/inventory` returned HTTP401. The encrypted archive checksum remained
+unchanged. Private logs/receipts remain under the original operator checkout's
+ignored `.harness-results/empty-engine-rehearsal/`.
+
+This documents operational verification; there is no app, schema, dependency or
+deployment change. The full API suite, web build and browser interaction suite
+were not rerun. This test reused the installed worker OS/kernel and runtime
+binaries, so replacement-host provisioning and off-site recovery remain untested.
+Success applies to this archive/release, not every future scheduled backup.

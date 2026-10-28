@@ -160,9 +160,12 @@ Mac data after verification, preserving the encrypted archive and receipts.
 For actual loss of the original worker, first load the saved images on a compatible
 replacement engine using `docker image load --input images.tar.gz`, verify the
 required IDs exist, unpack the matching reviewed source and use its `backup.py`
-to restore offline. The initial test described below did **not** simulate a whole
-replacement engine or load into an empty image store. Do that before claiming
-complete host-loss recovery. Promotion additionally needs new owner configuration
+to restore offline. The initial test below did not use an empty image store. A
+subsequent
+[isolated empty-store rehearsal](empty-engine-recovery.md) loaded the saved images
+and verified recovery successfully. It reused the installed host binaries/kernel;
+full replacement-hardware and OS provisioning still need a separate rehearsal.
+Promotion additionally needs new owner configuration
 with a **fresh session secret**, so captured sessions cannot become valid again.
 
 ## Initial verification — 2026-10-28
