@@ -27,3 +27,6 @@ data/
 backups/
 .harness-results/
 *.sqlite3
+
+# Local visual verification evidence
+.impeccable/review/

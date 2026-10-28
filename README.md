@@ -4,7 +4,7 @@
 
 RelicRat is a self-hosted inventory and collection-management platform for physical collectibles. It is designed for collectors who want to catalog individual items, keep track of where they live, understand their provenance and value, and see what is missing from a collection—without surrendering control of their data.
 
-> **Project status:** Early development / architecture baseline. The application is **not yet usable**. Commands below describe the planned development environment; no production release or supported migration path exists yet.
+> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; identification UI, authentication and production recovery remain unfinished.
 
 ## What we're building
 
@@ -72,7 +72,7 @@ docker compose run --rm api alembic upgrade head
 docker compose up --build
 ```
 
-Development URLs (the web screen remains a placeholder):
+Development URLs (synthetic data only):
 
 - Web: http://localhost:3000
 - API health: http://localhost:8000/health
@@ -99,7 +99,9 @@ with revision checks and retained identification history, nested storage locatio
 and explicit revision-checked copy movements with retained history. Literal text
 search finds copies by provisional information and linked catalog/release names.
 See the [inventory API contract](apps/api/INVENTORY.md).
-Catalog CRUD/UI, authentication and production backup remain unimplemented;
+The add-first web screen supports provisional intake, photo upload/viewing, nested
+storage creation, explicit location changes and literal search. Catalog CRUD and
+identification UI, authentication and production backup remain unimplemented;
 the synthetic recovery harness is development verification only. The complete
 vertical slice is not delivered yet.
 

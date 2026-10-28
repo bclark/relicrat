@@ -1,169 +1,172 @@
 ---
-name: RelicRat local project dashboard
-description: Artifact-specific visual record for docs/project-dashboard.html
+name: RelicRat inventory application
+description: Descriptive visual record of the first working inventory screen
 colors:
-  page: "#f3f5f7"
+  page: "#f1f4f8"
   paper: "#fff"
-  ink: "#172b3a"
-  muted: "#506373"
-  rule: "#d7dfe5"
-  soft: "#eaf0f4"
-  green: "#176148"
-  green-bg: "#e6f3ec"
-  amber: "#7b4c0c"
-  amber-bg: "#fff0d8"
-  focus: "#165baf"
-  accent: "#265b71"
-  selected: "#193c4e"
-  on-selected: "#fff"
+  ink: "#1b2a3d"
+  muted: "#53647a"
+  rule: "#cdd6e2"
+  accent: "#214fbd"
+  hover: "#173d99"
+  soft: "#e9effc"
+  error: "#8d2433"
+  error-bg: "#fff1f2"
+  success: "#1b6549"
+  focus: "#1647b0"
+  control-border: "#9baabd"
+  pressed: "#d9e4fa"
+  selected-border: "#b1c4ed"
+  error-border: "#e8b8bf"
+  loading: "#e1e7f0"
+  photo-bg: "#e4e9f0"
 typography:
   headline:
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-    fontSize: "2.2rem"
-    fontWeight: 650
-    lineHeight: 1.18
-    letterSpacing: "-.03em"
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    fontSize: "1.75rem"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-.025em"
   title:
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-    fontSize: "1.35rem"
-    fontWeight: 650
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    fontSize: "1.25rem"
+    fontWeight: 700
     lineHeight: 1.3
     letterSpacing: "-.015em"
   body:
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
     fontSize: "16px"
-    lineHeight: 1.55
+    lineHeight: 1.5
   label:
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-    fontSize: ".75rem"
-    fontWeight: 600
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    fontSize: ".9rem"
+    fontWeight: 650
+    lineHeight: 1.5
 rounded:
-  badge: "4px"
-  filter: "5px"
+  input: "5px"
   button: "6px"
-  callout: "8px"
-  panel-mobile: "10px"
+  empty: "8px"
   panel: "12px"
 spacing:
-  compact: "6px"
   small: "12px"
-  medium: "20px"
-  panel: "28px"
+  control: "16px"
+  compact-panel: "20px"
+  panel-block: "28px"
   section: "32px"
-  column: "36px"
+  mobile-column: "36px"
+  desktop-column: "48px"
 components:
-  print-button:
+  button-primary:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.button}"
+    padding: "11px 24px"
+  button-primary-hover:
+    backgroundColor: "{colors.hover}"
+    textColor: "{colors.paper}"
+  button-secondary:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.button}"
-    padding: "9px 15px"
-  filter-selected:
-    backgroundColor: "{colors.selected}"
-    textColor: "{colors.on-selected}"
-    rounded: "{rounded.filter}"
-    padding: "7px 13px"
-  state-done:
-    backgroundColor: "{colors.green-bg}"
-    textColor: "{colors.green}"
-    typography: "{typography.label}"
-    rounded: "{rounded.badge}"
-    padding: "4px 9px"
-  report-panel:
+    padding: "9px 16px"
+  input:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.input}"
+    padding: "10px 12px"
+  intake-panel:
     backgroundColor: "{colors.paper}"
     rounded: "{rounded.panel}"
-    padding: "28px"
+    padding: "28px 30px"
+  inventory-row-selected:
+    backgroundColor: "{colors.soft}"
+    textColor: "{colors.ink}"
+    padding: "18px 16px"
 ---
 
-# Design System: RelicRat local project dashboard
+# Design System: RelicRat inventory application
 
 ## Overview
 
-**Creative North Star: "The conservation register"**
+**Creative North Star: "The new-arrivals workbench"**
 
-This record describes only [docs/project-dashboard.html](docs/project-dashboard.html), the finished local, manually updated development report. Cool paper, navy ink, ruled rows and explicit state labels give factual progress and evidence a readable hierarchy. This descriptive name comes from the existing surface contract; it is not a newly inferred user preference.
+This is a descriptive record of the current inventory implementation, extracted from apps/web/app/globals.css and its React components. The new-arrivals workbench uses white paper, cool blue-gray support, restrained navy ink and cobalt actions to make provisional physical copies easy to record and find. The surface operates as a working register, with plain labeled controls and text-led records.
 
-These tokens and rules apply only to this report. They establish no inventory-application identity, permanent hosting decision, preferred build path, or general RelicRat brand. Future product UI design remains open. The artifact is a dated main-448a16e snapshot through merged PR #14; its recorded 43 API tests and stopped worker state are evidence content, not live telemetry.
+The owner chose an add-first screen and a direct working-interface build for this task. This record does not infer a permanent brand, palette preference or global build-path preference. The separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance.
 
 **Key Characteristics:**
-- A compact, text-led register with no decorative imagery.
-- Meaningful status text reinforced by restrained green and amber.
-- Flat paper panels, ruled rows and responsive density.
-- Explicit provenance and manually maintained snapshot context.
+- System UI sans for an Operate workflow.
+- Flat paper and ruled rows with one explicit selection.
+- Visible save, loading, conflict and recovery states.
+- Responsive reading order and keyboard focus.
 
 ## Colors
 
-The report uses cool neutrals with semantic status accents; the frontmatter records the actual light-theme primitives.
+The current light-only theme pairs cool neutrals with a single cobalt action family. Exact source values are in frontmatter; names describe observed roles.
 
 ### Primary
-- **Register ink and selection:** `ink`, `selected`, and `on-selected` establish text and active-control hierarchy.
-- **Evidence link blue:** `accent` identifies source links; `focus` makes keyboard focus visible.
+- **Cobalt action:** accent and hover identify primary saves and links; focus supplies the visible keyboard ring. The caret uses accent; text selection uses paper on accent.
+- **Selection wash:** soft and selected-border mark the open collection row; pressed records the button's active wash.
 
 ### Secondary
-- **Verified green:** `green` on `green-bg` marks completed API behavior and recorded checks.
-- **Qualified amber:** `amber` on `amber-bg` marks recommended work and partial/rehearsed status.
+- **Confirmed green:** success colors save notices.
+- **Error red:** error, error-bg and error-border form the visible alert treatment.
 
 ### Neutral
-- **Cool page and white paper:** `page` and `paper` distinguish the report canvas from its principal panel.
-- **Muted ink, rules and soft wash:** `muted`, `rule`, and `soft` support secondary facts, row boundaries and interaction states.
+- **Cool page and white paper:** page holds the workspace; paper holds intake, fields and buttons.
+- **Navy and blue-gray ink:** ink carries authoritative copy; muted carries hints and metadata, including placeholders.
+- **Rules and surfaces:** rule separates sections, control-border outlines editable fields, loading fills static skeletons, and photo-bg sits behind contained photos.
 
-The source supplies dark equivalents under the system color-scheme media query; exact overrides are recorded in the sidecar. Print switches to white paper and restrained dark text.
-
-**The Explicit State Rule.** Pair every status color with a readable status label; color alone cannot communicate capability or readiness.
+**The Explicit State Rule.** Pair state colors with readable text and programmatic status; color alone does not establish a saved record.
 
 ## Typography
 
-**Body and report-heading font:** the operating-system sans-serif stack in frontmatter. This report has no separate expressive display face or external font request.
-
-The headline introduces the report; section titles organize evidence and work queues. Subheadings use a smaller semibold role (1.05rem, line-height 1.4). Dense descriptions range from .85rem to .95rem, with smaller metadata between .75rem and .82rem. Numbered stages and queue positions use tabular numerals. Main introductory copy is limited to 65ch; detailed stage text to 62ch.
-
-The headline reduces to 1.85rem on narrow screens. This utilitarian report typography does not prescribe a display font for future product screens.
+The operating-system sans stack serves both headings and body in this Operate surface. No external font or decorative display face ships. Headline and title values are in frontmatter; heading weights are browser-default bold. The brand uses 1.5rem, weight 750 and -.025em tracking. Labels and row titles use weight 650; buttons use 600. Row descriptions are .875rem; status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace. Intro and notes cap at 65ch. Pagination and copy metadata use tabular numerals.
 
 ## Layout
 
-The centered container has a maximum width of 1220px and desktop side padding of 36px. The masthead is at least 80px tall. Main content begins with 40px of top space. Navigation uses a horizontal rule and active underline. The overview presents five equal workflow columns above a two-column stage explanation; supporting summaries also use two columns. Completed work uses disclosure rows, remaining work uses a numbered queue, and evidence uses a table.
+A centered 1320px maximum shell uses 36px desktop gutters. The workspace begins 32px below the development notice, with minmax columns in a 1:1.1 ratio and a 48px gap. Intake occupies a bordered paper panel; its selected working record follows below a rule. Search and the collection register occupy the other column. These are the current first surface's composition, not a required template for every future page.
 
-At 800px and below, workflow controls become stacked rows, side padding becomes 24px, the snapshot moves below the heading, and the queue badge moves under its content. At 560px and below, side padding becomes 17px, the masthead reduces to 68px, the stage detail and supporting summaries stack, disclosure metadata gets its own row, and evidence table cells become readable blocks. Panel padding reduces to 20px 17px. The navigation can scroll horizontally.
-
-Snapshot metadata remains separate block lines on desktop. Print reveals every section and filtered entry, expands completed-work disclosures, hides screen controls and restores previous disclosure states afterward.
+At 850px and below, columns become equal, the gap is 28px, gutters are 24px, panel padding is 24px 20px, section headings may wrap, and the development notice stacks. At 650px and below, content stacks in DOM order: intake, selected record, collection. Gutters become 20px, the workspace gap is 36px, and the header tagline hides. Photo grids change from three columns to two. Long titles, identifiers and errors wrap; row descriptions clamp to two lines. Collection pagination shows 20 copies per page with explicit Previous/Next controls.
 
 ## Elevation & Depth
 
-There are no shadows. Paper, soft tonal washes, thin rules and selected-control borders provide grouping and state. The report does not simulate lifted cards.
+The surface is flat. Paper fills and one-pixel rules group content. The selected inventory row alone uses an inset one-pixel selected-border shadow; there are no ambient card shadows or overlays. Reduced-motion preferences remove the 150ms button color transitions and the 180ms record opacity entrance (from .7 to 1).
 
 ## Shapes
 
-Small rounded badges and controls sit within gently rounded principal panels. Register rows remain straight and separated by one-pixel rules. The callout uses an intermediate radius. These shapes describe the report's existing components only.
+Panels have a gentle 12px radius; fields use 5px, buttons/error boxes/photos 6px, and empty-state blocks 8px. Inventory rows are square and full-width. Buttons and editable controls have a minimum 44px height. Textareas resize vertically with a 100px minimum. Photos preserve the whole image inside square frames using object-fit:contain.
 
 ## Components
 
-### Report controls
+### Forms and saves
 
-The print button has a paper fill, thin rule border and soft-wash hover. Filters use the same quiet default, with selection changing to the selected/on-selected pair. Buttons and links have a visible three-pixel focus outline offset by four pixels. State transitions last .15s with ease-out only when reduced motion is not requested.
+Persistent labels precede fields; helper text explains required information and photo constraints. The cobalt primary button saves the copy. Paper secondary buttons save photos and storage separately. Disabled controls use .55 opacity. The quiet variant reduces text to .875rem with 7px 12px padding; underlined text actions retain a 44px minimum height. Native file controls, selects and details/summary remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
+
+Saving locks conflicting actions and changes the primary label to Saving…. Drafts remain page-local and can be lost on reload. A new location is selected after creation but needs a separate Save location action to move the copy. No POST is retried automatically. Unconfirmed writes and revision conflicts display explicit review/reload guidance and block subsequent saves until review.
+
+### Register and selected record
+
+Each ruled list row is a real button with aria-pressed. It carries a title, short description and identification/location text; the selected wash indicates the open copy. Opening a record focuses its heading. Native disclosures reveal location creation, movement history and copy details. Movement/location lists load additional bounded pages explicitly. Photos link to the stored image; their content is collection data, not decorative artwork.
+
+### Focus, feedback and loading
+
+Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link leads to intake. Success text uses role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Read failures offer reload; no fabricated records appear as placeholders.
+
+**The Separate Save Rule.** Make confirmed copy, photo and location saves distinguishable; selecting a location does not move the copy.
 
 ### Navigation
 
-Section anchors use muted text and a three-pixel active underline. `aria-current` identifies the visible section. Hash navigation selects Overview, Completed work, Remaining work or Evidence & checks.
-
-### Status badges
-
-Badges are compact inline labels with explicit wording. Completed states use verified green, next/partial states use qualified amber, and planned states use neutral soft fill. Badges are informational; filter buttons are interactive controls.
-
-### Workflow selector
-
-Each stage is a real button with `aria-pressed`, a two-digit position, title and state label. The selected stage receives a soft wash and selected border; the border moves from top to left in the stacked layout. Selection updates the adjacent detail region with polite announcements. Storage is selected initially.
-
-### Completed register and evidence
-
-Native details/summary rows reveal explanatory text and merged-PR links. Category filters update pressed state and an announced result count. The remaining queue uses textual priorities and acceptance criteria. The evidence table uses column headers, source commands and observed results; its mobile form retains the same facts. There are no text inputs or editable project metrics.
+The brand links home; the screen has no tab or sidebar navigation. Search has a visible label, explicit submit and conditional clear action. Pagination is a named navigation region with disabled end controls. Mobile keeps the same semantic order.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** apply this record only when editing docs/project-dashboard.html.
-- **Do** preserve explicit state labels, evidence links and dated snapshot context.
-- **Do** retain keyboard focus, semantic controls, responsive stacking and complete printed evidence.
+- **Do** preserve visible labels, focus outlines and textual status alongside color.
+- **Do** use contained photos of the physical copy as user data.
+- **Do** preserve separate save actions and explicit review after uncertain writes.
 
 ### Don't:
-- **Don't** treat this local report as the inventory application's visual identity or a global build-path preference.
-- **Don't** imply a live connection through decorative indicators or changing metrics.
-- **Don't** derive application readiness from a status color or a test count alone.
+- **Don't** turn the historical progress report into app design guidance.
+- **Don't** imply saved data, identity or production readiness through visual state alone.
+- **Don't** treat this implementation record as a permanent user brand preference.
