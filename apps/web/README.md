@@ -1,6 +1,6 @@
 # Browser/API connection (development only)
 
-The add-first inventory screen supports provisional copies, photos, explicit
+The add-first inventory screen supports provisional copies, photos, immediate
 storage changes, and inventory search. Use synthetic records and test photos only.
 The server exposes the existing inventory/storage API at `/api/v1/...` on the same
 origin behind single-owner authentication. This remains a synthetic development deployment.
@@ -9,8 +9,11 @@ origin behind single-owner authentication. This remains a synthetic development 
 
 A title or notes creates one provisional physical copy. Save it first, then use
 its record to upload JPEG/PNG/WebP photos and choose storage. Creating a storage
-location does not move the copy: use Save location explicitly. Selecting Unassigned
-and saving removes its current assignment while retaining movement history.
+location does not move the copy: choose it in Location afterward. Choosing a
+location saves immediately, shows “Saving location…” while pending and confirms
+“Added to Comic box B.” beside the selector after success. Choosing Unassigned
+removes the assignment while retaining movement history. A failed save keeps the
+last confirmed selection; uncertain results require reload and review.
 
 The list searches literal text and paginates 20 copies per page. It includes
 non-deleted sold/traded/lost copies, just like the API; it is not an ownership
@@ -146,7 +149,7 @@ RELICRAT_TEST_WEB_URL=http://127.0.0.1:TEST_PORT RELICRAT_REAL_UI_TEST=1 npm run
 By default, domain API calls in fixture scenarios are intercepted with clearly
 synthetic in-memory fixtures. These cover empty/error/no-match states, title and
 notes intake, duplicate in-flight submission, photo failure/size validation,
-explicit nested storage/movement, pagination, stale revisions, delayed reads,
+immediate nested storage/movement, pagination, stale revisions, delayed reads,
 unreadable/network errors, escaped text, keyboard focus and mobile overflow.
 The separately guarded real-stack scenario is skipped unless
 RELICRAT_REAL_UI_TEST=1. It refuses writes to a nonempty inventory. Run it only
