@@ -822,3 +822,41 @@ There is no app, schema or credential change. The full API pytest suite,
 backup/recovery rehearsal and a fresh VM-container build were not rerun for this
 harness/transport change. The existing VM container already supplies Python;
 the Dockerfile now makes that requirement explicit for future builds.
+
+## Collectible detail clarity (2026-10-29)
+
+The owner completed the Copper cover exercise but found catalog/release/linking
+language and separate create/save controls confusing. The record now asks “What
+is this?”, uses collectible and edition/variant terminology, places edition
+creation beside its selector, and presents one primary Save details action.
+Saved details and pending choices are separate. Successful edition creation closes
+its empty form and retains keyboard focus on the disclosure; assignment still
+requires the existing explicit revision-checked save. Unknown editions, retained
+history, stale revisions and uncertain-write locks keep their existing behavior.
+
+- Host `npm run lint --prefix apps/web`, `npm test --prefix apps/web` (**20 passed**),
+  browser-test syntax and `git diff --check` passed.
+- Worker `sh scripts/test-web.sh` passed production build/typecheck, **20 Node
+  tests**, fresh migrations and authenticated HTTP/photo-persistence smoke after
+  API recreation. A final web rebuild/typecheck included the visual fix batch.
+- Final `RELICRAT_REAL_UI_TEST=1 npm run test:browser` with installed Chromium:
+  **16 passed, 0 failed, 0 skipped**, on a separate fresh disposable stack.
+  Checks include Enter creating only the edition, pending/saved distinction,
+  explicit assignment, collapsed-form keyboard focus, long untrusted names at
+  1440/768/390px and doubled root text size, and existing three-copy/auth/conflict
+  regressions. Relevant runtime and browser-test source hashes matched the worker.
+- Initial desktop/phone captures were inspected together. One fix batch collapsed
+  successful edition creation and wrapped long pending names. The focused long-name
+  check failed on the previous build's desktop overflow and passed in the final
+  full suite. Its first concurrent probe timed out before the UI assertion; the
+  meaningful reproduction was serial. Final desktop/phone captures confirmed the
+  fix. One manual design detector pass returned no findings; the incumbent visual
+  system and sidecar were preserved.
+
+Both the successful test project and its preliminary web integration project
+were scoped for cleanup; the temporary bridge and uploaded staging were removed.
+Private evidence remains under the operator checkout's ignored
+`.harness-results/clear-collectible-details/`. The live trial's original container
+IDs remained running, with no published ports. This UI-only change has no API,
+schema, dependency or credential change. Full API pytest and backup/restore were
+not rerun. Human review/merge and a later trial upgrade remain separate steps.

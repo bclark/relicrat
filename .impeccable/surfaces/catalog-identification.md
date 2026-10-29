@@ -71,3 +71,23 @@ result, not a claim of human PR approval or deployment. Catalog
 editing/deleting/merging, automatic matching, authentication and production recovery
 remain unfinished. The existing offline synthetic operator backup workflow is not
 production recovery, and backup/restore was not rerun for this extension.
+
+## Identification clarity refinement (2026-10-29)
+
+The owner completed the Copper cover exercise but needed guidance to translate
+catalog entry/release/identification terminology and find the separate create/save
+controls. The record now asks “What is this?”, uses collectible and edition or
+variant consistently, and places Add an edition or variant immediately after the
+edition selector, before Save details. Saved details remain separate from the
+explicit “Not saved to this copy yet” selection. Adding an edition only prepares
+it; Save details remains the sole revision-checked assignment action. Native forms
+remain siblings so Enter in the new-edition field cannot submit the copy's save.
+Unknown editions remain allowed, removal warns that history is retained, and
+conflict/uncertain-write locks are unchanged. This is a scoped flow/copy refinement
+within the existing visual system; no app-wide style, token or dependency change.
+
+The new-edition disclosure closes after confirmed creation and keeps keyboard
+focus on its summary, making the pending selection and primary Save details
+visible without an empty creation form between them. The selected/pending group
+wraps unbroken collectible and edition names; desktop, tablet, phone and enlarged
+text checks cover that boundary. DESIGN.md and its sidecar are unchanged.

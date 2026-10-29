@@ -28,12 +28,15 @@ before deciding to save again. Existing record data, photos and history remain
 server-authoritative; unsaved form drafts are page-local and do not survive
 navigation/reload. Switching copies clears that record's unsaved file selection.
 
-Manual identification now searches or creates a catalog entry, optionally selects
-a release, and explicitly saves on the same copy with retained history. Creation
-never implies ownership or links the copy by itself. No release specified removes
-a previous edition. Similar names remain separate, with references shown for
-disambiguation. Stale or uncertain writes require Reload copy and review; catalog
-reload alone cannot unlock an uncertain copy. Catalog editing/deletion, automated
+Under **What is this?**, find or add the collectible, choose an optional edition or
+variant, then use **Save details** to apply those choices to the current physical
+copy. **Add an edition or variant** sits beside the selector. Adding one prepares
+it without changing the copy; a pending message remains until Save details.
+After creation the edition form collapses, keeping keyboard focus on its control.
+**Edition not specified** removes a previous edition, with a warning and history
+retained. Similar names remain separate, with references for disambiguation.
+Stale or uncertain writes require **Reload copy** and review; **Reload details**
+alone cannot unlock an uncertain copy. Catalog editing/deletion, automated
 matching, valuation, real imports and production recovery remain
 out of scope. The worker has a separate offline synthetic backup workflow. The separate local
 progress dashboard is unchanged.
