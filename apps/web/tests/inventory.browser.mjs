@@ -323,7 +323,7 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   assert.notEqual(await page.getByLabel('Notes', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
 });
 
-test('real browser creates one synthetic copy, photo and nested location through the production stack', { skip: process.env.RELICRAT_REAL_UI_TEST !== '1' }, async t => {
+test('real browser preserves three physical copies across shared editions, photos and nested storage', { skip: process.env.RELICRAT_REAL_UI_TEST !== '1' }, async t => {
   const context = await browser.newContext(); t.after(() => context.close());
   await signIn(context);
   const page = await context.newPage(); await page.goto(base);
@@ -383,6 +383,84 @@ test('real browser creates one synthetic copy, photo and nested location through
   assert.deepEqual(Buffer.from(bytes), png);
   const moves = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}/locations`).then(response => response.json()), cid);
   assert.equal(moves.length, 1); assert.equal(moves[0].after_revision, 1);
+
+  // Replay the hands-on trial: two copies of one edition plus a variant must
+  // retain independent photos, locations and history under one catalog item.
+  const firstEdition = identifications[1].before_release_id;
+  await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
+  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+  const added = [];
+  for (const [index, copyTitle] of ['Synthetic second physical copy', 'Synthetic variant physical copy'].entries()) {
+    await page.getByLabel('Title', { exact: true }).fill(copyTitle);
+    await page.getByLabel('Notes', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
+    await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+    await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
+    const created = await page.evaluate(async title => (await (await fetch('/api/v1/inventory')).json()).find(item => item.title === title), copyTitle);
+    assert.ok(created?.id); added.push(created);
+    await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: `copy-${index + 2}.png`, mimeType: 'image/png', buffer: png });
+    await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
+    await page.getByAltText(`Photo 1 of ${copyTitle}`).waitFor();
+    await page.getByRole('radio', { name: /Synthetic Canonical Hero #1/ }).check();
+    if (index === 0) {
+      await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
+    } else {
+      await page.locator('summary').filter({ hasText: /^Create a release for/ }).click();
+      await page.getByLabel('Release name', { exact: true }).fill('Synthetic copper variant');
+      await page.getByRole('button', { name: 'Create release', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: 'Release created.' }).waitFor();
+    }
+    await page.getByRole('button', { name: 'Save identification', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+    await page.getByLabel('Location', { exact: true }).selectOption(index === 0 ? room : box);
+    await page.getByRole('status').filter({ hasText: index === 0 ? 'Added to Synthetic study.' : 'Added to Synthetic box.' }).waitFor();
+  }
+  await page.getByLabel('Find a copy', { exact: true }).fill('Synthetic Canonical Hero #1');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  for (const copyTitle of [title, ...added.map(item => item.title)]) await page.getByRole('button', { name: `Open ${copyTitle}`, exact: true }).waitFor();
+  await page.reload();
+  const final = await page.evaluate(async () => {
+    const records = await (await fetch('/api/v1/inventory?q=Synthetic%20Canonical%20Hero%20%231')).json();
+    return Promise.all(records.map(async record => {
+      const images = await (await fetch(`/api/v1/inventory/${record.id}/photos`)).json();
+      const moves = await (await fetch(`/api/v1/inventory/${record.id}/locations`)).json();
+      const history = await (await fetch(`/api/v1/inventory/${record.id}/reconciliations`)).json();
+      const bytes = [...new Uint8Array(await (await fetch(`/api/v1/inventory/${record.id}/photos/${images[0].id}`)).arrayBuffer())];
+      return { record, images, moves, history, bytes };
+    }));
+  });
+  const allCopies = await (await context.request.get(`${base}/api/v1/inventory`)).json();
+  assert.equal(allCopies.length, 3, 'Catalog/edition creation must not create extra ownership');
+  assert.equal(final.length, 3);
+  assert.deepEqual(new Set(final.map(item => item.record.id)), new Set([cid, ...added.map(item => item.id)]));
+  assert.ok(final.every(item => item.record.catalog_item_id === reconciled.catalog_item_id));
+  const original = final.find(item => item.record.id === cid);
+  const second = final.find(item => item.record.id === added[0].id);
+  const variant = final.find(item => item.record.id === added[1].id);
+  assert.equal(original.record.release_id, firstEdition);
+  assert.equal(second.record.release_id, firstEdition);
+  assert.ok(variant.record.release_id && variant.record.release_id !== firstEdition);
+  assert.equal(original.record.storage_location_id, box);
+  assert.equal(second.record.storage_location_id, room);
+  assert.equal(variant.record.storage_location_id, box);
+  assert.equal(original.record.created_at, saved[0].created_at);
+  assert.equal(original.images[0].id, photos[0].id);
+  assert.deepEqual(original.moves, moves);
+  assert.equal(original.history.length, 3);
+  assert.equal(new Set(final.map(item => item.images[0].id)).size, 3);
+  for (const item of final) {
+    assert.equal(item.images.length, 1);
+    assert.equal(item.images[0].owned_copy_id, item.record.id);
+    assert.deepEqual(Buffer.from(item.bytes), png);
+    assert.equal(item.moves.length, 1);
+    assert.equal(item.record.ownership_status, 'owned');
+    if (item !== original) {
+      assert.equal(item.history.length, 1);
+      assert.equal(item.record.created_at, added.find(copy => copy.id === item.record.id).created_at);
+    }
+  }
+  const crossCopy = await context.request.get(`${base}/api/v1/inventory/${second.record.id}/photos/${original.images[0].id}`);
+  assert.equal(crossCopy.status(), 404, 'A photo must not be accessible through another physical copy');
 });
 
 test('catalog creation stays separate from ownership; identification and release removal retain the copy', async t => {

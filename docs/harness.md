@@ -787,3 +787,38 @@ This is a web-only interaction change with no migration or dependency change.
 The full API suite and backup/recovery rehearsal were not rerun; existing API
 revision/history semantics are unchanged. Native select changes, including
 keyboard changes, save immediately as described by the control's helper text.
+
+## Three-copy collection trial regression (2026-10-29)
+
+The real-browser scenario now creates three physical copies through the UI:
+ two share one edition, and the third uses another edition of the same catalog
+item. After reload, it verifies exactly three stable copy IDs, unchanged creation
+times, separate photo IDs and exact bytes, independent storage, retained movement
+and identification history, and rejection of a photo requested through the wrong
+copy. Catalog/release creation must not add ownership. The scenario refuses a
+nonempty inventory and runs only in the explicitly enabled disposable stack.
+
+- `python3 -m unittest discover -s scripts -p 'test_*.py' -v`:
+  **14 passed**, including three focused SSH relay checks.
+- Worker `sh scripts/test-web.sh`: production build/typecheck, **20 Node tests**,
+  fresh migrations, authenticated HTTP smoke and photo persistence after API
+  recreation passed; exact disposable cleanup verified.
+- `RELICRAT_REAL_UI_TEST=1 npm run test:browser`: **14 passed, 0 failed,
+  0 skipped** against a separate empty stack on Mac loopback port 63112. The host
+  selected its installed Chromium using `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+- The revised SSH helper also passed a deliberately recreated conflicting Docker
+  subnet while the live login returned 200 and unauthenticated inventory 401.
+  Interactive worker access passed. See [the worker route regression](worker.md).
+
+The first attempt was interrupted by that routing collision before browser
+validation. The final run used the fixed helper. Both the failed run's exact
+resources and the successful run's containers, volumes, networks, generated
+images, staging and temporary bridge were removed; retained restores and the
+owner's trial were preserved. Private evidence is under the operator checkout's
+ignored `.harness-results/collection-trial-regression/` and
+`.harness-results/worker-recovery-20261029/`.
+
+There is no app, schema or credential change. The full API pytest suite,
+backup/recovery rehearsal and a fresh VM-container build were not rerun for this
+harness/transport change. The existing VM container already supplies Python;
+the Dockerfile now makes that requirement explicit for future builds.
