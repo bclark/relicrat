@@ -30,11 +30,16 @@ guest disk is the dedicated `relicrat-worker_disk` Docker volume. The operator
 key is generated on the NAS and stays there; only its public key enters the
 guest. No existing Mac or NAS account credentials are copied into the guest.
 
-The NAS rejects SSH TCP forwarding. The connection helper therefore uses two
-ordinary authenticated sessions: Mac → NAS → guest. It does not enable SSH
-agent forwarding or change the NAS SSH configuration. On the first guest
-connection its host key is pinned under the dedicated NAS worker directory;
-later mismatches must be investigated, not silently accepted.
+The NAS rejects SSH TCP forwarding. The connection helper uses two authenticated
+sessions: Mac → NAS → guest. The second SSH session uses a binary stdin/stdout
+relay inside the existing VM container to reach QEMU's loopback SSH listener.
+QEMU then sees its own gateway as the source, so a guest Docker test network
+cannot capture replies to the NAS container's address. The relay uses Python's
+standard library; Python is explicitly installed in the VM container image.
+No new listener, SSH agent forwarding or NAS SSH configuration change is needed.
+The same guest identity, known-host file and port alias remain in use. On the
+first guest connection its host key is pinned under the dedicated NAS worker
+directory; later mismatches must be investigated, not silently accepted.
 
 ## Codex login
 
@@ -184,3 +189,27 @@ Sources:
 - [Ubuntu cloud-init/QEMU setup](https://ubuntu.com/docs/public-images/public-images-how-to/use-local-cloud-init-ds/)
 - [Codex headless authentication](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
 - [GitHub fine-grained token setup](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
+## Worker route regression (2026-10-29)
+
+A disposable browser test allocated a guest Docker subnet matching the NAS VM
+container's source network. SSH replies followed that guest bridge instead of
+QEMU's gateway; rebooting did not fix the route. Removing only the confirmed
+empty test-owned network restored access. Existing trial containers, images,
+volumes and owner settings were retained and restarted; 13 synthetic copies,
+copy A's two photos, Box B assignment and movement history were visible afterward.
+
+The revised helper was verified while an explicitly owned empty internal test
+network recreated the conflicting subnet. SSH remained available, the preview
+login returned 200 and unauthenticated inventory returned 401. That exact network
+was removed afterward. No guest routing, credentials, access policy or published
+ports changed. Host tests exercise binary traffic, stdin half-close, remote EOF,
+interactive/command argument construction and retained SSH security options:
+
+```sh
+python3 -m unittest discover -s scripts -p test_worker_ssh.py -v
+```
+
+The Python package declaration affects future VM-container builds. The existing
+container already has Python, so no VM image rebuild or disk replacement was
+needed. Private operational evidence remains outside Git.
