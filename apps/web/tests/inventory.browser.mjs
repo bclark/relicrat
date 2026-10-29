@@ -352,24 +352,24 @@ test('real browser preserves three physical copies across shared editions, photo
   await page.getByRole('status').filter({ hasText: 'Added to Synthetic box.' }).waitFor();
   const saved = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json())); assert.equal(saved.length, 1);
   const cid = saved[0].id;
-  await page.locator('summary').filter({ hasText: /^Create a catalog entry$/ }).click();
+  await page.locator('summary').filter({ hasText: /^Can’t find it\? Add a collectible$/ }).click();
   await page.getByLabel('New category name', { exact: true }).fill('Synthetic comics');
-  await page.getByRole('button', { name: 'Create category', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Category created.' }).waitFor();
-  await page.getByLabel('Catalog name', { exact: true }).fill('Synthetic Canonical Hero #1');
-  await page.getByRole('button', { name: 'Create catalog entry', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Catalog entry created.' }).waitFor();
-  await page.locator('summary').filter({ hasText: /^Create a release for/ }).click();
-  await page.getByLabel('Release name', { exact: true }).fill('Synthetic first printing');
-  await page.getByRole('button', { name: 'Create release', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Release created.' }).waitFor();
+  await page.getByRole('button', { name: 'Add category', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Category added.' }).waitFor();
+  await page.getByLabel('Collectible name', { exact: true }).fill('Synthetic Canonical Hero #1');
+  await page.getByRole('button', { name: 'Add collectible', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Collectible added.' }).waitFor();
+  await page.locator('summary').filter({ hasText: /^Add an edition or variant/ }).click();
+  await page.getByLabel('Edition or variant name', { exact: true }).fill('Synthetic first printing');
+  await page.getByRole('button', { name: 'Add edition', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
   const unlinked = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}`).then(r => r.json()), cid);
   assert.equal(unlinked.catalog_item_id, null);
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('No release specified'));
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('Edition not specified'));
   const reconciled = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}`).then(r => r.json()), cid);
   assert.equal(reconciled.id, cid); assert.equal(reconciled.identification_revision, 2); assert.equal(reconciled.release_id, null);
   assert.equal(reconciled.storage_location_id, saved[0].storage_location_id);
@@ -388,8 +388,8 @@ test('real browser preserves three physical copies across shared editions, photo
   // retain independent photos, locations and history under one catalog item.
   const firstEdition = identifications[1].before_release_id;
   await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
   const added = [];
   for (const [index, copyTitle] of ['Synthetic second physical copy', 'Synthetic variant physical copy'].entries()) {
     await page.getByLabel('Title', { exact: true }).fill(copyTitle);
@@ -405,13 +405,13 @@ test('real browser preserves three physical copies across shared editions, photo
     if (index === 0) {
       await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
     } else {
-      await page.locator('summary').filter({ hasText: /^Create a release for/ }).click();
-      await page.getByLabel('Release name', { exact: true }).fill('Synthetic copper variant');
-      await page.getByRole('button', { name: 'Create release', exact: true }).click();
-      await page.getByRole('status').filter({ hasText: 'Release created.' }).waitFor();
+      await page.locator('summary').filter({ hasText: /^Add an edition or variant/ }).click();
+      await page.getByLabel('Edition or variant name', { exact: true }).fill('Synthetic copper variant');
+      await page.getByRole('button', { name: 'Add edition', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
     }
-    await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-    await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+    await page.getByRole('button', { name: 'Save details', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
     await page.getByLabel('Location', { exact: true }).selectOption(index === 0 ? room : box);
     await page.getByRole('status').filter({ hasText: index === 0 ? 'Added to Synthetic study.' : 'Added to Synthetic box.' }).waitFor();
   }
@@ -463,38 +463,97 @@ test('real browser preserves three physical copies across shared editions, photo
   assert.equal(crossCopy.status(), 404, 'A photo must not be accessible through another physical copy');
 });
 
+test('adding an edition stays beside its selector and waits for an explicit save to this copy', async t => {
+  const item = { id: id(4000), category_id: id(3000), canonical_name: 'Synthetic Otter #1' };
+  const original = copy(1, 'Copper cover copy', { storage_location_id: id(1000) });
+  const { page, state } = await fixture(t, { copies: [original], items: [item], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }] });
+  await open(page, original.title);
+  await page.getByRole('radio', { name: /Synthetic Otter #1/ }).check();
+  const details = page.getByRole('region', { name: 'Choose collectible details', exact: true });
+  await details.getByText('Add an edition or variant', { exact: true }).click();
+  await details.getByLabel('Edition or variant name', { exact: true }).fill('Copper cover');
+  await details.getByLabel('Edition or variant name', { exact: true }).press('Enter');
+  await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
+  assert.equal(state.releases.length, 1);
+  assert.ok(await details.getByLabel('Edition or variant name', { exact: true }).isHidden());
+  assert.ok(await details.locator('summary').evaluate(summary => summary === document.activeElement), 'Keep keyboard focus on the collapsed edition control');
+  assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 0);
+  assert.equal(state.copies[0].catalog_item_id, null);
+  await details.getByRole('status').filter({ hasText: 'Not saved to this copy yet: Synthetic Otter #1 · Copper cover' }).waitFor();
+  assert.equal(await details.getByRole('button', { name: 'Save details', exact: true }).count(), 1);
+  assert.ok(await details.evaluate(region => {
+    const add = region.querySelector('details');
+    const save = region.querySelector('button[form="save-identification"]');
+    return !!(add.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }));
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
+    await page.screenshot({ path: `${output}/details-desktop.png`, fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: `${output}/details-mobile.png`, fullPage: true, animations: 'disabled' });
+  }
+  await details.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+  assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 1);
+  assert.equal(state.copies.length, 1);
+  assert.equal(state.copies[0].id, original.id);
+  assert.equal(state.copies[0].release_id, state.releases[0].id);
+  assert.equal(state.copies[0].storage_location_id, id(1000));
+  assert.equal(await details.getByRole('status').filter({ hasText: 'Not saved to this copy yet:' }).count(), 0);
+  assert.ok(await details.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+});
+
+test('long collectible details wrap safely on desktop, tablet, phone and enlarged text', async t => {
+  const item = { id: id(4000), category_id: id(3000), canonical_name: 'Collectible'.repeat(40) + '<img src=x>' };
+  const edition = { id: id(5000), catalog_item_id: item.id, name: 'Copper'.repeat(70) };
+  const { page, state } = await fixture(t, { copies: [copy(1, 'Long collectible details')], items: [item], releases: [edition] });
+  await open(page, 'Long collectible details');
+  await page.getByRole('radio').check();
+  await page.getByLabel('Edition or variant', { exact: true }).selectOption(edition.id);
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 1050 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Overflow at ${width}px`);
+  }
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Overflow with doubled text size');
+  assert.equal(await page.locator('.collectible-details img').count(), 0);
+  assert.equal(state.writes.length, 0, 'Reading and selecting details must not save');
+});
+
 test('catalog creation stays separate from ownership; identification and release removal retain the copy', async t => {
   const original = copy(1, 'Synthetic mystery', { storage_location_id: id(1000), storage_revision: 2 });
   const { page, state } = await fixture(t, { copies: [original], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }] });
   await open(page, 'Synthetic mystery');
-  await page.locator('summary').filter({ hasText: /^Create a catalog entry$/ }).click();
+  await page.locator('summary').filter({ hasText: /^Can’t find it\? Add a collectible$/ }).click();
   await page.getByLabel('New category name', { exact: true }).fill('Synthetic comics');
-  await page.getByRole('button', { name: 'Create category', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Category created.' }).waitFor();
-  await page.getByLabel('Catalog name', { exact: true }).fill('Synthetic Hero #1');
-  await page.getByRole('button', { name: 'Create catalog entry', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Catalog entry created.' }).waitFor();
-  await page.locator('summary').filter({ hasText: /^Create a release for/ }).click();
-  await page.getByLabel('Release name', { exact: true }).fill('First printing');
-  await page.getByRole('button', { name: 'Create release', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Release created.' }).waitFor();
+  await page.getByRole('button', { name: 'Add category', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Category added.' }).waitFor();
+  await page.getByLabel('Collectible name', { exact: true }).fill('Synthetic Hero #1');
+  await page.getByRole('button', { name: 'Add collectible', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Collectible added.' }).waitFor();
+  await page.locator('summary').filter({ hasText: /^Add an edition or variant/ }).click();
+  await page.getByLabel('Edition or variant name', { exact: true }).fill('First printing');
+  await page.getByRole('button', { name: 'Add edition', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
   assert.equal(state.copies.length, 1); assert.equal(state.copies[0].catalog_item_id, null);
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-  assert.ok(await page.getByRole('button', { name: 'Save identification', exact: true }).isDisabled());
-  await page.getByRole('status').filter({ hasText: 'Identification saved.' }).waitFor();
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 1);
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('No release specified'));
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('Edition not specified'));
   assert.equal(state.copies[0].id, original.id); assert.equal(state.copies[0].storage_revision, 2);
   assert.equal(state.copies[0].identification_revision, 2); assert.equal(state.copies[0].release_id, null);
   assert.equal(state.identifications[original.id].length, 2);
   if (process.env.RELICRAT_SCREENSHOTS) {
     await page.locator('.identification details').evaluateAll(nodes => nodes.forEach(node => { node.open = false; }));
-    await page.getByLabel('Find a catalog entry', { exact: true }).fill('Hero');
-    await page.getByRole('button', { name: 'Search catalog', exact: true }).click();
+    await page.getByLabel('Find a collectible', { exact: true }).fill('Hero');
+    await page.getByRole('button', { name: 'Search collectibles', exact: true }).click();
     await page.getByRole('radio', { name: /Synthetic Hero/ }).waitFor();
-    await page.getByText('Identification history', { exact: true }).click();
+    await page.getByText('Details history', { exact: true }).click();
     const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
     await page.evaluate(async () => { document.activeElement?.blur(); window.scrollTo(0, 0); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
     await page.screenshot({ path: `${output}/desktop.png`, fullPage: true, animations: 'disabled' });
@@ -513,26 +572,26 @@ test('catalog paging, selected release beyond page one, stale revisions and unce
   await open(page, 'Identified trial');
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
   assert.equal(await page.getByLabel('Edition or variant', { exact: true }).inputValue(), releases[21].id);
-  await page.getByRole('navigation', { name: 'Catalog pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Collectible pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('radio', { name: /Catalog 21/ }).waitFor();
   assert.ok(await page.getByRole('radio', { name: /Catalog 21/ }).isChecked());
-  await page.getByRole('navigation', { name: 'Release pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Edition pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'This copy changed elsewhere' }).waitFor();
   assert.ok(await page.getByRole('button', { name: 'Upload photo', exact: true }).isDisabled());
   await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
   state.uncertainIdentification = true;
-  await page.getByRole('button', { name: 'Save identification', exact: true }).click();
+  await page.getByRole('button', { name: 'Save details', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Save could not be confirmed' }).first().waitFor();
-  assert.ok(await page.getByRole('button', { name: 'Save identification', exact: true }).isDisabled());
+  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 2);
   await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
-  await page.getByText('No release specified', { exact: false }).first().waitFor();
+  await page.getByText('Edition not specified', { exact: false }).first().waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
-  assert.ok(await page.getByRole('button', { name: 'Save identification', exact: true }).isDisabled());
+  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
 });
 
 test('obsolete catalog searches are cancelled and changing catalog clears the selected release', async t => {
@@ -540,10 +599,10 @@ test('obsolete catalog searches are cancelled and changing catalog clears the se
   const releases = [{ id: id(5000), catalog_item_id: items[0].id, name: 'Old edition' }];
   const { page } = await fixture(t, { copies: [copy(1, 'Race trial', { catalog_item_id: items[0].id, release_id: releases[0].id })], items, releases });
   await open(page, 'Race trial');
-  await page.getByLabel('Find a catalog entry', { exact: true }).fill('Old catalog');
-  await page.getByRole('button', { name: 'Search catalog', exact: true }).click();
-  await page.getByLabel('Find a catalog entry', { exact: true }).fill('New catalog');
-  await page.getByRole('button', { name: 'Search catalog', exact: true }).click();
+  await page.getByLabel('Find a collectible', { exact: true }).fill('Old catalog');
+  await page.getByRole('button', { name: 'Search collectibles', exact: true }).click();
+  await page.getByLabel('Find a collectible', { exact: true }).fill('New catalog');
+  await page.getByRole('button', { name: 'Search collectibles', exact: true }).click();
   await page.getByRole('radio', { name: /New catalog/ }).check();
   await page.waitForTimeout(500);
   assert.equal(await page.getByRole('radio', { name: /Old catalog/ }).count(), 0);
