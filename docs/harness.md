@@ -752,3 +752,38 @@ deployment change. The full API suite, web build and browser interaction suite
 were not rerun. This test reused the installed worker OS/kernel and runtime
 binaries, so replacement-host provisioning and off-site recovery remain untested.
 Success applies to this archive/release, not every future scheduled backup.
+
+## Immediate storage selection verification (2026-10-29)
+
+Choosing a location now sends one revision-checked move immediately. The selector
+shows only the last confirmed assignment while saving; nearby status text reports
+“Saving location…” and then “Added to Comic box B.” after confirmation. Selecting
+Unassigned removes the assignment with history retained. There is no separate
+Save location action. Creating a location still does not move the copy or change its confirmed selection.
+
+Host `npm run lint`, `npm test` and `npm run build` in `apps/web` passed; Node
+boundary checks reported **20 passed, 0 failed, 0 skipped**. Worker
+`sh scripts/test-web.sh` passed a fresh disposable production build/typecheck,
+Node tests, migrations and authenticated HTTP/photo-persistence smoke checks.
+
+`RELICRAT_REAL_UI_TEST=1 npm run test:browser` against a separate fresh production
+stack passed **14 scenarios, 0 failed, 0 skipped**. The host selected its already
+installed Chromium through `PLAYWRIGHT_CHROMIUM_EXECUTABLE`; the first launch
+without that override failed because the expected browser binary was absent,
+before any scenario ran. Screenshots were enabled through `RELICRAT_SCREENSHOTS`.
+The focused regressions exercise immediate single-flight saving, unchanged
+selection/no extra write on reload, rejection rollback, uncertain committed
+writes requiring review, stale revisions, history-refresh failure after confirmed
+success, explicit location creation, unassignment, and preserved copy/photo/history.
+
+Desktop/mobile captures were inspected together; the confirmation sits beside
+the selector, mobile has no horizontal overflow, and the existing layout remains.
+One scoped Impeccable detector pass returned no findings. Private logs and
+captures are under the operator checkout's ignored
+`.harness-results/storage-selection-save/`. Disposable test resources were cleaned
+up separately from the owner's trial. The live preview/deployment was not changed.
+
+This is a web-only interaction change with no migration or dependency change.
+The full API suite and backup/recovery rehearsal were not rerun; existing API
+revision/history semantics are unchanged. Native select changes, including
+keyboard changes, save immediately as described by the control's helper text.

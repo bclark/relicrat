@@ -143,7 +143,7 @@ Panels have a gentle 12px radius; fields use 5px, buttons/error boxes/photos 6px
 
 Persistent labels precede fields; helper text explains required information and photo constraints. The cobalt primary button saves the copy. Paper secondary buttons save photos and storage separately. Disabled controls use .55 opacity. The quiet variant reduces text to .875rem with 7px 12px padding; underlined text actions retain a 44px minimum height. Native file controls, selects and details/summary remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
 
-Saving locks conflicting actions and changes the primary label to Saving…. Drafts remain page-local and can be lost on reload. A new location is selected after creation but needs a separate Save location action to move the copy. No POST is retried automatically. Unconfirmed writes and revision conflicts display explicit review/reload guidance and block subsequent saves until review.
+Saving locks conflicting actions and changes the primary label to Saving…. Drafts remain page-local and can be lost on reload. A new location becomes available after creation without moving the copy. Choosing it saves the move immediately; a nearby status announces progress and the confirmed destination. No POST is retried automatically. Unconfirmed writes and revision conflicts display explicit review/reload guidance and block subsequent saves until review.
 
 ### Register and selected record
 
@@ -153,7 +153,7 @@ Each ruled list row is a real button with aria-pressed. It carries a title, shor
 
 Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link leads to intake. Success text uses role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Read failures offer reload; no fabricated records appear as placeholders.
 
-**The Separate Save Rule.** Make confirmed copy, photo and location saves distinguishable; selecting a location does not move the copy.
+**The Separate Save Rule.** Make confirmed copy, photo and location saves distinguishable; choosing a location immediately saves a revision-checked move and confirms its destination beside the selector. Creating a location remains a separate save.
 
 ### Navigation
 
@@ -164,7 +164,7 @@ The brand links home; the screen has no tab or sidebar navigation. Search has a 
 ### Do:
 - **Do** preserve visible labels, focus outlines and textual status alongside color.
 - **Do** use contained photos of the physical copy as user data.
-- **Do** preserve separate save actions and explicit review after uncertain writes.
+- **Do** keep copy/photo/catalog/location creation separate, save location choices immediately, and require explicit review after uncertain writes.
 
 ### Don't:
 - **Don't** turn the historical progress report into app design guidance.

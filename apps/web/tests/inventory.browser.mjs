@@ -100,14 +100,18 @@ async function fixture(t, initial = {}) {
         }
       } else if (parts[2] === 'locations') {
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
-        result = (state.moves[cid] || []).slice(offset, offset + limit);
+        if (state.failHistory) { status = 502; result = { detail: 'History unavailable' }; }
+        else result = (state.moves[cid] || []).slice(offset, offset + limit);
       } else if (parts[2] === 'location' && method === 'POST') {
+        await new Promise(resolve => setTimeout(resolve, 150));
         const payload = request.postDataJSON();
         if (state.conflict) { item.storage_revision += 1; state.conflict = false; }
-        if (payload.expected_storage_revision !== item.storage_revision) { status = 409; result = { detail: 'Stale storage revision' }; }
+        if (state.failMove === 'validation') { status = 422; result = { detail: 'Synthetic location rejected' }; }
+        else if (payload.expected_storage_revision !== item.storage_revision) { status = 409; result = { detail: 'Stale storage revision' }; }
         else {
           const before = item.storage_location_id; item.storage_location_id = payload.storage_location_id; item.storage_revision += 1;
-          state.moves[cid] = [...(state.moves[cid] || []), { id: id(700 + state.writes.length), before_location_id: before, after_location_id: item.storage_location_id, after_revision: item.storage_revision, created_at: item.created_at }]; result = item;
+          state.moves[cid] = [...(state.moves[cid] || []), { id: id(700 + state.writes.length), before_location_id: before, after_location_id: item.storage_location_id, after_revision: item.storage_revision, created_at: item.created_at }];
+          status = state.failMove === 'uncertain' ? 502 : 200; result = status === 200 ? item : { detail: 'Save could not be confirmed. Reload and inspect.' };
         }
       }
     }
@@ -123,7 +127,7 @@ async function open(page, title) {
   await page.getByLabel('Photo file', { exact: true }).waitFor();
 }
 
-test('add-first workflow keeps one copy across photo, explicit nested storage, and search', async t => {
+test('add-first workflow keeps one copy across photo, immediate nested storage, and search', async t => {
   const { page, state } = await fixture(t);
   assert.ok(await page.getByRole('heading', { name: 'Your first find starts here' }).isVisible());
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
@@ -140,14 +144,14 @@ test('add-first workflow keeps one copy across photo, explicit nested storage, a
   await page.getByText('Create a storage location', { exact: true }).click();
   await page.getByLabel('Location name', { exact: true }).fill('Study');
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Location created.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'created. Choose it under Location' }).waitFor();
   assert.equal(state.copies[0].storage_location_id, null, 'Creating a location must not move a copy');
   await page.getByLabel('Location name', { exact: true }).fill('Comic box A');
   await page.getByLabel('Inside another location', { exact: true }).selectOption(state.locations[0].id);
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#location-name').value === '');
-  await page.getByRole('button', { name: 'Save location', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Location saved.' }).waitFor();
+  await page.getByLabel('Location', { exact: true }).selectOption(state.locations[1].id);
+  await page.getByRole('status').filter({ hasText: 'Added to Comic box A.' }).waitFor();
   assert.equal(state.copies[0].id, cid); assert.equal(state.copies[0].storage_location_id, state.locations[1].id);
   await page.getByLabel('Find a copy', { exact: true }).fill('does not match');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -155,7 +159,6 @@ test('add-first workflow keeps one copy across photo, explicit nested storage, a
   await page.getByRole('button', { name: 'Clear search', exact: true }).click();
   await page.getByRole('button', { name: 'Open Synthetic blue-cover comic', exact: true }).waitFor();
   await page.getByLabel('Location', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save location', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Copy is now unassigned.' }).waitFor();
   assert.equal(state.copies[0].storage_revision, 2); assert.equal(state.moves[cid].length, 2);
 });
@@ -228,17 +231,78 @@ test('storage conflicts require reload; location and history pages are not silen
   await page.getByRole('button', { name: 'Load more movements', exact: true }).click();
   await page.getByText('Movement history · 12 recorded', { exact: true }).waitFor();
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
-  await page.getByRole('button', { name: 'Save location', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'changed elsewhere' }).waitFor();
-  assert.ok(await page.getByRole('button', { name: 'Save location', exact: true }).isDisabled()); assert.equal(state.writes.length, 1);
+  assert.ok(await page.getByLabel('Location', { exact: true }).isDisabled()); assert.equal(state.writes.length, 1);
   await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
   await page.getByLabel('Location', { exact: true }).waitFor();
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
-  await page.getByRole('button', { name: 'Save location', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Location saved.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Added to Place 0.' }).waitFor();
   assert.equal(state.writes[1].body.expected_storage_revision, 1);
 });
 
+
+test('storage selection saves once, confirms the box nearby, and keeps confirmed saves after history failure', async t => {
+  const item = copy(1, 'Auto-save trial');
+  const place = { id: id(1000), name: 'Comic box B', parent_id: null };
+  const { page, state } = await fixture(t, { copies: [item], locations: [place] });
+  await open(page, item.title);
+  const location = page.getByLabel('Location', { exact: true });
+  assert.equal(await page.getByRole('button', { name: 'Save location', exact: true }).count(), 0);
+  assert.equal(state.writes.length, 0, 'Loading a copy must not save');
+  await location.selectOption('');
+  assert.equal(state.writes.length, 0, 'Choosing the current location must not save');
+  state.failHistory = true;
+  await location.selectOption(place.id);
+  await page.getByRole('status').filter({ hasText: 'Saving location…' }).waitFor();
+  assert.ok(await location.isDisabled(), 'Only one save may be in flight');
+  await page.getByRole('status').filter({ hasText: 'Added to Comic box B.' }).waitFor();
+  await page.getByRole('alert').filter({ hasText: 'history could not be refreshed' }).waitFor();
+  assert.equal(await location.inputValue(), place.id);
+  assert.equal(state.writes.length, 1);
+  assert.equal(state.writes[0].body.expected_storage_revision, 0);
+  assert.equal(state.moves[item.id].length, 1);
+  state.failHistory = false;
+  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await location.waitFor();
+  assert.equal(await location.inputValue(), place.id);
+  assert.equal(state.writes.length, 1, 'Reloading must not retry a confirmed save');
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
+    await location.selectOption('');
+    await page.getByRole('status').filter({ hasText: 'Copy is now unassigned.' }).waitFor();
+    await location.selectOption(place.id);
+    await page.getByRole('status').filter({ hasText: 'Added to Comic box B.' }).waitFor();
+    await page.screenshot({ path: `${output}/storage-desktop.png`, fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: `${output}/storage-mobile.png`, fullPage: true, animations: 'disabled' });
+  }
+});
+
+for (const failure of ['validation', 'uncertain']) test(`storage ${failure} failure preserves the confirmed selection and never retries automatically`, async t => {
+  const places = [{ id: id(1000), name: 'Box A', parent_id: null }, { id: id(1001), name: 'Box B', parent_id: null }];
+  const item = copy(1, 'Failed move', { storage_location_id: places[0].id });
+  const { page, state } = await fixture(t, { copies: [item], locations: places, failMove: failure });
+  await open(page, item.title);
+  const location = page.getByLabel('Location', { exact: true });
+  await location.selectOption(places[1].id);
+  await page.getByRole('alert').filter({ hasText: failure === 'validation' ? 'Synthetic location rejected' : 'Save could not be confirmed' }).first().waitFor();
+  assert.equal(await location.inputValue(), places[0].id, 'Do not display an unconfirmed move as saved');
+  assert.equal(await page.getByRole('status').filter({ hasText: 'Added to Box B.' }).count(), 0);
+  assert.equal(state.writes.length, 1);
+  assert.equal(await location.isDisabled(), failure === 'uncertain');
+  state.failMove = '';
+  if (failure === 'uncertain') {
+    await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+    await location.waitFor();
+    assert.equal(await location.inputValue(), places[1].id, 'Reload reconciles the actual committed move');
+    assert.equal(state.writes.length, 1);
+  } else {
+    await location.selectOption(places[1].id);
+    await page.getByRole('status').filter({ hasText: 'Added to Box B.' }).waitFor();
+    assert.equal(state.writes.length, 2, 'A rejected save may be explicitly tried again');
+  }
+});
 
 test('unreadable/network errors and long untrusted text stay safe and keyboard accessible', async t => {
   const { page, state } = await fixture(t, { failList: 'invalid' });
@@ -275,14 +339,17 @@ test('real browser creates one synthetic copy, photo and nested location through
   await page.getByText('Create a storage location', { exact: true }).click();
   await page.getByLabel('Location name', { exact: true }).fill('Synthetic study');
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Location created.' }).waitFor();
-  const room = await page.getByLabel('Location', { exact: true }).inputValue();
+  await page.getByRole('status').filter({ hasText: 'created. Choose it under Location' }).waitFor();
+  const room = await page.getByLabel('Location', { exact: true }).locator('option').filter({ hasText: /Synthetic study/ }).getAttribute('value');
+  assert.ok(room);
   await page.getByLabel('Location name', { exact: true }).fill('Synthetic box');
   await page.getByLabel('Inside another location', { exact: true }).selectOption(room);
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#location-name').value === '');
-  await page.getByRole('button', { name: 'Save location', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Location saved.' }).waitFor();
+  const box = await page.getByLabel('Location', { exact: true }).locator('option').filter({ hasText: /Synthetic study \/ Synthetic box/ }).getAttribute('value');
+  assert.ok(box);
+  await page.getByLabel('Location', { exact: true }).selectOption(box);
+  await page.getByRole('status').filter({ hasText: 'Added to Synthetic box.' }).waitFor();
   const saved = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json())); assert.equal(saved.length, 1);
   const cid = saved[0].id;
   await page.locator('summary').filter({ hasText: /^Create a catalog entry$/ }).click();

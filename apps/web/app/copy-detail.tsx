@@ -16,7 +16,6 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
   const [moreLocations, setMoreLocations] = useState(false);
   const [moves, setMoves] = useState<Movement[]>([]);
   const [moreMoves, setMoreMoves] = useState(false);
-  const [target, setTarget] = useState('');
   const [name, setName] = useState('');
   const [parent, setParent] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -26,13 +25,14 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
   const [readBusy, setReadBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [storageNotice, setStorageNotice] = useState('');
   const [review, setReview] = useState(false);
   const [version, setVersion] = useState(0);
   const readLock = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true); setError(''); setCopy(null); setFile(null);
+    setLoading(true); setError(''); setStorageNotice(''); setCopy(null); setFile(null);
     const options = { signal: controller.signal };
     Promise.all([
       api<InventoryCopy>(`inventory/${copyId}`, options),
@@ -51,7 +51,7 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
       setLocationOffset(pageSize);
       setMoreLocations(pageSize === 100);
       setMoves(history.slice(0, 10)); setMoreMoves(history.length > 10);
-      setTarget(record.storage_location_id || ''); setReview(false);
+      setReview(false);
     }).catch(problem => { if (!controller.signal.aborted) setError(errorText(problem)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -88,21 +88,21 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
       });
     } catch (problem) { failed(problem); }
   }
-  async function assign(event: FormEvent) {
-    event.preventDefault(); if (!copy || review || blocked) return;
+  async function assign(locationId: string) {
+    if (!copy || locked || locationId === (copy.storage_location_id || '')) return;
     try {
       await runSave(async () => {
-        setError(''); setNotice('');
-        const record = await api<InventoryCopy>(`inventory/${copyId}/location`, jsonSave({ storage_location_id: target || null, expected_storage_revision: copy.storage_revision }));
+        setError(''); setNotice(''); setStorageNotice('Saving location…');
+        const record = await api<InventoryCopy>(`inventory/${copyId}/location`, jsonSave({ storage_location_id: locationId || null, expected_storage_revision: copy.storage_revision }));
         setCopy(record); changed();
-        setNotice(record.storage_location_id ? 'Location saved.' : 'Copy is now unassigned.');
+        setStorageNotice(record.storage_location_id ? `Added to ${locationName(record.storage_location_id)}.` : 'Copy is now unassigned.');
         // A follow-up read failure does not turn a confirmed save into a retry.
         try {
           const history = await api<Movement[]>(`inventory/${copyId}/locations?limit=11&offset=0`);
           setMoves(history.slice(0, 10)); setMoreMoves(history.length > 10);
         } catch { setError('Location was saved, but history could not be refreshed. Reload the copy to view it.'); }
       });
-    } catch (problem) { failed(problem); }
+    } catch (problem) { setStorageNotice(''); failed(problem); }
   }
   async function createLocation(event: FormEvent) {
     event.preventDefault(); if (!name.trim() || review || blocked) return;
@@ -110,8 +110,8 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
       await runSave(async () => {
         setError(''); setNotice('');
         const place = await api<Location>('storage-locations', jsonSave({ name: name.trim(), parent_id: parent || null }));
-        setLocations(before => mergeLocations(before, [place])); setTarget(place.id); setName('');
-        setNotice('Location created. Use Save location to move this copy there.');
+        setLocations(before => mergeLocations(before, [place])); setName('');
+        setNotice(`${place.name} created. Choose it under Location to move this copy there.`);
       });
     } catch (problem) { failed(problem); }
   }
@@ -143,7 +143,9 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed }: 
       <form onSubmit={upload} aria-label="Add photo"><fieldset disabled={locked}><label htmlFor="photo">Photo file</label><input ref={photoInput} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files?.[0] || null)} aria-describedby="photo-help" /><p className="hint" id="photo-help">JPEG, PNG, or WebP. Up to 15 MiB. Photos save separately from the copy.</p><button disabled={!file} type="submit">Upload photo</button></fieldset></form>
       <Identification copy={copy} runSave={runSave} locked={locked} saved={record => { setCopy(record); changed(); }} failed={failed} />
       <h3>Storage</h3>
-      <form onSubmit={assign} aria-label="Assign storage"><fieldset disabled={locked}><label htmlFor="copy-location">Location</label><select id="copy-location" value={target} onChange={e => setTarget(e.target.value)}><option value="">Unassigned</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select><button type="submit" disabled={target === (copy.storage_location_id || '')}>Save location</button></fieldset></form>
+      <fieldset disabled={locked} aria-label="Assign storage"><label htmlFor="copy-location">Location</label><select id="copy-location" value={copy.storage_location_id || ''} onChange={e => { void assign(e.target.value); }} aria-describedby="storage-help"><option value="">Unassigned</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select></fieldset>
+      <p className="hint" id="storage-help">Choosing a location saves it immediately.</p>
+      <p className="notice" role="status">{storageNotice}</p>
       <p className="hint">{locations.length} locations loaded.{moreLocations ? ' More may be available.' : ''}</p>
       {moreLocations && <button className="quiet" disabled={busy || readBusy || loading} onClick={() => loadMore('locations')}>Load more locations</button>}
       <details className="new-location"><summary>Create a storage location</summary><form onSubmit={createLocation} aria-label="Create storage"><fieldset disabled={locked}><label htmlFor="location-name">Location name</label><input id="location-name" value={name} maxLength={250} required onChange={e => setName(e.target.value)} placeholder="e.g. Comic box A" /><label htmlFor="location-parent">Inside another location</label><select id="location-parent" value={parent} onChange={e => setParent(e.target.value)}><option value="">No parent location</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select><button type="submit">Create location</button></fieldset></form></details>
