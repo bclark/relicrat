@@ -195,3 +195,17 @@ test('anonymous and forged browser bearer headers cannot reach protected upstrea
   }
   assert.equal(observed.length, count);
 });
+
+test('copy label edits and history retain the same allowlist, method and origin boundaries', async () => {
+  const action = `inventory/${id}/details`, history = `inventory/${id}/detail-history`;
+  const body = JSON.stringify({ title: 'Harbor Lights', edition_label: 'Blue vinyl', expected_details_revision: 0, expected_identification_revision: 0 });
+  assert.equal((await forwardApi(request(action, post(body)), action.split('/'))).status, 201);
+  assert.equal(observed.at(-1).body.toString(), body);
+  assert.equal((await forwardApi(request(history + '?limit=20&offset=0'), history.split('/'))).status, 200);
+  const count = observed.length;
+  assert.equal((await forwardApi(request(action), action.split('/'))).status, 405);
+  assert.equal((await forwardApi(request(history, post(body)), history.split('/'))).status, 405);
+  assert.equal((await forwardApi(request(action, post(body, { origin: 'https://evil.test' })), action.split('/'))).status, 403);
+  assert.equal((await forwardApi(request(action + '/unsafe', post(body)), [...action.split('/'), 'unsafe'])).status, 404);
+  assert.equal(observed.length, count);
+});

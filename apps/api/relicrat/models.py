@@ -60,6 +60,7 @@ class OwnedCopy(Timestamps, Base):
     __table_args__ = (
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         CheckConstraint("storage_revision >= 0", name="storage_revision_nonnegative"),
+        CheckConstraint("details_revision >= 0", name="details_revision_nonnegative"),
         CheckConstraint("identification_revision >= 0", name="identification_revision_nonnegative"),
         CheckConstraint("identification_status IN ('unidentified', 'partial', 'identified', 'verified')", name="identification_status_valid"),
         CheckConstraint("ownership_status IN ('owned', 'sold', 'traded', 'lost')", name="ownership_status_valid"),
@@ -71,12 +72,36 @@ class OwnedCopy(Timestamps, Base):
     release_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     provisional_title: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
+    # NULL follows a linked release; empty text explicitly leaves the edition unknown.
+    edition_label: Mapped[str | None] = mapped_column(String(500))
+    details_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     identification_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="unidentified")
     identification_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     storage_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     ownership_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="owned")
     storage_location_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("storage_locations.id", ondelete="RESTRICT"), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CopyDetailEvent(Base):
+    """Manual physical-copy labels; catalog identities are never edited here."""
+    __tablename__ = 'copy_detail_events'
+    __table_args__ = (
+        UniqueConstraint('owned_copy_id', 'after_revision'),
+        CheckConstraint('before_revision >= 0 AND after_revision = before_revision + 1', name='detail_revision_step'),
+        CheckConstraint('identification_revision >= 0', name='detail_identification_revision'),
+        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label', name='details_changed'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
+    before_title: Mapped[str | None] = mapped_column(String(500))
+    after_title: Mapped[str | None] = mapped_column(String(500))
+    before_edition_label: Mapped[str | None] = mapped_column(String(500))
+    after_edition_label: Mapped[str | None] = mapped_column(String(500))
+    identification_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    before_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    after_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class MediaAsset(Timestamps, Base):

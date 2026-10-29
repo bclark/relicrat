@@ -571,6 +571,7 @@ footer {
 .catalog-choice input { accent-color: var(--accent); width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; margin: 3px 0; }
 .catalog-choice span { min-width: 0; overflow-wrap: anywhere; }
 .catalog-choice small { display: block; color: var(--muted); font-weight: 400; }
+.copy-details-form { overflow-wrap: anywhere; margin-bottom: 24px; }
 .current-identification { overflow-wrap: anywhere; }
 .identification form { margin-block: 16px; }
 .collectible-details { overflow-wrap: anywhere; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule); }

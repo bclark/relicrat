@@ -1,0 +1,40 @@
+"""Atomic, revision-checked edits to the physical copy's own labels."""
+from uuid import UUID
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from relicrat.models import CopyDetailEvent, MediaAsset, OwnedCopy
+
+
+class DetailError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+
+
+def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
+                 expected_details_revision: int, expected_identification_revision: int) -> OwnedCopy:
+    try:
+        copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
+                         .with_for_update().execution_options(populate_existing=True))
+        if copy is None or copy.deleted_at is not None:
+            raise DetailError(404, 'Copy not found')
+        if (copy.details_revision, copy.identification_revision) != (expected_details_revision, expected_identification_revision):
+            raise DetailError(409, 'This copy changed elsewhere. Reload the copy before editing its details.')
+        if not title and not (copy.description or '').strip() and db.scalar(select(MediaAsset.id).where(MediaAsset.owned_copy_id == copy_id).limit(1)) is None:
+            raise DetailError(422, 'Keep a title, notes or a photo so this copy can be recognized.')
+        if (copy.provisional_title, copy.edition_label) == (title, edition_label):
+            db.commit()
+            return copy
+        db.add(CopyDetailEvent(owned_copy_id=copy.id,
+            before_title=copy.provisional_title, after_title=title,
+            before_edition_label=copy.edition_label, after_edition_label=edition_label,
+            identification_revision=copy.identification_revision,
+            before_revision=copy.details_revision, after_revision=copy.details_revision + 1))
+        copy.provisional_title = title
+        copy.edition_label = edition_label
+        copy.details_revision += 1
+        db.commit()
+        return copy
+    except Exception:
+        db.rollback()
+        raise

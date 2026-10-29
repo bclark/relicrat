@@ -86,7 +86,7 @@ export default function InventoryClient() {
           <div className="workbench">
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
-              <p className="intro">Start with what you know. Identification can come later.</p>
+              <p className="intro">Add what you know. You can edit the title and edition after saving.</p>
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain}>
                   <label htmlFor="find-title">Title</label>
@@ -102,7 +102,7 @@ export default function InventoryClient() {
               <p className="notice" role="status">{notice}</p>
             </section>
             {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} />
-              : <div className="record-placeholder"><h2>Give each copy a home</h2><p>Save a find or open a copy from your collection to add photos and choose its storage location.</p></div>}
+              : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </div>
           <section className="collection" aria-labelledby="collection-title">
             <div className="section-heading"><h2 id="collection-title">Your collection</h2><button className="quiet" disabled={busy || loading} onClick={reloadInventory}>Reload inventory</button></div>
@@ -115,7 +115,7 @@ export default function InventoryClient() {
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
               : items.length === 0 ? <div className="empty"><h3>{query ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Add a title or a few notes. You do not need to identify the collectible yet.'}</p></div>
-              : <ul className="inventory-list">{items.map(copy => <li key={copy.id}><button disabled={busy} className="inventory-row" aria-label={`Open ${copyName(copy)}`} aria-pressed={copy.id === selected} onClick={() => { setSelected(copy.id); setNotice(''); }}><strong>{copyName(copy)}</strong><span>{copy.description && copy.title ? copy.description : 'Open this physical copy'}</span><small>{copy.identification_status === 'unidentified' ? 'Not identified yet' : copy.identification_status} · {copy.storage_location_id ? 'Location assigned' : 'No location yet'}</small></button></li>)}</ul>}
+              : <ul className="inventory-list">{items.map(copy => <li key={copy.id}><button disabled={busy} className="inventory-row" aria-label={`Open ${copyName(copy)}${copy.edition_label ? ` · ${copy.edition_label}` : ''}`} aria-pressed={copy.id === selected} onClick={() => { setSelected(copy.id); setNotice(''); }}><strong>{copyName(copy)}</strong><span>{copy.description && copy.title ? copy.description : 'Open this physical copy'}</span><small>{copy.edition_label || (copy.edition_label === null && copy.release_id ? 'Catalog matched' : 'Saved copy')} · {copy.storage_location_id ? 'Location assigned' : 'No location yet'}</small></button></li>)}</ul>}
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
           </section>
         </div>
