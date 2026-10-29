@@ -28,14 +28,22 @@ before deciding to save again. Existing record data, photos and history remain
 server-authoritative; unsaved form drafts are page-local and do not survive
 navigation/reload. Switching copies clears that record's unsaved file selection.
 
-Under **What is this?**, find or add the collectible, choose an optional edition or
-variant, then use **Save details** to apply those choices to the current physical
-copy. **Add an edition or variant** sits beside the selector. Adding one prepares
-it without changing the copy; a pending message remains until Save details.
-After creation the edition form collapses, keeping keyboard focus on its control.
-**Edition not specified** removes a previous edition, with a warning and history
-retained. Similar names remain separate, with references for disambiguation.
-Stale or uncertain writes require **Reload copy** and review; **Reload details**
+Open a saved copy and use **Edit this copy**. Its existing title is prefilled;
+**Edition** is optional. **Save details** updates both labels together on the same
+physical copy and retains an edit history. No catalog setup is required. The
+collection displays saved-copy status instead of treating unmatched copies as
+unfinished. Personal edition labels also appear in list labels and literal search.
+
+Existing matched editions prefill the form. Changing only the title leaves the
+match intact; an explicit personal edition label does not edit the shared release.
+A failed edition lookup disables saving until it can be reloaded. Conflicting or
+uncertain saves require **Reload copy** and review, without automatic retries.
+
+**Advanced: catalog matching** is closed by default and loaded only after it is
+opened. It retains the separate catalog/release creation and revision-checked
+**Save catalog match** workflow. Matching preserves personal title/edition labels.
+Similar names remain distinct. **Edition not specified** removes a matched release
+with history retained; it does not erase a personal label. Reloading catalog data
 alone cannot unlock an uncertain copy. Catalog editing/deletion, automated
 matching, valuation, real imports and production recovery remain
 out of scope. The worker has a separate offline synthetic backup workflow. The separate local

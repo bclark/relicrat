@@ -860,3 +860,53 @@ Private evidence remains under the operator checkout's ignored
 IDs remained running, with no published ports. This UI-only change has no API,
 schema, dependency or credential change. Full API pytest and backup/restore were
 not rerun. Human review/merge and a later trial upgrade remain separate steps.
+
+## Copy-first title and edition editing (2026-10-29)
+
+After the clarified catalog flow still confused the owner, saved copies now begin
+with their existing title and an optional edition field in one Edit this copy
+form. Ordinary edits do not read catalog lists, create shared records, match
+identities or add ownership. The former matching workflow remains available
+under a closed Advanced disclosure. Saved-copy status replaces unmatched-as-
+unfinished wording in the everyday flow. Personal labels and catalog identities
+remain distinct; see ADR 0003 and the inventory contract.
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **113 passed**, zero
+  skips/expected failures, **25 deprecation warnings** (Starlette/httpx and Alembic
+  path splitting), followed by successful full downgrade to base and upgrade
+  through 0005. Covers atomic/no-op/stale/concurrent edits, meaningful copies,
+  metadata/media preservation, literal label search, rollback and migration
+  defaults/round trips. A subsequent focused run of the direct database-constraint
+  case passed, including duplicate audit-revision rejection.
+- Host `npm run lint --prefix apps/web`, `npm test --prefix apps/web` (**21 passed**),
+  Python compilation, browser-test syntax and `git diff --check` passed.
+- Worker `sh scripts/test-web.sh`: production build/typecheck, **21 Node tests**,
+  fresh migrations, authenticated HTTP/photo-persistence smoke and scoped cleanup
+  passed. A separate fresh production stack hosted browser verification.
+- `RELICRAT_REAL_UI_TEST=1 npm run test:browser`: **21 passed, 0 failed, 0 skipped**.
+  Includes real copy-title/edition persistence through subsequent reconciliation,
+  exactly three physical copies, unchanged media/storage/history, no automatic
+  shared-record creation, explicit advanced matching and existing owner boundaries.
+  The new copy-first cases cover prefilled title, one save, edit history/reload,
+  validation, stale revisions, uncertain commits and unchanged inherited editions.
+  Two subsequently added edition-read checks were run with `--test-name-pattern`:
+  **2 passed**, no failures/skips, covering unavailable reads and cancellation when
+  changing copies. The production runtime was unchanged between these runs.
+- `python3 scripts/test-operator-backup.py` on the disposable worker snapshot:
+  actual capture/restart, source destruction, fresh offline restore and independent
+  schema/row/media comparison passed with a real edited title, edition and audit
+  event. All five damaged-bundle modes were rejected as expected; exact operator
+  test resources were cleaned up. No restored API/web server was promoted.
+- Desktop1440/phone390 captures were inspected together. The primary form precedes
+  photos/storage; advanced matching is closed. No visual fix batch was needed.
+  One mechanical design scan returned no findings. The existing design record,
+  sidecar, palette and native control patterns were preserved.
+
+Private evidence is under the original operator checkout's ignored
+`.harness-results/copy-first-details/`. Browser/API/recovery work used synthetic
+resources only. The owner trial was not migrated or changed. Migration 0005 is
+additive, but its downgrade intentionally drops personal edition labels and edit
+history; capture and verify recovery before rollout, and never automatically
+use a destructive schema downgrade as a UI rollback. Empty-image-store/off-site
+recovery were not repeated for this feature. Human review, merge and a deliberate
+API/schema/web upgrade remain required before this is on the live trial.

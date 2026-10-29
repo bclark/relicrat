@@ -23,7 +23,7 @@ The repository uses FastAPI, PostgreSQL, Alembic and Next.js. Development runs o
 
 The API supports provisional copy intake, photos, catalog category/item/release creation and lookup, manual revision-checked catalog/release reconciliation with retained identification history, nested storage locations, revision-checked copy movements with retained history, and literal text search across provisional information and linked catalog/release names.
 
-The working web screen supports add-first provisional intake with a title or notes, photo upload/viewing after saving, nested location creation, location assignment/unassignment saved immediately on selection, movement history, and paginated search/browsing of physical copies. The selected record now supports explicit catalog search/selection, an optional release, separate category/item/release creation, revision-checked Save details, and retained identification history. Similar names remain separate. Catalog-only identification removes a previous release while preserving the physical copy UUID, provisional information, photos, storage and history. Manual identification is not a verified match. The earlier add-first and direct-build choices applied to that screen task; they do not establish a standing build-path or configuration preference.
+The working web screen supports add-first provisional intake with a title or notes, photo upload/viewing after saving, nested location creation, location assignment/unassignment saved immediately on selection, movement history, and paginated search/browsing of physical copies. The selected record now supports explicit catalog search/selection, an optional release, separate category/item/release creation, revision-checked Save catalog match under Advanced, and retained identification history. Similar names remain separate. Catalog-only identification removes a previous release while preserving the physical copy UUID, provisional information, photos, storage and history. Manual identification is not a verified match. The earlier add-first and direct-build choices applied to that screen task; they do not establish a standing build-path or configuration preference.
 
 Copy, photo, catalog creation, identification, location creation and copy movement save separately. Creating a catalog entry or release only selects it for a later explicit identification save; it never creates ownership or silently links a copy. Creating a location does not move the copy. Choosing a location immediately saves a revision-checked move and confirms the destination beside the selector; pending or failed moves never appear as confirmed. Drafts remain page-local; reloads can lose them. Saves are never retried automatically. Unconfirmed writes and revision conflicts require reload and review. Catalog editing/deleting/merging, automatic matching and production recovery remain unfinished. An offline operator backup/restore workflow exists for synthetic data on the dedicated worker. That workflow and the disposable database/media recovery rehearsal are development evidence, not production recovery support. The complete first vertical slice is not yet delivered.
 
@@ -57,3 +57,23 @@ Historical evidence: the initial inventory web screen started from 299aeaffb9cb6
 ## Open Decisions
 
 Permanent branding and production deployment choices remain open. Catalog editing/deleting/merging and automatic matching still require implementation and verification. Public ingress, off-host backup and production recovery remain deferred. PR #25 catalog identification is merged and deployed to the existing synthetic trial. This owner-access branch awaits human PR review/merge; authentication is not deployed to that trial. After merge, a trusted operator must create private owner credentials and explicitly upgrade the trial with its existing volumes and a verified offline backup. The first vertical slice remains incomplete; real collection data is not authorized.
+
+
+## Copy-first detail editing refinement (2026-10-29)
+
+The owner completed the catalog exercise but still found the same-item/shared-
+edition model confusing. The selected physical copy now starts with a prefilled
+Title and optional Edition form. One Save details request updates those personal
+labels atomically, preserving the copy UUID, creation time, media, storage,
+disposition and all earlier history. Copy edits use independent revisions and
+retain before/after history. Catalog matching moves into a closed Advanced
+disclosure; it is optional and never creates ownership from ordinary edits.
+
+Existing linked edition names prefill when no personal label exists. Title-only
+edits keep that source; explicit labels stay personal and are not silently
+changed by later matching. Failed/stale reads cannot fill another copy or save
+an unavailable edition as unknown. Conflicting/uncertain writes require review
+without retries. Migration 0005 and a verified recovery capture are required
+before deployment. The current live trial remains on merged PR33 until review,
+merge and rollout of this feature. No standing brand/build-path preference is
+introduced; the incumbent visual system is retained.

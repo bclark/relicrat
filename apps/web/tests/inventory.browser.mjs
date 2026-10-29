@@ -8,7 +8,7 @@ const base = process.env.RELICRAT_TEST_WEB_URL || 'http://127.0.0.1:63112';
 assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:', 'Use an isolated loopback test server');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const id = number => `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`;
-const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
+const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
 const ownerPassword = 'synthetic-only-owner-password';
 let browser;
 async function signIn(context) {
@@ -24,13 +24,14 @@ async function fixture(t, initial = {}) {
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, [], 'Unexpected browser errors'));
-  const state = { categories: [], items: [], releases: [], identifications: {}, identificationConflict: false, uncertainIdentification: false, copies: [], locations: [], photos: {}, moves: {}, writes: [], failCreate: '', failPhoto: false, conflict: false, failList: false, ...initial };
+  const state = { reads: [], edits: {}, detailsConflict: false, uncertainDetails: false, failDetails: '', failEditionRead: false, slowEditionRead: false, categories: [], items: [], releases: [], identifications: {}, identificationConflict: false, uncertainIdentification: false, copies: [], locations: [], photos: {}, moves: {}, writes: [], failCreate: '', failPhoto: false, conflict: false, failList: false, ...initial };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(); const url = new URL(request.url());
     const path = url.pathname.replace('/api/v1/', ''); const parts = path.split('/');
     const method = request.method(); let result; let status = 200;
     if (method === 'GET' && path === 'inventory' && state.failList === 'invalid') { await route.fulfill({ status: 200, contentType: 'text/plain', body: 'invalid JSON' }); return; }
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
+    if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
     if (method === 'GET' && path === 'inventory') {
       if (state.failList) { status = 502; result = { detail: 'Synthetic API unavailable' }; }
@@ -63,7 +64,11 @@ async function fixture(t, initial = {}) {
         } else { result = { id: id(4000 + state.items.length), ...request.postDataJSON() }; state.items.push(result); status = 201; }
       } else if (parts.length === 3) result = state.items.find(item => item.id === parts[2]);
       else if (parts[3] === 'releases') {
-        if (method === 'GET') result = parts.length === 5 ? state.releases.find(item => item.id === parts[4] && item.catalog_item_id === parts[2]) : state.releases.filter(item => item.catalog_item_id === parts[2]).slice(offset, offset + limit);
+        if (method === 'GET') {
+          if (parts.length === 5 && state.slowEditionRead) await new Promise(resolve => setTimeout(resolve, 450));
+          if (parts.length === 5 && state.failEditionRead) { status = 502; result = { detail: 'Synthetic edition lookup unavailable' }; }
+          else result = parts.length === 5 ? state.releases.find(item => item.id === parts[4] && item.catalog_item_id === parts[2]) : state.releases.filter(item => item.catalog_item_id === parts[2]).slice(offset, offset + limit);
+        }
         else { result = { id: id(5000 + state.releases.length), catalog_item_id: parts[2], ...request.postDataJSON() }; state.releases.push(result); status = 201; }
       }
     } else if (path === 'storage-locations' && method === 'GET') {
@@ -84,6 +89,21 @@ async function fixture(t, initial = {}) {
       } else if (parts[2] === 'photos' && method === 'POST') {
         if (state.failPhoto) { status = 422; result = { detail: 'Invalid image' }; }
         else { result = { id: id(500 + state.writes.length), owned_copy_id: cid, content_type: 'image/png', byte_size: png.length }; state.photos[cid] = [result, ...(state.photos[cid] || [])]; status = 201; }
+      } else if (parts[2] === 'detail-history') {
+        const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
+        result = (state.edits[cid] || []).slice(offset, offset + limit);
+      } else if (parts[2] === 'details' && method === 'POST') {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const payload = request.postDataJSON();
+        if (state.detailsConflict) { item.details_revision += 1; state.detailsConflict = false; }
+        if (state.failDetails === 'validation') { status = 422; result = { detail: 'Synthetic copy edit rejected' }; }
+        else if (payload.expected_details_revision !== item.details_revision || payload.expected_identification_revision !== item.identification_revision) { status = 409; result = { detail: 'This copy changed elsewhere' }; }
+        else {
+          state.edits[cid] = [...(state.edits[cid] || []), { id: id(8000 + state.writes.length), before_title: item.title, after_title: payload.title, before_edition_label: item.edition_label, after_edition_label: payload.edition_label, after_revision: item.details_revision + 1, created_at: item.created_at }];
+          item.title = payload.title; item.edition_label = payload.edition_label; item.details_revision += 1;
+          status = state.uncertainDetails ? 502 : 200;
+          result = status === 200 ? item : { detail: 'Save could not be confirmed. Reload and inspect.' };
+        }
       } else if (parts[2] === 'reconciliations') {
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         result = (state.identifications[cid] || []).slice(offset, offset + limit);
@@ -121,10 +141,16 @@ async function fixture(t, initial = {}) {
   await page.goto(base); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
   return { page, state };
 }
-async function open(page, title) {
-  await page.getByRole('button', { name: `Open ${title}`, exact: true }).click();
+async function open(page, title, edition = '') {
+  await page.getByRole('button', { name: `Open ${title}${edition ? ` · ${edition}` : ''}`, exact: true }).click();
   await page.getByRole('heading', { name: title, exact: true }).waitFor();
   await page.getByLabel('Photo file', { exact: true }).waitFor();
+}
+
+async function catalog(page) {
+  const summary = page.getByText('Advanced: catalog matching', { exact: true });
+  if (!(await summary.evaluate(node => node.parentElement.open))) await summary.click();
+  await page.getByRole('heading', { name: 'Shared catalog match', exact: true }).waitFor();
 }
 
 test('add-first workflow keeps one copy across photo, immediate nested storage, and search', async t => {
@@ -132,7 +158,7 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   assert.ok(await page.getByRole('heading', { name: 'Your first find starts here' }).isVisible());
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
   assert.match(await page.getByRole('alert').filter({ hasText: 'Add a title or notes' }).innerText(), /title or notes/);
-  await page.getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
+  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
   await page.getByLabel('Notes', { exact: true }).fill('A provisional copy for the first trial.');
   await page.getByRole('button', { name: 'Save copy', exact: true }).dblclick();
   await page.getByLabel('Photo file', { exact: true }).waitFor();
@@ -182,10 +208,10 @@ test('API outages and failed photos stay distinct from empty inventory and faile
   assert.ok(await page.getByRole('alert').filter({ hasText: 'Synthetic API unavailable' }).isVisible());
   assert.equal(await page.getByRole('heading', { name: 'Your first find starts here' }).count(), 0);
   state.failList = false; state.failCreate = 'validation';
-  await page.getByLabel('Title', { exact: true }).fill('Retained title');
+  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill('Retained title');
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Synthetic validation error' }).waitFor();
-  assert.equal(await page.getByLabel('Title', { exact: true }).inputValue(), 'Retained title');
+  assert.equal(await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).inputValue(), 'Retained title');
   state.failCreate = ''; state.failPhoto = true;
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
   await page.getByLabel('Photo file', { exact: true }).waitFor();
@@ -318,9 +344,120 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   assert.equal(await page.locator('.inventory-list img').count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  await page.getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
+  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
   assert.ok(await page.getByLabel('Notes', { exact: true }).evaluate(input => input === document.activeElement));
   assert.notEqual(await page.getByLabel('Notes', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
+});
+
+test('a saved copy edits its existing title and edition in one form without catalog setup', async t => {
+  const original = copy(1, 'Harbor Lights - blue vinyl', { storage_location_id: id(1000) });
+  const photo = { id: id(500), owned_copy_id: original.id, content_type: 'image/png', byte_size: png.length };
+  const before = structuredClone(original);
+  const { page, state } = await fixture(t, { copies: [original], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }], photos: { [original.id]: [photo] } });
+  await open(page, original.title);
+  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), before.title);
+  await form.getByLabel('Edition', { exact: true }).fill('Blue vinyl');
+  assert.equal(await page.getByText('Find a collectible', { exact: true }).isVisible(), false);
+  assert.equal(state.reads.filter(path => path.startsWith('catalog/')).length, 0);
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
+    await page.screenshot({ path: `${output}/copy-desktop.png`, fullPage: true, animations: 'disabled' });
+    await page.locator('.copy-details-form').screenshot({ path: `${output}/copy-form.png`, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: `${output}/copy-mobile.png`, fullPage: true, animations: 'disabled' });
+  }
+  await form.getByRole('button', { name: 'Save details', exact: true }).dblclick();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  assert.equal(state.writes.length, 1); assert.equal(state.writes[0].path, `inventory/${original.id}/details`);
+  assert.equal(state.copies[0].title, before.title); assert.equal(state.copies[0].edition_label, 'Blue vinyl');
+  for (const key of ['id', 'created_at', 'catalog_item_id', 'release_id', 'identification_revision', 'storage_location_id', 'storage_revision', 'ownership_status']) assert.equal(state.copies[0][key], before[key]);
+  assert.deepEqual(state.photos[original.id], [photo]);
+  await form.getByLabel('Title', { exact: true }).fill('Harbor Lights');
+  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('heading', { name: 'Harbor Lights', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Open Harbor Lights · Blue vinyl', exact: true }).waitFor();
+  assert.equal(state.copies.length, 1); assert.equal(state.edits[original.id].length, 2);
+  await page.getByText('Copy edit history', { exact: true }).click();
+  await page.getByText(`${before.title} to Harbor Lights`, { exact: true }).waitFor();
+  await page.reload(); await open(page, 'Harbor Lights', 'Blue vinyl');
+  assert.equal(await page.getByRole('form', { name: 'Edit copy details', exact: true }).getByLabel('Edition', { exact: true }).inputValue(), 'Blue vinyl');
+  assert.equal(state.writes.length, 2, 'Reload must not repeat either save');
+});
+
+for (const failure of ['validation', 'conflict', 'uncertain']) test(`copy edit ${failure} retains the record and requires an explicit next action`, async t => {
+  const original = copy(1, 'Original saved copy', { edition_label: 'Blue vinyl' });
+  const { page, state } = await fixture(t, { copies: [original], failDetails: failure === 'validation' ? 'validation' : '', detailsConflict: failure === 'conflict', uncertainDetails: failure === 'uncertain' });
+  await open(page, original.title, 'Blue vinyl');
+  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await form.getByLabel('Title', { exact: true }).fill('Changed copy');
+  await form.getByLabel('Edition', { exact: true }).fill('Copper cover');
+  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: failure === 'validation' ? 'Synthetic copy edit rejected' : failure === 'conflict' ? 'changed elsewhere' : 'Save could not be confirmed' }).first().waitFor();
+  assert.equal(state.writes.length, 1);
+  assert.equal(await form.getByLabel('Title', { exact: true }).isDisabled(), failure !== 'validation');
+  assert.equal(await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).count(), 0);
+  if (failure !== 'validation') assert.equal(await page.getByText('Unsaved changes to this copy.', { exact: true }).count(), 0, 'Uncertain outcomes must not claim the changes were not saved');
+  state.failDetails = ''; state.uncertainDetails = false;
+  if (failure !== 'validation') {
+    await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+    await form.getByLabel('Title', { exact: true }).waitFor();
+    assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), failure === 'uncertain' ? 'Changed copy' : 'Original saved copy');
+    assert.equal(state.writes.length, 1, 'Reload must not retry the save');
+  }
+});
+
+test('a matched edition remains intact when only the copy title changes', async t => {
+  const item = { id: id(4000), category_id: id(3000), canonical_name: 'Shared album' };
+  const release = { id: id(5000), catalog_item_id: item.id, name: 'First pressing' };
+  const original = copy(1, 'My album', { catalog_item_id: item.id, release_id: release.id, identification_status: 'identified' });
+  const { page, state } = await fixture(t, { copies: [original], items: [item], releases: [release] });
+  await open(page, original.title);
+  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await form.getByLabel('Title', { exact: true }).fill('My annotated album');
+  assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), release.name);
+  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  assert.equal(state.writes[0].body.edition_label, null);
+  assert.equal(state.copies[0].release_id, release.id); assert.equal(state.copies[0].catalog_item_id, item.id);
+  await form.getByLabel('Edition', { exact: true }).fill('My handwritten blue label');
+  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByText('Your edition label is used for this copy. Shared catalog information is under Advanced.', { exact: true }).waitFor();
+  assert.equal(state.releases[0].name, release.name); assert.equal(state.copies[0].release_id, release.id);
+});
+
+test('unavailable matched edition cannot be saved as an empty copy label', async t => {
+  const item = { id: id(4000), category_id: id(3000), canonical_name: 'Shared album' };
+  const release = { id: id(5000), catalog_item_id: item.id, name: 'First pressing' };
+  const original = copy(1, 'Saved album', { catalog_item_id: item.id, release_id: release.id });
+  const { page, state } = await fixture(t, { copies: [original], items: [item], releases: [release], failEditionRead: true });
+  await open(page, original.title);
+  await page.getByRole('alert').filter({ hasText: 'Synthetic edition lookup unavailable' }).waitFor();
+  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  assert.ok(await form.getByLabel('Title', { exact: true }).isDisabled());
+  assert.ok(await form.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  assert.equal(state.writes.length, 0);
+  state.failEditionRead = false;
+  await page.getByRole('button', { name: 'Reload edition', exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('#copy-edition').matches(':disabled'));
+  assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), release.name);
+  assert.equal(state.writes.length, 0);
+});
+
+test('a delayed matched edition never overwrites the next physical copy', async t => {
+  const item = { id: id(4000), category_id: id(3000), canonical_name: 'Shared album' };
+  const release = { id: id(5000), catalog_item_id: item.id, name: 'Old matched edition' };
+  const previous = copy(1, 'Previous album', { catalog_item_id: item.id, release_id: release.id });
+  const next = copy(2, 'Next album', { edition_label: 'Black vinyl' });
+  const { page, state } = await fixture(t, { copies: [previous, next], items: [item], releases: [release], slowEditionRead: true });
+  await open(page, previous.title);
+  await open(page, next.title, 'Black vinyl');
+  await page.waitForTimeout(550);
+  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), next.title);
+  assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), 'Black vinyl');
+  assert.equal(state.writes.length, 0);
 });
 
 test('real browser preserves three physical copies across shared editions, photos and nested storage', { skip: process.env.RELICRAT_REAL_UI_TEST !== '1' }, async t => {
@@ -329,13 +466,24 @@ test('real browser preserves three physical copies across shared editions, photo
   const page = await context.newPage(); await page.goto(base);
   const initial = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.deepEqual(initial, [], 'Refusing to write to a nonempty live inventory');
-  const title = 'Synthetic browser trial comic';
-  await page.getByLabel('Title', { exact: true }).fill(title);
+  let title = 'Synthetic browser trial comic';
+  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(title);
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
   await page.getByAltText(`Photo 1 of ${title}`).waitFor();
+  const initialCopy = await page.evaluate(async () => (await (await fetch('/api/v1/inventory')).json())[0]);
+  const copyForm = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await copyForm.getByLabel('Title', { exact: true }).fill('Updated synthetic browser trial comic');
+  await copyForm.getByLabel('Edition', { exact: true }).fill('My blue copy');
+  await copyForm.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  title = 'Updated synthetic browser trial comic';
+  const edited = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
+  assert.equal(edited.length, 1); assert.equal(edited[0].id, initialCopy.id); assert.equal(edited[0].created_at, initialCopy.created_at); assert.equal(edited[0].edition_label, 'My blue copy');
+  assert.equal(edited[0].details_revision, 1); assert.equal(edited[0].catalog_item_id, null);
+  assert.deepEqual(await page.evaluate(() => fetch('/api/v1/catalog/items').then(response => response.json())), [], 'Copy edits must not create catalog records');
   await page.getByText('Create a storage location', { exact: true }).click();
   await page.getByLabel('Location name', { exact: true }).fill('Synthetic study');
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
@@ -352,6 +500,7 @@ test('real browser preserves three physical copies across shared editions, photo
   await page.getByRole('status').filter({ hasText: 'Added to Synthetic box.' }).waitFor();
   const saved = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json())); assert.equal(saved.length, 1);
   const cid = saved[0].id;
+  await catalog(page);
   await page.locator('summary').filter({ hasText: /^Can’t find it\? Add a collectible$/ }).click();
   await page.getByLabel('New category name', { exact: true }).fill('Synthetic comics');
   await page.getByRole('button', { name: 'Add category', exact: true }).click();
@@ -365,10 +514,10 @@ test('real browser preserves three physical copies across shared editions, photo
   await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
   const unlinked = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}`).then(r => r.json()), cid);
   assert.equal(unlinked.catalog_item_id, null);
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('Edition not specified'));
   const reconciled = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}`).then(r => r.json()), cid);
   assert.equal(reconciled.id, cid); assert.equal(reconciled.identification_revision, 2); assert.equal(reconciled.release_id, null);
@@ -376,8 +525,8 @@ test('real browser preserves three physical copies across shared editions, photo
   const identifications = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}/reconciliations`).then(r => r.json()), cid);
   assert.equal(identifications.length, 2); assert.ok(identifications[1].before_release_id);
   await page.getByLabel('Find a copy', { exact: true }).fill('Canonical Hero'); await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('button', { name: `Open ${title}`, exact: true }).waitFor();
-  await page.reload(); await open(page, title);
+  await page.getByRole('button', { name: `Open ${title} · My blue copy`, exact: true }).waitFor();
+  await page.reload(); await open(page, title, 'My blue copy');
   const photos = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}/photos`).then(response => response.json()), cid);
   const bytes = await page.evaluate(async ({ cid, photo }) => [...new Uint8Array(await (await fetch(`/api/v1/inventory/${cid}/photos/${photo}`)).arrayBuffer())], { cid, photo: photos[0].id });
   assert.deepEqual(Buffer.from(bytes), png);
@@ -387,12 +536,13 @@ test('real browser preserves three physical copies across shared editions, photo
   // Replay the hands-on trial: two copies of one edition plus a variant must
   // retain independent photos, locations and history under one catalog item.
   const firstEdition = identifications[1].before_release_id;
+  await catalog(page);
   await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
   const added = [];
   for (const [index, copyTitle] of ['Synthetic second physical copy', 'Synthetic variant physical copy'].entries()) {
-    await page.getByLabel('Title', { exact: true }).fill(copyTitle);
+    await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(copyTitle);
     await page.getByLabel('Notes', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
@@ -401,6 +551,7 @@ test('real browser preserves three physical copies across shared editions, photo
     await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: `copy-${index + 2}.png`, mimeType: 'image/png', buffer: png });
     await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
     await page.getByAltText(`Photo 1 of ${copyTitle}`).waitFor();
+    await catalog(page);
     await page.getByRole('radio', { name: /Synthetic Canonical Hero #1/ }).check();
     if (index === 0) {
       await page.getByLabel('Edition or variant', { exact: true }).selectOption(firstEdition);
@@ -410,14 +561,14 @@ test('real browser preserves three physical copies across shared editions, photo
       await page.getByRole('button', { name: 'Add edition', exact: true }).click();
       await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
     }
-    await page.getByRole('button', { name: 'Save details', exact: true }).click();
-    await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+    await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
     await page.getByLabel('Location', { exact: true }).selectOption(index === 0 ? room : box);
     await page.getByRole('status').filter({ hasText: index === 0 ? 'Added to Synthetic study.' : 'Added to Synthetic box.' }).waitFor();
   }
   await page.getByLabel('Find a copy', { exact: true }).fill('Synthetic Canonical Hero #1');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  for (const copyTitle of [title, ...added.map(item => item.title)]) await page.getByRole('button', { name: `Open ${copyTitle}`, exact: true }).waitFor();
+  for (const copyTitle of [title, ...added.map(item => item.title)]) await page.getByRole('button', { name: `Open ${copyTitle}${copyTitle === title ? ' · My blue copy' : ''}`, exact: true }).waitFor();
   await page.reload();
   const final = await page.evaluate(async () => {
     const records = await (await fetch('/api/v1/inventory?q=Synthetic%20Canonical%20Hero%20%231')).json();
@@ -426,7 +577,8 @@ test('real browser preserves three physical copies across shared editions, photo
       const moves = await (await fetch(`/api/v1/inventory/${record.id}/locations`)).json();
       const history = await (await fetch(`/api/v1/inventory/${record.id}/reconciliations`)).json();
       const bytes = [...new Uint8Array(await (await fetch(`/api/v1/inventory/${record.id}/photos/${images[0].id}`)).arrayBuffer())];
-      return { record, images, moves, history, bytes };
+      const edits = await (await fetch(`/api/v1/inventory/${record.id}/detail-history`)).json();
+      return { record, images, moves, history, edits, bytes };
     }));
   });
   const allCopies = await (await context.request.get(`${base}/api/v1/inventory`)).json();
@@ -437,6 +589,8 @@ test('real browser preserves three physical copies across shared editions, photo
   const original = final.find(item => item.record.id === cid);
   const second = final.find(item => item.record.id === added[0].id);
   const variant = final.find(item => item.record.id === added[1].id);
+  assert.equal(original.record.edition_label, 'My blue copy'); assert.equal(original.record.details_revision, 1);
+  assert.equal(original.edits.length, 1);
   assert.equal(original.record.release_id, firstEdition);
   assert.equal(second.record.release_id, firstEdition);
   assert.ok(variant.record.release_id && variant.record.release_id !== firstEdition);
@@ -468,6 +622,7 @@ test('adding an edition stays beside its selector and waits for an explicit save
   const original = copy(1, 'Copper cover copy', { storage_location_id: id(1000) });
   const { page, state } = await fixture(t, { copies: [original], items: [item], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }] });
   await open(page, original.title);
+  await catalog(page);
   await page.getByRole('radio', { name: /Synthetic Otter #1/ }).check();
   const details = page.getByRole('region', { name: 'Choose collectible details', exact: true });
   await details.getByText('Add an edition or variant', { exact: true }).click();
@@ -480,7 +635,7 @@ test('adding an edition stays beside its selector and waits for an explicit save
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 0);
   assert.equal(state.copies[0].catalog_item_id, null);
   await details.getByRole('status').filter({ hasText: 'Not saved to this copy yet: Synthetic Otter #1 · Copper cover' }).waitFor();
-  assert.equal(await details.getByRole('button', { name: 'Save details', exact: true }).count(), 1);
+  assert.equal(await details.getByRole('button', { name: 'Save catalog match', exact: true }).count(), 1);
   assert.ok(await details.evaluate(region => {
     const add = region.querySelector('details');
     const save = region.querySelector('button[form="save-identification"]');
@@ -493,22 +648,22 @@ test('adding an edition stays beside its selector and waits for an explicit save
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({ path: `${output}/details-mobile.png`, fullPage: true, animations: 'disabled' });
   }
-  await details.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+  await details.getByRole('button', { name: 'Save catalog match', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 1);
   assert.equal(state.copies.length, 1);
   assert.equal(state.copies[0].id, original.id);
   assert.equal(state.copies[0].release_id, state.releases[0].id);
   assert.equal(state.copies[0].storage_location_id, id(1000));
   assert.equal(await details.getByRole('status').filter({ hasText: 'Not saved to this copy yet:' }).count(), 0);
-  assert.ok(await details.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  assert.ok(await details.getByRole('button', { name: 'Save catalog match', exact: true }).isDisabled());
 });
 
 test('long collectible details wrap safely on desktop, tablet, phone and enlarged text', async t => {
   const item = { id: id(4000), category_id: id(3000), canonical_name: 'Collectible'.repeat(40) + '<img src=x>' };
   const edition = { id: id(5000), catalog_item_id: item.id, name: 'Copper'.repeat(70) };
   const { page, state } = await fixture(t, { copies: [copy(1, 'Long collectible details')], items: [item], releases: [edition] });
-  await open(page, 'Long collectible details');
+  await open(page, 'Long collectible details'); await catalog(page);
   await page.getByRole('radio').check();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption(edition.id);
   for (const width of [1440, 768, 390]) {
@@ -526,6 +681,7 @@ test('catalog creation stays separate from ownership; identification and release
   const original = copy(1, 'Synthetic mystery', { storage_location_id: id(1000), storage_revision: 2 });
   const { page, state } = await fixture(t, { copies: [original], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }] });
   await open(page, 'Synthetic mystery');
+  await catalog(page);
   await page.locator('summary').filter({ hasText: /^Can’t find it\? Add a collectible$/ }).click();
   await page.getByLabel('New category name', { exact: true }).fill('Synthetic comics');
   await page.getByRole('button', { name: 'Add category', exact: true }).click();
@@ -538,12 +694,12 @@ test('catalog creation stays separate from ownership; identification and release
   await page.getByRole('button', { name: 'Add edition', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Edition added and selected.' }).waitFor();
   assert.equal(state.copies.length, 1); assert.equal(state.copies[0].catalog_item_id, null);
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
-  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
-  await page.getByRole('status').filter({ hasText: 'Details saved for this copy.' }).waitFor();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
+  assert.ok(await page.getByRole('button', { name: 'Save catalog match', exact: true }).isDisabled());
+  await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 1);
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.current-identification')?.textContent.includes('Edition not specified'));
   assert.equal(state.copies[0].id, original.id); assert.equal(state.copies[0].storage_revision, 2);
   assert.equal(state.copies[0].identification_revision, 2); assert.equal(state.copies[0].release_id, null);
@@ -553,7 +709,7 @@ test('catalog creation stays separate from ownership; identification and release
     await page.getByLabel('Find a collectible', { exact: true }).fill('Hero');
     await page.getByRole('button', { name: 'Search collectibles', exact: true }).click();
     await page.getByRole('radio', { name: /Synthetic Hero/ }).waitFor();
-    await page.getByText('Details history', { exact: true }).click();
+    await page.getByText('Match history', { exact: true }).click();
     const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
     await page.evaluate(async () => { document.activeElement?.blur(); window.scrollTo(0, 0); await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
     await page.screenshot({ path: `${output}/desktop.png`, fullPage: true, animations: 'disabled' });
@@ -569,7 +725,8 @@ test('catalog paging, selected release beyond page one, stale revisions and unce
   const releases = Array.from({ length: 22 }, (_, index) => ({ id: id(5000 + index), catalog_item_id: items[21].id, name: `Edition ${index}` }));
   const original = copy(1, 'Identified trial', { catalog_item_id: items[21].id, release_id: releases[21].id, identification_status: 'identified' });
   const { page, state } = await fixture(t, { copies: [original], items, releases, identificationConflict: true });
-  await open(page, 'Identified trial');
+  await open(page, 'Identified trial'); await catalog(page);
+  await catalog(page);
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
   assert.equal(await page.getByLabel('Edition or variant', { exact: true }).inputValue(), releases[21].id);
   await page.getByRole('navigation', { name: 'Collectible pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
@@ -577,28 +734,31 @@ test('catalog paging, selected release beyond page one, stale revisions and unce
   assert.ok(await page.getByRole('radio', { name: /Catalog 21/ }).isChecked());
   await page.getByRole('navigation', { name: 'Edition pages', exact: true }).getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'This copy changed elsewhere' }).waitFor();
   assert.ok(await page.getByRole('button', { name: 'Upload photo', exact: true }).isDisabled());
   await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await catalog(page);
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
   state.uncertainIdentification = true;
-  await page.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Save could not be confirmed' }).first().waitFor();
-  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  assert.ok(await page.getByRole('button', { name: 'Save catalog match', exact: true }).isDisabled());
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 2);
   await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await catalog(page);
   await page.getByText('Edition not specified', { exact: false }).first().waitFor();
+  await catalog(page);
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
-  assert.ok(await page.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  assert.ok(await page.getByRole('button', { name: 'Save catalog match', exact: true }).isDisabled());
 });
 
 test('obsolete catalog searches are cancelled and changing catalog clears the selected release', async t => {
   const items = [{ id: id(4000), category_id: id(3000), canonical_name: 'Old catalog' }, { id: id(4001), category_id: id(3000), canonical_name: 'New catalog <img src=x>' }];
   const releases = [{ id: id(5000), catalog_item_id: items[0].id, name: 'Old edition' }];
   const { page } = await fixture(t, { copies: [copy(1, 'Race trial', { catalog_item_id: items[0].id, release_id: releases[0].id })], items, releases });
-  await open(page, 'Race trial');
+  await open(page, 'Race trial'); await catalog(page);
   await page.getByLabel('Find a collectible', { exact: true }).fill('Old catalog');
   await page.getByRole('button', { name: 'Search collectibles', exact: true }).click();
   await page.getByLabel('Find a collectible', { exact: true }).fill('New catalog');

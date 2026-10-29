@@ -42,6 +42,8 @@ def test_legacy_topology_upgrade_and_roundtrip(cyclic):
         with engine.connect() as conn:
             after = dict(conn.execute(text('SELECT * FROM owned_copies WHERE id = :id'), dict(id=cid)).mappings().one())
             assert after.pop('storage_revision') == 0
+            assert after.pop('edition_label') is None
+            assert after.pop('details_revision') == 0
             assert after == before
             assert conn.scalar(text('SELECT count(*) FROM copy_location_events')) == 0
         # Verify downgrade drops populated history but retains current assignment.

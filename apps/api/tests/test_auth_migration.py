@@ -17,16 +17,16 @@ def test_auth_migration_preserves_existing_copy_and_drops_access_state():
     try:
         with engine.begin() as connection:
             connection.execute(text("INSERT INTO owned_copies (id, provisional_title) VALUES (:id, 'Synthetic auth migration')"), {'id': ident})
-            before = dict(connection.execute(text('SELECT * FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one())
+            before = dict(connection.execute(text('SELECT id, provisional_title, description, catalog_item_id, release_id, identification_status, identification_revision, storage_revision, storage_location_id, ownership_status, created_at, updated_at, deleted_at FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one())
         command.downgrade(config, '0003_storage')
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT to_regclass('owner_sessions')")) is None
-            assert dict(connection.execute(text('SELECT * FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one()) == before
+            assert dict(connection.execute(text('SELECT id, provisional_title, description, catalog_item_id, release_id, identification_status, identification_revision, storage_revision, storage_location_id, ownership_status, created_at, updated_at, deleted_at FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one()) == before
         command.upgrade(config, 'head')
         with engine.connect() as connection:
             assert connection.scalar(text('SELECT count(*) FROM owner_sessions')) == 0
             assert connection.scalar(text('SELECT failures FROM owner_login_guard WHERE id=1')) == 0
-            assert dict(connection.execute(text('SELECT * FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one()) == before
+            assert dict(connection.execute(text('SELECT id, provisional_title, description, catalog_item_id, release_id, identification_status, identification_revision, storage_revision, storage_location_id, ownership_status, created_at, updated_at, deleted_at FROM owned_copies WHERE id=:id'), {'id': ident}).mappings().one()) == before
     finally:
         command.upgrade(config, 'head')
         with engine.begin() as connection:

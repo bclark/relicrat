@@ -2,10 +2,10 @@ import { apiOrigin, checkRequest, jsonError as error, sessionToken } from './ser
 /** Browser access to the fixed internal API; no client-selected upstreams. */
 const uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const copyPath = new RegExp(`^inventory/${uuid}$`);
-const historyPath = new RegExp(`^inventory/${uuid}/(reconciliations|locations)$`);
+const historyPath = new RegExp(`^inventory/${uuid}/(reconciliations|locations|detail-history)$`);
 const photoPath = new RegExp(`^inventory/${uuid}/photos$`);
 const downloadPath = new RegExp(`^inventory/${uuid}/photos/${uuid}$`);
-const actionPath = new RegExp(`^inventory/${uuid}/(reconcile|location)$`);
+const actionPath = new RegExp(`^inventory/${uuid}/(reconcile|location|details)$`);
 const catalogCollection = /^(catalog\/categories|catalog\/items)$/;
 const catalogItem = new RegExp(`^catalog/items/${uuid}$`);
 const releases = new RegExp(`^catalog/items/${uuid}/releases$`);

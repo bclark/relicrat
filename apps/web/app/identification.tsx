@@ -11,7 +11,7 @@ type Props = { copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (c
 const releaseName = (release: Release) => release.name || `Unnamed edition · ${release.id}`;
 
 // Four bounded catalog/history readers share cancellation and page semantics.
-function usePage<T>(path: string | null, page: number, refresh: string) {
+export function usePage<T>(path: string | null, page: number, refresh: string) {
   const [state, setState] = useState({ items: [] as T[], busy: true, more: false, error: '' });
   useEffect(() => {
     const controller = new AbortController();
@@ -23,7 +23,7 @@ function usePage<T>(path: string | null, page: number, refresh: string) {
   }, [path, page, refresh]);
   return state;
 }
-function Pages({ label, page, more, disabled, select }: { label: string; page: number; more: boolean; disabled: boolean; select: (value: number) => void }) {
+export function Pages({ label, page, more, disabled, select }: { label: string; page: number; more: boolean; disabled: boolean; select: (value: number) => void }) {
   if (page === 0 && !more) return null;
   return <nav className="pagination" aria-label={label}><button type="button" className="quiet" disabled={disabled || page === 0} onClick={() => select(page - 1)}>Previous</button><span>Page {page + 1}</span><button type="button" className="quiet" disabled={disabled || !more} onClick={() => select(page + 1)}>Next</button></nav>;
 }
@@ -82,10 +82,10 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
           setCategory(result); setNewCategory(''); setNotice('Category added.');
         } else if (kind === 'item' && category) {
           const result = await api<Item>('catalog/items', jsonSave({ category_id: category.id, canonical_name: newItem.trim() }));
-          choose(result); setNewItem(''); setNotice('Collectible added. Choose an edition below, then Save details to apply it to this copy.');
+          choose(result); setNewItem(''); setNotice('Collectible added. Choose an edition below, then Save catalog match to apply it to this copy.');
         } else if (kind === 'release' && selected) {
           const result = await api<Release>(`catalog/items/${selected.id}/releases`, jsonSave({ name: newRelease.trim() }));
-          setEdition(result); setNewRelease(''); setAddingEdition(false); editionDisclosure.current?.querySelector('summary')?.focus(); setNotice('Edition added and selected. Save details to apply it to this copy.');
+          setEdition(result); setNewRelease(''); setAddingEdition(false); editionDisclosure.current?.querySelector('summary')?.focus(); setNotice('Edition added and selected. Save catalog match to apply it to this copy.');
         }
       });
     } catch (problem) { setError(errorText(problem)); failed(problem); }
@@ -96,7 +96,7 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
       await runSave(async () => {
         setError(''); setNotice('');
         const result = await api<InventoryCopy>(`inventory/${copy.id}/reconcile`, jsonSave({ catalog_item_id: selected.id, release_id: edition?.id || null, expected_revision: copy.identification_revision }));
-        saved(result); setNotice('Details saved for this copy.');
+        saved(result); setNotice('Catalog match saved.');
       });
     } catch (problem) { setError(errorText(problem)); failed(problem); }
   }
@@ -105,8 +105,8 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
   const categoryOptions = category && !categories.items.some(item => item.id === category.id) ? [category, ...categories.items] : categories.items;
   const pending = !!selected && (selected.id !== copy.catalog_item_id || (edition?.id || null) !== copy.release_id || copy.identification_status !== 'identified');
   return <div className="identification">
-    <h3>What is this?</h3>
-    <p className="hint">Choose the collectible, then its edition or variant. Save details to apply your choices to this copy.</p>
+    <h3>Shared catalog match</h3>
+    <p className="hint">Optional: match this copy to a shared catalog record. Matching keeps the title and edition labels you entered for this copy.</p>
     {!ready ? <p role="status">{error ? 'Saved details could not be loaded.' : 'Loading saved details…'}</p> : <p className="current-identification">Saved: <strong>{current?.canonical_name || 'Not identified yet'}</strong>{currentRelease ? ` · ${releaseName(currentRelease)}` : current ? ' · Edition not specified' : ''}</p>}
     {error && <p className="error" role="alert">{error}</p>}
     <p className="notice" role="status">{notice}</p>
@@ -123,16 +123,16 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
       <form aria-label="Add category" onSubmit={event => create(event, 'category')}><fieldset disabled={disabled}><label htmlFor="category-name">New category name</label><input id="category-name" required maxLength={200} value={newCategory} onChange={event => setNewCategory(event.target.value)} /><button disabled={!newCategory.trim()} type="submit">Add category</button></fieldset></form>
     </details>
     {selected && <section aria-label="Choose collectible details" className="collectible-details">
-      <form id="save-identification" aria-label="Save details" onSubmit={identify}><fieldset disabled={disabled}>
+      <form id="save-identification" aria-label="Save catalog match" onSubmit={identify}><fieldset disabled={disabled}>
         <p>Collectible: <strong>{selected.canonical_name}</strong></p>
         <label htmlFor="catalog-release">Edition or variant</label><select id="catalog-release" value={edition?.id || ''} disabled={releases.busy || !!releases.error} onChange={event => { setEdition(editionOptions.find(item => item.id === event.target.value) || null); setNotice(''); }}><option value="">Edition not specified</option>{editionOptions.map(item => <option key={item.id} value={item.id}>{releaseName(item)} · {item.id.slice(0, 8)}</option>)}</select>
         {releases.busy && <p role="status">Loading editions…</p>}{releases.error && <p className="error" role="alert">{releases.error} Use Reload details before saving.</p>}<Pages label="Edition pages" page={releasePage} more={releases.more} disabled={disabled || releases.busy} select={setReleasePage} />
       </fieldset></form>
-      <details ref={editionDisclosure} open={addingEdition} onToggle={event => setAddingEdition(event.currentTarget.open)} className="new-location"><summary>Add an edition or variant</summary><p className="hint">Missing from the list? Add a name such as First printing, Copper cover or Blue vinyl. Then use Save details to apply it to this copy.</p><form aria-label="Add edition" onSubmit={event => create(event, 'release')}><fieldset disabled={disabled || releases.busy || !!releases.error}><label htmlFor="release-name">Edition or variant name</label><input id="release-name" required maxLength={500} value={newRelease} onChange={event => setNewRelease(event.target.value)} /><button disabled={!newRelease.trim()} type="submit">Add edition</button></fieldset></form></details>
+      <details ref={editionDisclosure} open={addingEdition} onToggle={event => setAddingEdition(event.currentTarget.open)} className="new-location"><summary>Add an edition or variant</summary><p className="hint">Missing from the list? Add a name such as First printing, Copper cover or Blue vinyl. Then use Save catalog match to apply it to this copy.</p><form aria-label="Add edition" onSubmit={event => create(event, 'release')}><fieldset disabled={disabled || releases.busy || !!releases.error}><label htmlFor="release-name">Edition or variant name</label><input id="release-name" required maxLength={500} value={newRelease} onChange={event => setNewRelease(event.target.value)} /><button disabled={!newRelease.trim()} type="submit">Add edition</button></fieldset></form></details>
       {pending && <p className="hint" role="status">Not saved to this copy yet: <strong>{selected.canonical_name}{edition ? ` · ${releaseName(edition)}` : ' · Edition not specified'}</strong></p>}
       <p className="hint">{!edition && copy.release_id ? 'Saving without an edition removes this copy’s current edition. Its history is kept.' : 'The edition is optional. This is your identification, not an independently verified match.'}</p>
-      <button className="primary" type="submit" form="save-identification" disabled={disabled || releases.busy || !!releases.error || !pending}>Save details</button>
+      <button className="primary" type="submit" form="save-identification" disabled={disabled || releases.busy || !!releases.error || !pending}>Save catalog match</button>
     </section>}
-    <details className="movement-history"><summary>Details history</summary><p className="hint">Oldest first. Full collectible and edition references help distinguish similar names.</p>{history.busy ? <p role="status">Loading details history…</p> : history.error ? <p className="error" role="alert">{history.error} Use Reload details.</p> : history.items.length ? <ol>{history.items.map(event => <li key={event.id}><span>{event.before_catalog_item_id || 'Unidentified'} to {event.after_catalog_item_id}</span><small>Edition: {event.before_release_id || 'None'} to {event.after_release_id || 'None'}</small><small>Revision {event.after_revision} · {new Date(event.created_at).toLocaleString()}</small></li>)}</ol> : <p>No detail changes recorded.</p>}<Pages label="Details history pages" page={historyPage} more={history.more} disabled={locked || history.busy} select={setHistoryPage} /></details>
+    <details className="movement-history"><summary>Match history</summary><p className="hint">Oldest first. Full collectible and edition references help distinguish similar names.</p>{history.busy ? <p role="status">Loading details history…</p> : history.error ? <p className="error" role="alert">{history.error} Use Reload details.</p> : history.items.length ? <ol>{history.items.map(event => <li key={event.id}><span>{event.before_catalog_item_id || 'Unidentified'} to {event.after_catalog_item_id}</span><small>Edition: {event.before_release_id || 'None'} to {event.after_release_id || 'None'}</small><small>Revision {event.after_revision} · {new Date(event.created_at).toLocaleString()}</small></li>)}</ol> : <p>No detail changes recorded.</p>}<Pages label="Match history pages" page={historyPage} more={history.more} disabled={locked || history.busy} select={setHistoryPage} /></details>
   </div>;
 }

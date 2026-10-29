@@ -101,6 +101,9 @@ with revision checks and retained identification history, nested storage locatio
 and explicit revision-checked copy movements with retained history. Literal text
 search finds copies by provisional information and linked catalog/release names.
 See the [inventory API contract](apps/api/INVENTORY.md).
+The web screen also supports editing a saved physical copy’s title and personal
+edition label together, with retained edit history and an independent revision
+check. Shared catalog matching is optional under Advanced.
 The add-first web screen supports provisional intake, photo upload/viewing, nested
 storage creation, explicit location changes and literal search. Manual catalog
 lookup/creation, optional release selection and revision-checked identification

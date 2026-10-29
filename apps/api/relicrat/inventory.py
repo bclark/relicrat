@@ -11,7 +11,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from relicrat.database import get_db
-from relicrat.models import CatalogItem, OwnedCopy, ReconciliationEvent, Release
+from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.reconciliation import ReconciliationError, reconcile
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -36,6 +36,8 @@ class InventoryCopy(BaseModel):
     id: UUID
     title: str | None = Field(validation_alias="provisional_title")
     description: str | None
+    edition_label: str | None
+    details_revision: int
     catalog_item_id: UUID | None
     release_id: UUID | None
     storage_location_id: UUID | None
@@ -89,10 +91,51 @@ def list_copies(
         ).where(or_(
             OwnedCopy.provisional_title.icontains(term, autoescape=True),
             OwnedCopy.description.icontains(term, autoescape=True),
+            OwnedCopy.edition_label.icontains(term, autoescape=True),
             CatalogItem.canonical_name.icontains(term, autoescape=True),
             Release.name.icontains(term, autoescape=True),
         ))
     return list(db.scalars(stmt).all())
+
+
+class EditCopyDetails(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    title: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
+    edition_label: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
+    expected_details_revision: int = Field(ge=0, le=2147483646, strict=True)
+    expected_identification_revision: int = Field(ge=0, le=2147483646, strict=True)
+
+
+class DetailEventInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    owned_copy_id: UUID
+    before_title: str | None
+    after_title: str | None
+    before_edition_label: str | None
+    after_edition_label: str | None
+    identification_revision: int
+    before_revision: int
+    after_revision: int
+    created_at: datetime
+
+
+@router.post('/{copy_id}/details', response_model=InventoryCopy)
+def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Depends(get_db)) -> OwnedCopy:
+    from relicrat.copy_details import DetailError, save_details
+    try:
+        return save_details(db, copy_id, payload.title or None, payload.edition_label,
+                            payload.expected_details_revision, payload.expected_identification_revision)
+    except DetailError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from None
+
+
+@router.get('/{copy_id}/detail-history', response_model=list[DetailEventInfo])
+def detail_history(copy_id: UUID, limit: int = Query(default=50, ge=1, le=100),
+                   offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)) -> list[CopyDetailEvent]:
+    get_copy(copy_id, db)
+    return list(db.scalars(select(CopyDetailEvent).where(CopyDetailEvent.owned_copy_id == copy_id)
+                          .order_by(CopyDetailEvent.after_revision).limit(limit).offset(offset)))
 
 
 class ReconcileCopy(BaseModel):

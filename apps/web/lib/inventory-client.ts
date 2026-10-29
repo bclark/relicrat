@@ -1,5 +1,6 @@
 export type InventoryCopy = {
   id: string; title: string | null; description: string | null;
+  edition_label: string | null; details_revision: number;
   catalog_item_id: string | null; release_id: string | null;
   identification_status: string; identification_revision: number;
   storage_location_id: string | null; storage_revision: number;

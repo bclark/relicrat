@@ -8,7 +8,7 @@ See [owner access](../../docs/owner-access.md) for the authentication contract.
 # Inventory text search
 
 `GET /api/v1/inventory?q=blue%20cover&limit=50&offset=0` returns physical
-copies whose provisional title, description, current catalog canonical name, or
+copies whose provisional title, personal edition label, description, current catalog canonical name, or
 current release name contains the search text, case-insensitively using
 PostgreSQL's database collation. Surrounding whitespace is trimmed; omitted,
 empty, or whitespace-only `q` uses the original unfiltered listing. The input
@@ -232,3 +232,55 @@ photos, provisional fields, ownership and independent storage history/revision.
 Authentication and production deployment remain unfinished; synthetic data only.
 Offset pages may shift under concurrent catalog creation. There is no catalog
 uniqueness inference or large-catalog performance guarantee.
+
+# Edit a saved physical copy
+
+`POST /api/v1/inventory/{copy_id}/details` atomically changes that copy's own
+`title` and `edition_label`. It never creates catalog records, changes a catalog
+or release link, creates ownership, or edits another physical copy.
+
+```json
+{
+  "title": "Harbor Lights",
+  "edition_label": "Blue vinyl",
+  "expected_details_revision": 0,
+  "expected_identification_revision": 0
+}
+```
+
+Both revision fields are required strict integers. A stale copy-edit revision or
+catalog-match revision returns 409 before writing. Storage revisions remain
+independent. A no-op with current revisions returns the unchanged record without
+an event or timestamp update. Missing/deleted copies return 404. Labels trim
+surrounding whitespace, reject NUL, and have a 500-character limit. Clearing the
+title requires retained meaningful notes or a photo; an edition alone does not
+replace the existing recognizable-content requirement.
+
+Inventory responses add `details_revision` and nullable `edition_label`:
+
+- `null`: no personal edition label; the UI may show the existing linked release.
+- Nonempty text: the owner's explicit label for this physical copy.
+- Empty text: the owner explicitly left the edition unknown, even if a catalog
+  release is linked. Unknown is not a zero or a verified match.
+
+Editing only a title preserves an unchanged linked edition. Personal labels
+remain explicit and survive later catalog matching; they do not rename or
+reclassify the shared release. They participate in the same literal inventory
+search as titles and notes. The UI shows the personal-label source when a shared
+release is also linked.
+
+`GET /api/v1/inventory/{copy_id}/detail-history?limit=20&offset=0` returns bounded,
+oldest-first before/after labels and revision numbers. Each edit records the
+identification revision observed under the same copy row lock, so the separate
+match history supplies context for inherited editions. UUID, creation time,
+photos, storage, disposition and prior histories are retained. Failed transactions
+roll back both labels and history. An uncertain response must be reloaded and
+reviewed; clients never automatically retry a POST.
+
+Migration 0005 adds the nullable label, a default-zero revision and an audit table.
+Existing rows retain their old values and timestamps. Upgrade before starting the
+new API/web pair. Downgrade intentionally drops the new edition labels and copy
+edit history; it is exercised only on disposable data. Before any live migration,
+capture and verify a recovery copy. Do not automatically downgrade live data to
+roll back a web release; the new API can serve the earlier web while recovery is
+reviewed. Use a matching API image/migration head for backup verification.
