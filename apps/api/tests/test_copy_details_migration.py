@@ -20,10 +20,11 @@ def test_copy_detail_upgrade_downgrade_preserves_legacy_columns():
         command.upgrade(config,'head')
         with engine.begin() as conn:
             after=dict(conn.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one())
+            assert after.pop('collection_type')=='other' and after.pop('record_details')=={}
             assert after.pop('edition_label') is None and after.pop('details_revision')==0 and after==before
             conn.execute(text("UPDATE owned_copies SET provisional_title='Edited physical copy',edition_label='Blue vinyl',details_revision=1 WHERE id=:id"),{'id':cid})
             conn.execute(text("INSERT INTO copy_detail_events(id,owned_copy_id,before_title,after_title,after_edition_label,identification_revision,before_revision,after_revision) VALUES (:event,:id,'Legacy physical copy','Edited physical copy','Blue vinyl',0,0,1)"),{'event':uuid4(),'id':cid})
-            current=dict(conn.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one());current.pop('edition_label');current.pop('details_revision')
+            current=dict(conn.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one());current.pop('collection_type');current.pop('record_details');current.pop('edition_label');current.pop('details_revision')
         command.downgrade(config,'0004_owner_access')
         with engine.connect() as conn:
             assert conn.scalar(text("SELECT to_regclass('copy_detail_events')")) is None

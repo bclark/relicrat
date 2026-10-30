@@ -583,3 +583,10 @@ footer {
 .owner-controls { margin-left: auto; }
 .owner-controls .error { max-width: 32ch; }
 @media (max-width: 650px) { .access-shell { margin: 5vh auto; padding: 24px 20px; } .masthead { flex-wrap: wrap; } }
+
+.collection-setup { margin-top: 24px; border-bottom: 1px solid var(--rule); padding-bottom: 16px; overflow-wrap: anywhere; }
+.collection-setup form { max-width: 640px; }
+.collection-setup label:has(input[type=checkbox]) { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.collection-setup input[type=checkbox] { accent-color: var(--accent); width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; margin: 0; }
+.setup-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.setup-preview { padding: 16px; border: 1px solid var(--rule); border-radius: 6px; }

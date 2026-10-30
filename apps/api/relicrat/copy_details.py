@@ -12,7 +12,8 @@ class DetailError(Exception):
 
 
 def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
-                 expected_details_revision: int, expected_identification_revision: int) -> OwnedCopy:
+                 expected_details_revision: int, expected_identification_revision: int, *,
+                 collection_type: str | None = None, record_details: dict | None = None) -> OwnedCopy:
     try:
         copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
                          .with_for_update().execution_options(populate_existing=True))
@@ -22,14 +23,20 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
             raise DetailError(409, 'This copy changed elsewhere. Reload the copy before editing its details.')
         if not title and not (copy.description or '').strip() and db.scalar(select(MediaAsset.id).where(MediaAsset.owned_copy_id == copy_id).limit(1)) is None:
             raise DetailError(422, 'Keep a title, notes or a photo so this copy can be recognized.')
-        if (copy.provisional_title, copy.edition_label) == (title, edition_label):
+        next_type = copy.collection_type if collection_type is None else collection_type
+        next_record = copy.record_details if record_details is None else record_details
+        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details) == (title, edition_label, next_type, next_record):
             db.commit()
             return copy
         db.add(CopyDetailEvent(owned_copy_id=copy.id,
             before_title=copy.provisional_title, after_title=title,
+            before_collection_type=copy.collection_type, after_collection_type=next_type,
+            before_record_details=copy.record_details, after_record_details=next_record,
             before_edition_label=copy.edition_label, after_edition_label=edition_label,
             identification_revision=copy.identification_revision,
             before_revision=copy.details_revision, after_revision=copy.details_revision + 1))
+        copy.collection_type = next_type
+        copy.record_details = next_record
         copy.provisional_title = title
         copy.edition_label = edition_label
         copy.details_revision += 1

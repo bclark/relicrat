@@ -209,3 +209,15 @@ test('copy label edits and history retain the same allowlist, method and origin 
   assert.equal((await forwardApi(request(action + '/unsafe', post(body)), [...action.split('/'), 'unsafe'])).status, 404);
   assert.equal(observed.length, count);
 });
+
+test('collection preferences use the protected fixed endpoint and same-origin JSON writes',async()=>{
+  const path='collection-settings',body=JSON.stringify({status:'configured',records_enabled:true,default_type:'record',record_fields:['artist'],expected_revision:0});
+  assert.equal((await forwardApi(request(path),[path])).status,200);
+  assert.equal((await forwardApi(request(path,post(body)),[path])).status,201);
+  assert.equal(observed.at(-1).body.toString(),body);
+  const count=observed.length;
+  assert.equal((await forwardApi(request(path,{method:'DELETE'}),[path])).status,405);
+  assert.equal((await forwardApi(request(path,post(body,{origin:'https://evil.test'})),[path])).status,403);
+  assert.equal((await forwardApi(request(path+'/unsafe'),[path,'unsafe'])).status,404);
+  assert.equal(observed.length,count);
+});

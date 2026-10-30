@@ -16,7 +16,7 @@ from sqlalchemy import inspect, select, text
 
 from relicrat.database import session_factory
 from relicrat.main import app
-from relicrat.models import Category, CatalogItem, Release, ReconciliationEvent, CopyDetailEvent, MediaAsset, OwnedCopy, StorageLocation, CopyLocationEvent, StorageHierarchyGuard
+from relicrat.models import CollectionSettings, Category, CatalogItem, Release, ReconciliationEvent, CopyDetailEvent, MediaAsset, OwnedCopy, StorageLocation, CopyLocationEvent, StorageHierarchyGuard
 
 EVIDENCE = Path('/evidence')
 MEDIA = Path('/media')
@@ -96,7 +96,7 @@ def snapshot():
             WHERE n.nspname = 'public' ORDER BY p.proname, p.oid
         """)).scalars().all()
         rows = {}
-        for model in (Category, CatalogItem, Release, OwnedCopy, MediaAsset, ReconciliationEvent, CopyDetailEvent, StorageLocation, CopyLocationEvent, StorageHierarchyGuard):
+        for model in (CollectionSettings, Category, CatalogItem, Release, OwnedCopy, MediaAsset, ReconciliationEvent, CopyDetailEvent, StorageLocation, CopyLocationEvent, StorageHierarchyGuard):
             rows[model.__tablename__] = [
                 {column.name: getattr(row, column.name) for column in model.__table__.columns}
                 for row in db.scalars(select(model).order_by(model.id))
@@ -152,10 +152,14 @@ def seed():
             copy = response.json()
         response = api.post(f"{BASE}/{copy['id']}/details", json={
             'title': 'Edited synthetic recovery copy', 'edition_label': 'Blue test edition',
+            'collection_type': 'record', 'record_details': {'artist':'Synthetic recovery artist','format':'Vinyl'},
             'expected_details_revision': copy['details_revision'],
             'expected_identification_revision': copy['identification_revision']})
         require(response.status_code == 200, response.text)
         copy = response.json()
+        preferences = api.get('/api/v1/collection-settings').json()
+        configured = api.post('/api/v1/collection-settings', json={'status':'configured','records_enabled':True,'default_type':'record','record_fields':['artist','format'],'expected_revision':preferences['revision']})
+        require(configured.status_code == 200, 'Recovery preferences save failed')
         edits = api.get(f"{BASE}/{copy['id']}/detail-history").json()
         require(len(edits) == 1, 'Copy edit history missing')
         movements = api.get(f"{BASE}/{copy['id']}/locations").json()

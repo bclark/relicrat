@@ -77,3 +77,14 @@ without retries. Migration 0005 and a verified recovery capture are required
 before deployment. The current live trial remains on merged PR33 until review,
 merge and rollout of this feature. No standing brand/build-path preference is
 introduced; the incumbent visual system is retained.
+
+## Records setup refinement (proposed implementation, 2026-10-30)
+
+The owner approved a skippable collection setup with adjustable suggested fields,
+starting with the complete Records path. The implementation adds durable owner
+preferences, personal copy type/artist/format, adapted album entry, preview without
+ownership writes, and settings that preserve hidden values. Only a title is needed
+for new entry. Other remains generic; more specialized types and financial fields
+are deferred. This feature is not deployed until review, merge, verified recovery
+and an explicit migration0006/API/web rollout. Existing combined titles and their
+physical-copy identities must not be rewritten automatically.

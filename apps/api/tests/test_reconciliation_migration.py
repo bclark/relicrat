@@ -28,6 +28,8 @@ def test_upgrade_initializes_existing_copy_and_roundtrip():
             after = dict(conn.execute(text('SELECT * FROM owned_copies WHERE id = :id'), {'id': cid}).mappings().one())
             assert after.pop('identification_revision') == 0
             assert after.pop('storage_revision') == 0
+            assert after.pop('collection_type') == 'other'
+            assert after.pop('record_details') == {}
             assert after.pop('edition_label') is None
             assert after.pop('details_revision') == 0
             assert after == before
