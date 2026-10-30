@@ -7,7 +7,10 @@ origin behind single-owner authentication. This remains a synthetic development 
 
 ## First screen
 
-A title or notes creates one provisional physical copy. Save it first, then use
+A title is the only required field when adding a find in the browser. Notes, edition,
+photos, storage and catalog matching are optional. The API still supports notes-only
+intake, and existing copies are preserved. Save the title to create one provisional
+physical copy, then use
 its record to upload JPEG/PNG/WebP photos and choose storage. Creating a storage
 location does not move the copy: choose it in Location afterward. Choosing a
 location saves immediately, shows “Saving location…” while pending and confirms

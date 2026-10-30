@@ -156,13 +156,33 @@ async function catalog(page) {
 test('add-first workflow keeps one copy across photo, immediate nested storage, and search', async t => {
   const { page, state } = await fixture(t);
   assert.ok(await page.getByRole('heading', { name: 'Your first find starts here' }).isVisible());
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const output = resolve(process.env.RELICRAT_SCREENSHOTS); await mkdir(output, { recursive: true });
+    await page.locator('.intake').screenshot({ path: `${output}/intake-desktop.png`, animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.intake').screenshot({ path: `${output}/intake-mobile.png`, animations: 'disabled' });
+    await page.setViewportSize({ width: 1440, height: 1050 });
+  }
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
-  assert.match(await page.getByRole('alert').filter({ hasText: 'Add a title or notes' }).innerText(), /title or notes/);
+  const title = page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true });
+  assert.equal(await title.evaluate(input => input.validity.valueMissing), true);
+  assert.equal(state.writes.length, 0);
+  await title.fill('   ');
+  await page.getByLabel('Notes (optional)', { exact: true }).fill('Notes cannot replace a title');
+  await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Add a title so you can recognize this copy later.' }).waitFor();
+  assert.equal(state.writes.length, 0);
+  await page.getByLabel('Notes (optional)', { exact: true }).fill('');
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
-  await page.getByLabel('Notes', { exact: true }).fill('A provisional copy for the first trial.');
   await page.getByRole('button', { name: 'Save copy', exact: true }).dblclick();
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   assert.equal(state.copies.length, 1); assert.equal(state.writes.filter(write => write.path === 'inventory').length, 1);
+  assert.equal(state.copies[0].description, null);
+  assert.equal(state.copies[0].edition_label, null);
+  assert.equal(state.copies[0].storage_location_id, null);
+  assert.equal(state.copies[0].catalog_item_id, null);
+  assert.equal(state.copies[0].release_id, null);
+  assert.equal(state.items.length, 0);
   const cid = state.copies[0].id;
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
@@ -189,17 +209,18 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   assert.equal(state.copies[0].storage_revision, 2); assert.equal(state.moves[cid].length, 2);
 });
 
-test('notes-only intake works, and uncertain creation requires inspection without automatic retry', async t => {
+test('optional notes survive uncertain creation without automatic retry', async t => {
   const { page, state } = await fixture(t, { failCreate: 'uncertain' });
-  await page.getByLabel('Notes', { exact: true }).fill('Unknown record in a plain sleeve');
+  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill('Unknown record');
+  await page.getByLabel('Notes (optional)', { exact: true }).fill('Unknown record in a plain sleeve');
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Save could not be confirmed' }).waitFor();
-  assert.equal(await page.getByLabel('Notes', { exact: true }).inputValue(), 'Unknown record in a plain sleeve');
+  assert.equal(await page.getByLabel('Notes (optional)', { exact: true }).inputValue(), 'Unknown record in a plain sleeve');
   assert.ok(await page.getByRole('button', { name: 'Save copy', exact: true }).isDisabled());
   assert.equal(state.writes.length, 1);
   await page.getByRole('button', { name: 'Reload inventory', exact: true }).last().click();
-  await page.getByRole('button', { name: 'Open Unknown record in a plain sleeve', exact: true }).waitFor();
-  assert.equal(state.copies[0].title, null); assert.equal(state.writes.length, 1);
+  await page.getByRole('button', { name: 'Open Unknown record', exact: true }).waitFor();
+  assert.equal(state.copies[0].title, 'Unknown record'); assert.equal(state.writes.length, 1);
   assert.ok(await page.getByRole('button', { name: 'Save copy', exact: true }).isEnabled());
 });
 
@@ -345,8 +366,8 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
-  assert.ok(await page.getByLabel('Notes', { exact: true }).evaluate(input => input === document.activeElement));
-  assert.notEqual(await page.getByLabel('Notes', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
+  assert.ok(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => input === document.activeElement));
+  assert.notEqual(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
 });
 
 test('a saved copy edits its existing title and edition in one form without catalog setup', async t => {
@@ -543,7 +564,7 @@ test('real browser preserves three physical copies across shared editions, photo
   const added = [];
   for (const [index, copyTitle] of ['Synthetic second physical copy', 'Synthetic variant physical copy'].entries()) {
     await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(copyTitle);
-    await page.getByLabel('Notes', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
+    await page.getByLabel('Notes (optional)', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
     const created = await page.evaluate(async title => (await (await fetch('/api/v1/inventory')).json()).find(item => item.title === title), copyTitle);
