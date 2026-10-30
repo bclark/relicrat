@@ -910,3 +910,28 @@ history; capture and verify recovery before rollout, and never automatically
 use a destructive schema downgrade as a UI rollback. Empty-image-store/off-site
 recovery were not repeated for this feature. Human review, merge and a deliberate
 API/schema/web upgrade remain required before this is on the live trial.
+
+### Title-only browser intake (2026-10-29)
+
+The browser now requires a nonblank title for new finds, using native required-field
+validation plus a trimmed-content check. Notes, edition, photos, storage and catalog
+matching remain optional. API notes-only intake and existing records are unchanged;
+there is no migration or dependency change.
+
+- `npm run lint --prefix apps/web`: passed.
+- `npm test --prefix apps/web`: 21 passed, no failures/skips.
+- Worker `sh scripts/test-web.sh`: production build/typecheck, 21 Node checks,
+  fresh migrations and authenticated HTTP/photo-persistence smoke passed; scoped
+  cleanup passed.
+- `RELICRAT_REAL_UI_TEST=1 npm run test:browser`: 23 passed, no failures/skips.
+  The intake regression rejects empty/whitespace titles even with notes, saves
+  exactly one copy from a title alone with other fields unset, then adds photos,
+  storage and search. Optional notes and uncertain-save review remain covered.
+- Desktop and phone intake captures were inspected together; no layout changes
+  or visual fixes were needed. `node --check apps/web/tests/inventory.browser.mjs`
+  and `git diff --check` passed.
+
+Private evidence is in the operator checkout's ignored
+`.harness-results/title-only-intake/`. All browser/integration data was disposable
+and synthetic. The full PostgreSQL API suite and backup recovery were not repeated
+for this browser-only change. Human review and merge precede preview deployment.

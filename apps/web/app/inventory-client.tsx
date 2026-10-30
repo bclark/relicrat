@@ -52,16 +52,16 @@ export default function InventoryClient() {
   async function create(event: FormEvent) {
     event.preventDefault();
     if (uncertain) return;
-    if (!title.trim() && !notes.trim()) {
-      setSaveError('Add a title or notes so you can recognize this copy later.'); titleInput.current?.focus(); return;
+    if (!title.trim()) {
+      setSaveError('Add a title so you can recognize this copy later.'); titleInput.current?.focus(); return;
     }
     try {
       await runSave(async () => {
         setSaveError(''); setNotice('');
-        const copy = await api<InventoryCopy>('inventory', jsonSave({ title: title.trim() || null, description: notes.trim() || null }));
+        const copy = await api<InventoryCopy>('inventory', jsonSave({ title: title.trim(), description: notes.trim() || null }));
         setTitle(''); setNotes(''); setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
-        setNotice('Copy saved. Add its photo or location below.');
+        setNotice('Copy saved. You can add more details whenever you like.');
       });
     } catch (error) {
       setSaveError(errorText(error));
@@ -86,14 +86,14 @@ export default function InventoryClient() {
           <div className="workbench">
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
-              <p className="intro">Add what you know. You can edit the title and edition after saving.</p>
+              <p className="intro">Start with a title. Everything else is optional.</p>
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain}>
                   <label htmlFor="find-title">Title</label>
-                  <input ref={titleInput} id="find-title" maxLength={500} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Comic with a blue cover" aria-describedby="intake-help" />
-                  <label htmlFor="find-notes">Notes</label>
+                  <input ref={titleInput} id="find-title" required maxLength={500} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Comic with a blue cover" aria-describedby="intake-help" />
+                  <label htmlFor="find-notes">Notes (optional)</label>
                   <textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Distinctive details, condition, or where you found it" aria-describedby="intake-help" />
-                  <p className="hint" id="intake-help">A title or notes is required. Add photos and storage after saving.</p>
+                  <p className="hint" id="intake-help">You can add an edition, photos or storage whenever you like.</p>
                   <button className="primary" type="submit">{busy ? 'Saving…' : 'Save copy'}</button>
                 </fieldset>
               </form>
@@ -114,7 +114,7 @@ export default function InventoryClient() {
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${query ? ` matching “${query}”` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
-              : items.length === 0 ? <div className="empty"><h3>{query ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Add a title or a few notes. You do not need to identify the collectible yet.'}</p></div>
+              : items.length === 0 ? <div className="empty"><h3>{query ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
               : <ul className="inventory-list">{items.map(copy => <li key={copy.id}><button disabled={busy} className="inventory-row" aria-label={`Open ${copyName(copy)}${copy.edition_label ? ` · ${copy.edition_label}` : ''}`} aria-pressed={copy.id === selected} onClick={() => { setSelected(copy.id); setNotice(''); }}><strong>{copyName(copy)}</strong><span>{copy.description && copy.title ? copy.description : 'Open this physical copy'}</span><small>{copy.edition_label || (copy.edition_label === null && copy.release_id ? 'Catalog matched' : 'Saved copy')} · {copy.storage_location_id ? 'Location assigned' : 'No location yet'}</small></button></li>)}</ul>}
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
           </section>
