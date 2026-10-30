@@ -284,3 +284,28 @@ edit history; it is exercised only on disposable data. Before any live migration
 capture and verify a recovery copy. Do not automatically downgrade live data to
 roll back a web release; the new API can serve the earlier web while recovery is
 reviewed. Use a matching API image/migration head for backup verification.
+
+## Personal Records details and setup
+
+Migration0006 adds `collection_type` (`other` or `record`, default `other`) and
+`record_details` (default `{}`) to physical copies. The bounded object accepts only
+optional `artist` (500 characters) and `format` (100 characters). Blank values are
+omitted as unknown. New Other copies reject record observations; an explicit type
+change on an existing copy preserves its saved observations. Shared catalog and
+release attributes are untouched.
+
+Creation optionally accepts these fields plus `edition_label`. The details save
+accepts type and observations in the existing revision-checked transaction and
+extends before/after history. Omitted new fields preserve current values for older
+clients. Explicit `{}` clears observations with retained history. Literal search
+includes artist and format with parameterized escaping, even if setup hides them.
+
+`GET /api/v1/collection-settings` returns the single owner's `status` (`not_started`,
+`skipped`, `configured`), `records_enabled`, `default_type`, `record_fields` and
+`revision`. `POST` takes those values plus `expected_revision`. Record fields are a
+unique bounded selection of `artist`, `format`, `edition`, `notes`; no arbitrary
+schema is accepted. The Record default requires Records enabled. Stale writes409;
+invalid values422; missing preference row503. A no-op keeps its revision. Both
+methods require owner authentication; writes retain same-origin browser defenses.
+Setup writes never alter inventory, visibility preferences never delete copy data,
+and all preferences are included in database capture and independent recovery.

@@ -8,7 +8,7 @@ const base = process.env.RELICRAT_TEST_WEB_URL || 'http://127.0.0.1:63112';
 assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:', 'Use an isolated loopback test server');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const id = number => `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`;
-const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
+const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', collection_type:'other', record_details:{}, catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
 const ownerPassword = 'synthetic-only-owner-password';
 let browser;
 async function signIn(context) {
@@ -24,7 +24,7 @@ async function fixture(t, initial = {}) {
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, [], 'Unexpected browser errors'));
-  const state = { reads: [], edits: {}, detailsConflict: false, uncertainDetails: false, failDetails: '', failEditionRead: false, slowEditionRead: false, categories: [], items: [], releases: [], identifications: {}, identificationConflict: false, uncertainIdentification: false, copies: [], locations: [], photos: {}, moves: {}, writes: [], failCreate: '', failPhoto: false, conflict: false, failList: false, ...initial };
+  const state = { settings:{status:'skipped',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}, failSettings:'', reads: [], edits: {}, detailsConflict: false, uncertainDetails: false, failDetails: '', failEditionRead: false, slowEditionRead: false, categories: [], items: [], releases: [], identifications: {}, identificationConflict: false, uncertainIdentification: false, copies: [], locations: [], photos: {}, moves: {}, writes: [], failCreate: '', failPhoto: false, conflict: false, failList: false, ...initial };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(); const url = new URL(request.url());
     const path = url.pathname.replace('/api/v1/', ''); const parts = path.split('/');
@@ -33,12 +33,21 @@ async function fixture(t, initial = {}) {
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
     if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
-    if (method === 'GET' && path === 'inventory') {
+    if (path === 'collection-settings') {
+      if(state.failSettings==='read' && method==='GET') {status=502;result={detail:'Collection settings unavailable'};}
+      else if(method==='GET') result=state.settings;
+      else {
+        const payload=request.postDataJSON();
+        if(state.failSettings==='conflict') state.settings.revision+=1;
+        if(payload.expected_revision!==state.settings.revision) {status=409;result={detail:'Collection settings changed elsewhere. Reload settings and review your choices.'};}
+        else { const {expected_revision,...values}=payload;state.settings={...values,revision:state.settings.revision+1};status=state.failSettings==='uncertain' ? 502 : 200;result=status===200 ? state.settings : {detail:'Save could not be confirmed. Reload settings and review.'}; }
+      }
+    } else if (method === 'GET' && path === 'inventory') {
       if (state.failList) { status = 502; result = { detail: 'Synthetic API unavailable' }; }
       else {
         const q = url.searchParams.get('q') || '';
         if (q === 'Old') await new Promise(resolve => setTimeout(resolve, 400));
-        result = state.copies.filter(item => `${item.title || ''} ${item.description || ''}`.toLowerCase().includes(q.toLowerCase()));
+        result = state.copies.filter(item => `${item.title || ''} ${item.description || ''} ${item.record_details?.artist || ''} ${item.record_details?.format || ''}`.toLowerCase().includes(q.toLowerCase()));
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         result = result.slice(offset, offset + limit);
       }
@@ -46,7 +55,7 @@ async function fixture(t, initial = {}) {
       const payload = request.postDataJSON();
       if (state.failCreate === 'validation') { status = 422; result = { detail: 'Synthetic validation error' }; }
       else {
-        const item = copy(state.copies.length + 1, payload.title, { description: payload.description });
+        const item = copy(state.copies.length + 1, payload.title, { description: payload.description,collection_type:payload.collection_type || 'other',record_details:Object.fromEntries(Object.entries(payload.record_details || {}).filter(([,value])=>value)),edition_label:payload.edition_label || null });
         state.copies.unshift(item);
         status = state.failCreate === 'uncertain' ? 502 : 201;
         result = status === 201 ? item : { detail: 'Save could not be confirmed. Reload inventory before retrying.' };
@@ -99,8 +108,8 @@ async function fixture(t, initial = {}) {
         if (state.failDetails === 'validation') { status = 422; result = { detail: 'Synthetic copy edit rejected' }; }
         else if (payload.expected_details_revision !== item.details_revision || payload.expected_identification_revision !== item.identification_revision) { status = 409; result = { detail: 'This copy changed elsewhere' }; }
         else {
-          state.edits[cid] = [...(state.edits[cid] || []), { id: id(8000 + state.writes.length), before_title: item.title, after_title: payload.title, before_edition_label: item.edition_label, after_edition_label: payload.edition_label, after_revision: item.details_revision + 1, created_at: item.created_at }];
-          item.title = payload.title; item.edition_label = payload.edition_label; item.details_revision += 1;
+          state.edits[cid] = [...(state.edits[cid] || []), { id: id(8000 + state.writes.length), before_collection_type:item.collection_type,after_collection_type:payload.collection_type || item.collection_type,before_record_details:item.record_details,after_record_details:payload.record_details || item.record_details,before_title: item.title, after_title: payload.title, before_edition_label: item.edition_label, after_edition_label: payload.edition_label, after_revision: item.details_revision + 1, created_at: item.created_at }];
+          item.collection_type=payload.collection_type || item.collection_type; item.record_details=Object.fromEntries(Object.entries(payload.record_details || item.record_details).filter(([,value])=>value)); item.title = payload.title; item.edition_label = payload.edition_label; item.details_revision += 1;
           status = state.uncertainDetails ? 502 : 200;
           result = status === 200 ? item : { detail: 'Save could not be confirmed. Reload and inspect.' };
         }
@@ -838,4 +847,116 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   assert.equal((await replay.request.get(`${base}/api/v1/inventory`)).status(), 401);
   await page.goto(base); await page.waitForURL('**/login');
   assert.equal(await page.getByRole('heading', { name: 'Add a find', exact: true }).count(), 0);
+});
+
+const freshSettings = () => ({status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0});
+async function startRecordSetup(page) {
+  await page.getByRole('button',{name:/Set up your collection|Collection settings/,exact:true}).click();
+  await page.getByRole('checkbox',{name:'Records',exact:true}).check();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+}
+
+test('Records setup previews without ownership writes and saves durable choices; title alone creates a record',async t=>{
+  const {page,state}=await fixture(t,{settings:freshSettings()});
+  await startRecordSetup(page);
+  await page.getByRole('checkbox',{name:'Notes',exact:true}).uncheck();
+  if(process.env.RELICRAT_SCREENSHOTS) {
+    const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
+    await page.locator('.collection-setup').screenshot({path:`${output}/fields-desktop.png`});
+    await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    await page.locator('.collection-setup').screenshot({path:`${output}/fields-mobile.png`});
+    await page.setViewportSize({width:1440,height:1050});
+  }
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('heading',{name:'Preview your entry form',exact:true}).waitFor();
+  assert.equal(state.writes.length,0);
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  assert.equal(await page.getByRole('checkbox',{name:'Notes',exact:true}).isChecked(),false);
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  if(process.env.RELICRAT_SCREENSHOTS) {
+    const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
+    await page.locator('.collection-setup').screenshot({path:`${output}/setup-desktop.png`});
+    await page.setViewportSize({width:390,height:844});await page.locator('.collection-setup').screenshot({path:`${output}/setup-mobile.png`});
+    await page.setViewportSize({width:1440,height:1050});
+  }
+  await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});
+  await intake.getByLabel('Album title',{exact:true}).waitFor();
+  assert.equal(await intake.getByLabel('Notes (optional)',{exact:true}).count(),0);
+  assert.equal(state.settings.default_type,'record');assert.equal(state.copies.length,0);
+  await intake.getByLabel('Album title',{exact:true}).fill('Synthetic title only');
+  await page.getByRole('button',{name:'Save copy',exact:true}).dblclick();
+  await page.getByRole('heading',{name:'Synthetic title only',exact:true}).waitFor();
+  assert.equal(state.copies.length,1);assert.equal(state.copies[0].collection_type,'record');assert.deepEqual(state.copies[0].record_details,{});
+  assert.equal(state.writes.filter(w=>w.path==='inventory').length,1);assert.equal(state.items.length,0);
+  if(process.env.RELICRAT_SCREENSHOTS) await intake.screenshot({path:`${resolve(process.env.RELICRAT_SCREENSHOTS)}/records-entry.png`});
+});
+
+test('skip and cancel preserve generic entry; changing a nonempty draft requires review',async t=>{
+  const {page,state}=await fixture(t,{settings:freshSettings()});
+  await startRecordSetup(page);await page.getByRole('button',{name:'Cancel setup',exact:true}).click();
+  assert.equal(state.writes.length,0);
+  await page.getByRole('button',{name:'Skip for now',exact:true}).click();
+  await page.getByRole('button',{name:'Collection settings',exact:true}).waitFor();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});
+  await intake.getByLabel('Title',{exact:true}).fill('Keep this draft');
+  page.once('dialog',dialog=>dialog.dismiss());await page.getByLabel('What are you adding?',{exact:true}).selectOption('record');
+  assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep this draft');
+  page.once('dialog',dialog=>dialog.accept());await page.getByLabel('What are you adding?',{exact:true}).selectOption('record');
+  assert.equal(await intake.getByLabel('Album title',{exact:true}).inputValue(),'');
+  assert.equal(state.copies.length,0);assert.equal(state.settings.default_type,'other');
+});
+
+test('hidden record fields keep saved values editable and searchable without rewriting the copy',async t=>{
+  const item=copy(1,'Example album',{collection_type:'record',record_details:{artist:'Example band',format:'Vinyl'},description:null});
+  const {page,state}=await fixture(t,{copies:[item],settings:{...freshSettings(),status:'configured',records_enabled:true,default_type:'record',record_fields:[]}});
+  await page.getByRole('button',{name:'Open Example band — Example album',exact:true}).click();
+  const editForm=page.getByRole('form',{name:'Edit copy details',exact:true});
+  assert.equal(await editForm.getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Example band');
+  assert.equal(await page.getByRole('form',{name:'Add a find',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).count(),0);
+  await editForm.getByLabel('Album title',{exact:true}).fill('Corrected album');
+  await editForm.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByRole('heading',{name:'Example band — Corrected album',exact:true}).waitFor();
+  assert.deepEqual(state.copies[0].record_details,item.record_details);
+  await page.getByLabel('Find a copy',{exact:true}).fill('Example band');await page.getByRole('button',{name:'Search',exact:true}).click();
+  await page.getByRole('button',{name:'Open Example band — Corrected album',exact:true}).waitFor();
+  assert.equal(state.copies[0].id,item.id);
+});
+
+for(const failure of ['conflict','uncertain']) test(`setup ${failure} requires reload and never retries automatically`,async t=>{
+  const {page,state}=await fixture(t,{settings:freshSettings(),failSettings:failure});
+  await startRecordSetup(page);await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:failure==='conflict'?'changed elsewhere':'Save could not be confirmed'}).waitFor();
+  assert.equal(state.writes.filter(w=>w.path==='collection-settings').length,1);
+  assert.equal(await page.getByRole('button',{name:'Save setup',exact:true}).isDisabled(),true);
+  state.failSettings='';await page.getByRole('button',{name:'Reload settings',exact:true}).click();
+  await page.getByRole('button',{name:/Set up your collection|Collection settings/,exact:true}).waitFor();assert.equal(state.copies.length,0);
+});
+
+test('unavailable settings allow explicit generic entry without replacing preferences',async t=>{
+  const {page,state}=await fixture(t,{failSettings:'read'});
+  await page.getByRole('button',{name:'Use generic entry',exact:true}).click();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Title',{exact:true}).fill('Generic fallback');
+  await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Generic fallback',exact:true}).waitFor();
+  assert.equal(state.writes.filter(w=>w.path==='collection-settings').length,0);assert.equal(state.copies[0].collection_type,'other');
+});
+
+test('real Records setup and artist search survive browser reload with a title-only option',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
+  const context=await browser.newContext();t.after(()=>context.close());await signIn(context);const page=await context.newPage();await page.goto(base);
+  await startRecordSetup(page);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Album title',{exact:true}).fill('Synthetic setup album');
+  await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup band');await intake.getByLabel('Format (optional)',{exact:true}).fill('Vinyl');
+  await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
+  await page.reload();await intake.getByLabel('Album title',{exact:true}).waitFor();
+  await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic setup band');await page.getByRole('button',{name:'Search',exact:true}).click();
+  await page.getByRole('button',{name:'Open Synthetic setup band — Synthetic setup album',exact:true}).click();
+  await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Collection settings',exact:true}).click();await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Artist or band',exact:true}).uncheck();await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  await intake.getByLabel('Artist or band (optional)',{exact:true}).waitFor({state:'detached'});
+  assert.equal(await intake.getByLabel('Artist or band (optional)',{exact:true}).count(),0);
+  assert.equal(await page.getByRole('form',{name:'Edit copy details',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Synthetic setup band');
+  await intake.getByLabel('Album title',{exact:true}).fill('Synthetic title-only album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:'Synthetic title-only album',exact:true}).waitFor();
 });

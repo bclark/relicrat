@@ -935,3 +935,50 @@ Private evidence is in the operator checkout's ignored
 `.harness-results/title-only-intake/`. All browser/integration data was disposable
 and synthetic. The full PostgreSQL API suite and backup recovery were not repeated
 for this browser-only change. Human review and merge precede preview deployment.
+
+### Records setup and personal observations (2026-10-30)
+
+The first specialized collection setup is Records; Other keeps generic entry.
+Setup is optional, server-persisted, revision-checked and previews without creating
+ownership. Personal artist/format/type edits retain physical identity and history.
+Preferences never remove saved values or infer shared catalog matches.
+
+Validation used disposable synthetic data only:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **133 passed**, no skips,
+  30 existing Starlette/httpx and Alembic configuration deprecation warnings.
+  Includes preference/copy concurrency, failed transaction rollback, validation,
+  direct database constraints, legacy-client preservation, literal artist search,
+  populated upgrade/downgrade tests and the full migration cycle.
+- `npm run lint --prefix apps/web`, `npm test --prefix apps/web`: passed;
+  **22 Node boundary checks**, including protected setup routes/origins.
+- Worker `sh scripts/test-web.sh`: production build/typecheck, 22 Node checks,
+  fresh migrations, authenticated HTTP/photo-persistence smoke and scoped cleanup
+  passed. Final API/web images were subsequently rebuilt on fresh owned test data.
+- `RELICRAT_REAL_UI_TEST=1 npm run test:browser`: **30 passed**, no failures/skips.
+  Covers skip/cancel/back, preview without writes, adjustable fields, title-only
+  records, explicit draft discard, hidden populated fields, stale/uncertain setup
+  saves, generic fallback, cross-reload preferences and real artist search, plus
+  all existing owner/photo/storage/catalog scenarios. Running source fingerprints
+  matched the final review source.
+- `python3 scripts/test-operator-backup.py`: actual capture/restart, source
+  destruction and fresh offline restore preserved configured preferences, real
+  artist/format/type values and before/after audit events along with all rows,
+  schema and exact media. All five damaged-bundle controls were rejected as
+  expected. Operator resources were cleaned; no restored API/web was promoted.
+- Desktop and phone setup/preview/entry captures were inspected in bounded passes;
+  native controls and the incumbent design were retained. Python compilation,
+  browser syntax and `git diff --check` passed.
+
+Initial verification exposed a test SQL binding mistake, PostgreSQL's equivalent
+constraint text changing during dump/restore, and two browser timing/label
+assumptions. These were corrected; constraints now use explicit text casts,
+without weakening exact recovery comparisons. The final API, recovery and full
+browser runs above passed. Earlier failed logs remain private for diagnosis.
+
+Evidence is under the operator checkout's ignored `.harness-results/records-setup/`.
+Migration0006 upgrade preserves legacy rows/events; its downgrade loses preferences,
+record observations and record-only edit events. Never use that downgrade as an
+automatic live rollback. A verified fresh recovery capture, review/merge and
+API/schema/web rollout are required. The existing owner trial was not modified;
+empty-image-store and off-site recovery were not repeated for this feature.

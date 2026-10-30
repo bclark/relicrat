@@ -178,3 +178,28 @@ history. The versioned `scripts/private-preview.py` helper provides this limited
 SSH preview access; no NAS TCP-forwarding settings changed. It and the synthetic
 stack were removed after verification. A usable hands-on trial requires a
 separately started private preview with synthetic data.
+
+## Records setup
+
+Set up your collection is optional. Enable Records, choose the default entry type,
+adjust suggested Artist, Format, Edition/pressing and Notes fields, then preview
+and Save setup. Back/cancel do not save; Skip for now keeps generic entry.
+Collection settings reopens the same flow. Only Records and Other have implemented
+entry flows today. Photos and storage remain optional actions after saving.
+
+The native type dropdown allows a one-off Record without changing the owner's
+default. Record entry requires only Album title. Artist and format are bounded,
+optional personal text; no album lookup, automatic title parsing, catalog creation
+or ownership inference occurs. A nonempty draft must be explicitly discarded
+before changing its type. Saved rows display Artist — Album when an artist is
+present; search matches either, including previously hidden observations.
+
+Settings affect new-entry visibility only. Saved artist, format and edition remain editable on existing copies even after
+hiding a field or changing type. Existing notes remain visible as before. Preferences survive
+browser changes and session expiry. If settings cannot be read, the owner can
+explicitly choose generic entry without overwriting preferences. Conflicting or
+uncertain setup writes require reload/review before another save.
+
+This feature requires API, migration0006 and web together. No upgrade is implied
+by building the web image alone. The downgrade loses new metadata/preferences and
+record-only audit events; never automatically use it to roll back a live UI.

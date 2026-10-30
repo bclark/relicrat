@@ -19,7 +19,7 @@ export async function forwardApi(request, segments) {
   const token = sessionToken(request.headers);
   if (!token) return error(401, 'Sign in to continue');
   const path = segments.join('/');
-  const methods = path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
+  const methods = path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
     : copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
       ? ['GET'] : actionPath.test(path) ? ['POST'] : [];
