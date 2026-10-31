@@ -1163,3 +1163,76 @@ read-only/no-migration increment. Runtime API/web file hashes are checked agains
 the reviewed source and only the owned test stack, bridge and staging are removed
 after success. Build cache and previous retained recovery resources are outside
 cleanup scope. Deployment remains a separate reviewed release step.
+
+## Approved brand-derived factory theme (2026-10-31)
+
+The owner accepted the reviewed ivory/white, charcoal and burgundy factory palette,
+with sans body/headings, balanced spacing, soft corners and comfortable density.
+`packages/themes/relicrat-default.json`, runtime `DEFAULT_THEME`, and all eight
+initial CSS roles match. Login uses those same light tokens. The dark preset uses
+forest surfaces and contrasting light-gold actions; existing saved dark values are
+not silently replaced. No logos, mascot assets, layouts, navigation or theme-schema
+fields were added. See the [shared decision record](design/README.md) and
+[appearance ADR](decisions/0007-appearance.md).
+
+Migration `0009_brand_default` changes the column default and adopts the new palette
+only for exact legacy factory values at revision zero. Changed rows increment
+revision so open clients must review stale saves. Previously saved factory choices
+and custom values are preserved. Downgrade maps exact new defaults back to old
+values with another revision increment, including an explicitly selected new
+factory palette; other custom values survive. A re-upgrade retains the nonzero
+revision and old palette until an explicit default restore/apply. Historical
+migration 0008 is unchanged.
+
+Executed validation, synthetic disposable data only:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **206 passed**, zero skips
+  or expected failures, 68 warnings. Full downgrade to base and upgrade through
+  0009 passed. Five new PostgreSQL cases cover fresh installation, column defaults,
+  pristine old values, saved old values, custom values, monotonic revisions and
+  downgrade/re-upgrade preservation. Evidence:
+  `.harness-results/20261031T181139.144682Z/run.log`.
+- In `apps/web`, `npm test`: **26 passed**, zero skips/failures. `npm run build`
+  passed compilation and typechecking locally and in the disposable worker image.
+  The local build's pre-existing root-lockfile warning is unrelated and unchanged.
+- A standard-library AST/JSON/CSS comparison confirmed that the approved portable
+  export, runtime theme and eight browser color roles agree. Existing preset tests
+  validate all required text contrast pairs through the API parser. The proposed
+  light/default text pairs have a minimum 6.21:1; the dark palette minimum is 6.92:1.
+- `impeccable detect --json apps/web/app/globals.css` returned `[]`.
+- The four affected browser scenarios passed with zero skips/failures using:
+
+```sh
+cd apps/web
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/Users/bryanclark/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell \
+RELICRAT_TEST_WEB_URL=http://127.0.0.1:63123 \
+RELICRAT_REAL_UI_TEST=1 \
+RELICRAT_DEFAULT_SCREENSHOTS=/Users/bryanclark/Developer/relicrat/.harness-results/brand-default/review \
+node --test --test-name-pattern='appearance|real theme|approved factory' tests/inventory.browser.mjs
+```
+
+The browser checks cover login/initial fallback, real light/dark appearance,
+manual controls and isolated preview, unsafe import rejection, Markdown download,
+unconfirmed-save reload, actual persistence and stale-save rejection. Full
+inventory/browser coverage from the preceding theme increment remains historical;
+this palette update did not rerun all 40 scenarios. Final screenshots are
+`default-desktop.png`, `default-mobile.png`, `dark-desktop.png`, `dark-mobile.png`,
+`login-desktop.png` and `login-mobile.png` under
+`.harness-results/brand-default/review/`. All six were opened and inspected together.
+There is no whole-interface accessibility certification. Backup/restore and live
+rollout were not run.
+
+A fresh independent Impeccable finish reviewer returned **ship** for this
+palette-only update, with no material fixes, after examining all six final
+captures and the synchronized token documentation. An additional enabled/focused
+keyboard-pressed check confirmed `active=true`, burgundy
+`rgb(130, 59, 61)` background and white text on the primary action; no further UI
+correction was required. `git diff --check` passed.
+
+Disposable project `relicrat-brand-default-ogrhuwjm2m` was removed; its containers,
+volumes, network and tagged images were checked absent, temporary sources deleted,
+and the loopback bridge stopped. Evidence is
+`.harness-results/brand-default/relicrat-brand-default-owned-cleanup.log`. The first
+reused temporary cleanup helper exited before touching resources because it
+expected a different run's manifest; cleanup then used the exact project/path
+manifest created for this task. No global cleanup or live services were used.

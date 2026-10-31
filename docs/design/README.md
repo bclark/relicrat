@@ -38,8 +38,9 @@ Keep canonical inputs here once; link to them from future proposal revisions.
 
 1. **Approved direction:** modern, collection-first software; the established rat
    character; forest, burgundy, charcoal, ivory and restrained gold color families.
-   Avoid blanket sepia or paper texture in the product interface. Exact colors,
-   final typography, logo geometry and new mascot extensions remain proposed.
+   Avoid blanket sepia or paper texture in the product interface. The owner approved
+   the factory theme tokens below; final brand-wide color specifications,
+   typography, logo geometry and new mascot extensions remain proposed.
 2. **Implemented theme boundary:** portable schema-version-1 JSON supports eight
    color roles, bounded body/heading font choices, spacing, corners and density.
    It does not install CSS, images, logos, navigation or layouts. AI assistance
@@ -62,6 +63,7 @@ Keep canonical inputs here once; link to them from future proposal revisions.
 
 | Date | Area | Decision or evidence | Source and next step |
 | --- | --- | --- | --- |
+| 2026-10-31 | Factory theme approved | Owner accepted the reviewed out-of-box theme: light ivory/white surfaces, charcoal text, burgundy shared action accent, sans body/headings, balanced spacing, soft corners and comfortable density, with a forest/gold dark companion. Implementation updates API/browser defaults and the dark preset. Migration 0009 updates only exact legacy factory values at revision zero; other saved owner choices remain unchanged. Validation passed: 206 API checks plus migration round trip, 26 Node checks, production build/typecheck and four affected browser scenarios; fresh visual review returned ship. This is not deployed. | “Theming” chat: “looks good” after the palette review; [approved default JSON](../../packages/themes/relicrat-default.json), [appearance decision](../decisions/0007-appearance.md). This approves application theme tokens, not new logo/mascot assets, brand-wide master specifications, or prototype layout installation. |
 | 2026-10-31 | Theming | Chat reported commit `0cdcd9e`, “Add portable AI-assisted visual themes”; implementation exists locally. This handoff does not establish deployment. | “Theming” chat, `01a19284-a160-7951-b082-47515a4dd109`; use current authoring contract and deployment evidence before rollout claims. |
 | 2026-10-31 | UI/brand | Revision 2 refines wordmark/head icon, adds a small-size silhouette, standalone transparent mascot studies and varied fictional collectible imagery. All remain proposed/exploratory. | “Prepare RelicRat UI mockups” chat, `01a192ae-8bc4-7272-ba3e-1d6342ea9a9f`; owner visual review and production integration remain separate. |
 | 2026-10-31 | Shared context | Canonical references and review sources brought into this repository; AGENTS.md and root README now point here. No application behavior changed. | Original export folder: `/Users/bryanclark/Documents/ChatGPT/Relic Rat/`. Original brand/UI chats remain historical sources. |

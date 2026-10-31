@@ -1343,3 +1343,57 @@ test('real theme apply persists after reload, rejects stale saves, and restores 
   await page.getByRole('button',{name:'Appearance',exact:true}).click();
   assert.equal(await page.getByLabel('Theme name',{exact:true}).inputValue(),'Archive');
 });
+
+test('approved factory palette matches login and the initial inventory appearance',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
+  const context=await browser.newContext({viewport:{width:1440,height:1050}});
+  let factory;
+  t.after(async()=>{
+    try {
+      if(factory){
+        const current=await (await context.request.get(base+'/api/v1/appearance')).json();
+        const restored=await context.request.post(base+'/api/v1/appearance',{data:{theme:factory,expected_revision:current.revision},headers:{Origin:new URL(base).origin}});
+        assert.equal(restored.status(),200);
+      }
+    } finally { await context.close(); }
+  });
+  const page=await context.newPage();
+  const shots=process.env.RELICRAT_DEFAULT_SCREENSHOTS;
+  if(shots) await mkdir(resolve(shots),{recursive:true});
+  await page.goto(base+'/login');
+  await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),'#823B3D');
+  assert.equal(await page.locator('html').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(247, 243, 233)');
+  if(shots){
+    await page.screenshot({path:`${resolve(shots)}/login-desktop.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:`${resolve(shots)}/login-mobile.png`,fullPage:true});
+    await page.setViewportSize({width:1440,height:1050});
+  }
+  await signIn(context); await page.goto(base);
+  factory=(await (await context.request.get(base+'/api/v1/appearance')).json()).default_theme;
+  await page.getByLabel('What are you adding?',{exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('.themed-app')?.style.getPropertyValue('--page')==='#F7F3E9');
+  assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(247, 243, 233)');
+  assert.equal(await page.getByRole('button',{name:'Save copy',exact:true}).evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(130, 59, 61)');
+  if(shots){
+    await page.screenshot({path:`${resolve(shots)}/default-desktop.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.screenshot({path:`${resolve(shots)}/default-mobile.png`,fullPage:true});
+  }
+  await page.setViewportSize({width:1440,height:1050});
+  await page.getByRole('button',{name:'Appearance',exact:true}).click();
+  await page.getByLabel('Start from',{exact:true}).selectOption('2');
+  await page.getByRole('button',{name:'Preview theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Preview ready'}).waitFor();
+  await page.getByRole('button',{name:'Apply theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Appearance saved'}).waitFor();
+  assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(24, 37, 31)');
+  await page.getByRole('button',{name:'Close appearance',exact:true}).click();
+  if(shots){
+    await page.screenshot({path:`${resolve(shots)}/dark-desktop.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.screenshot({path:`${resolve(shots)}/dark-mobile.png`,fullPage:true});
+  }
+});

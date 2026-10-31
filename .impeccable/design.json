@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-28T12:09:05.402136+00:00",
+  "generatedAt": "2026-10-31T18:16:13.633880+00:00",
   "title": "Design System: RelicRat inventory application",
   "extensions": {
     "scope": {
@@ -9,30 +9,33 @@
         "apps/web/app/layout.tsx",
         "apps/web/app/page.tsx",
         "apps/web/app/inventory-client.tsx",
-        "apps/web/app/copy-detail.tsx"
+        "apps/web/app/copy-detail.tsx",
+        "apps/api/relicrat/theme_values.py",
+        "packages/themes/relicrat-default.json",
+        "apps/web/app/appearance.tsx"
       ],
       "appliesToProductUI": true,
-      "source": "Current first inventory screen; source base 299aeaffb9cb6b4a6eb78e9e977314b6d4d09810 plus working-tree implementation.",
+      "source": "Current inventory implementation with the owner-approved factory theme update (2026-10-31); implemented for review, not deployed.",
       "descriptiveOnly": true
     },
     "colorMeta": {
       "page": {
         "role": "neutral",
-        "displayName": "Page",
+        "displayName": "Warm ivory",
         "tonalRamp": [
-          "oklch(15% 0.00624 255.48)",
-          "oklch(26% 0.00624 255.48)",
-          "oklch(38% 0.00624 255.48)",
-          "oklch(49% 0.00624 255.48)",
-          "oklch(61% 0.00624 255.48)",
-          "oklch(72% 0.00624 255.48)",
-          "oklch(84% 0.00624 255.48)",
-          "oklch(95% 0.00624 255.48)"
+          "oklch(15% 0.01392 88.68)",
+          "oklch(26% 0.01392 88.68)",
+          "oklch(38% 0.01392 88.68)",
+          "oklch(49% 0.01392 88.68)",
+          "oklch(61% 0.01392 88.68)",
+          "oklch(72% 0.01392 88.68)",
+          "oklch(84% 0.01392 88.68)",
+          "oklch(95% 0.01392 88.68)"
         ]
       },
       "paper": {
         "role": "neutral",
-        "displayName": "Paper",
+        "displayName": "White surface",
         "tonalRamp": [
           "oklch(15% 0.00000 0.00)",
           "oklch(26% 0.00000 0.00)",
@@ -46,86 +49,86 @@
       },
       "ink": {
         "role": "neutral",
-        "displayName": "Ink",
+        "displayName": "Charcoal ink",
         "tonalRamp": [
-          "oklch(15% 0.04076 254.78)",
-          "oklch(26% 0.04076 254.78)",
-          "oklch(38% 0.04076 254.78)",
-          "oklch(49% 0.04076 254.78)",
-          "oklch(61% 0.04076 254.78)",
-          "oklch(72% 0.04076 254.78)",
-          "oklch(84% 0.04076 254.78)",
-          "oklch(95% 0.04076 254.78)"
+          "oklch(15% 0.00911 53.13)",
+          "oklch(26% 0.00911 53.13)",
+          "oklch(38% 0.00911 53.13)",
+          "oklch(49% 0.00911 53.13)",
+          "oklch(61% 0.00911 53.13)",
+          "oklch(72% 0.00911 53.13)",
+          "oklch(84% 0.00911 53.13)",
+          "oklch(95% 0.00911 53.13)"
         ]
       },
       "muted": {
         "role": "neutral",
-        "displayName": "Muted",
+        "displayName": "Quiet warm gray",
         "tonalRamp": [
-          "oklch(15% 0.04099 255.02)",
-          "oklch(26% 0.04099 255.02)",
-          "oklch(38% 0.04099 255.02)",
-          "oklch(49% 0.04099 255.02)",
-          "oklch(61% 0.04099 255.02)",
-          "oklch(72% 0.04099 255.02)",
-          "oklch(84% 0.04099 255.02)",
-          "oklch(95% 0.04099 255.02)"
+          "oklch(15% 0.01033 84.59)",
+          "oklch(26% 0.01033 84.59)",
+          "oklch(38% 0.01033 84.59)",
+          "oklch(49% 0.01033 84.59)",
+          "oklch(61% 0.01033 84.59)",
+          "oklch(72% 0.01033 84.59)",
+          "oklch(84% 0.01033 84.59)",
+          "oklch(95% 0.01033 84.59)"
         ]
       },
       "rule": {
         "role": "neutral",
-        "displayName": "Rule",
+        "displayName": "Neutral rule",
         "tonalRamp": [
-          "oklch(15% 0.01925 255.54)",
-          "oklch(26% 0.01925 255.54)",
-          "oklch(38% 0.01925 255.54)",
-          "oklch(49% 0.01925 255.54)",
-          "oklch(61% 0.01925 255.54)",
-          "oklch(72% 0.01925 255.54)",
-          "oklch(84% 0.01925 255.54)",
-          "oklch(95% 0.01925 255.54)"
+          "oklch(15% 0.00886 128.58)",
+          "oklch(26% 0.00886 128.58)",
+          "oklch(38% 0.00886 128.58)",
+          "oklch(49% 0.00886 128.58)",
+          "oklch(61% 0.00886 128.58)",
+          "oklch(72% 0.00886 128.58)",
+          "oklch(84% 0.00886 128.58)",
+          "oklch(95% 0.00886 128.58)"
         ]
       },
       "accent": {
         "role": "primary",
-        "displayName": "Accent",
+        "displayName": "Burgundy action",
         "tonalRamp": [
-          "oklch(15% 0.18050 263.66)",
-          "oklch(26% 0.18050 263.66)",
-          "oklch(38% 0.18050 263.66)",
-          "oklch(49% 0.18050 263.66)",
-          "oklch(61% 0.18050 263.66)",
-          "oklch(72% 0.18050 263.66)",
-          "oklch(84% 0.18050 263.66)",
-          "oklch(95% 0.18050 263.66)"
+          "oklch(15% 0.09818 20.14)",
+          "oklch(26% 0.09818 20.14)",
+          "oklch(38% 0.09818 20.14)",
+          "oklch(49% 0.09818 20.14)",
+          "oklch(61% 0.09818 20.14)",
+          "oklch(72% 0.09818 20.14)",
+          "oklch(84% 0.09818 20.14)",
+          "oklch(95% 0.09818 20.14)"
         ]
       },
       "hover": {
         "role": "primary",
-        "displayName": "Hover",
+        "displayName": "Burgundy hover",
         "tonalRamp": [
-          "oklch(15% 0.15670 263.70)",
-          "oklch(26% 0.15670 263.70)",
-          "oklch(38% 0.15670 263.70)",
-          "oklch(49% 0.15670 263.70)",
-          "oklch(61% 0.15670 263.70)",
-          "oklch(72% 0.15670 263.70)",
-          "oklch(84% 0.15670 263.70)",
-          "oklch(95% 0.15670 263.70)"
+          "oklch(15% 0.09818 20.14)",
+          "oklch(26% 0.09818 20.14)",
+          "oklch(38% 0.09818 20.14)",
+          "oklch(49% 0.09818 20.14)",
+          "oklch(61% 0.09818 20.14)",
+          "oklch(72% 0.09818 20.14)",
+          "oklch(84% 0.09818 20.14)",
+          "oklch(95% 0.09818 20.14)"
         ]
       },
       "soft": {
-        "role": "primary",
-        "displayName": "Soft",
+        "role": "neutral",
+        "displayName": "Soft sage wash",
         "tonalRamp": [
-          "oklch(15% 0.01864 265.98)",
-          "oklch(26% 0.01864 265.98)",
-          "oklch(38% 0.01864 265.98)",
-          "oklch(49% 0.01864 265.98)",
-          "oklch(61% 0.01864 265.98)",
-          "oklch(72% 0.01864 265.98)",
-          "oklch(84% 0.01864 265.98)",
-          "oklch(95% 0.01864 265.98)"
+          "oklch(15% 0.00921 150.69)",
+          "oklch(26% 0.00921 150.69)",
+          "oklch(38% 0.00921 150.69)",
+          "oklch(49% 0.00921 150.69)",
+          "oklch(61% 0.00921 150.69)",
+          "oklch(72% 0.00921 150.69)",
+          "oklch(84% 0.00921 150.69)",
+          "oklch(95% 0.00921 150.69)"
         ]
       },
       "error": {
@@ -158,114 +161,128 @@
       },
       "success": {
         "role": "secondary",
-        "displayName": "Success",
+        "displayName": "Confirmation ink",
         "tonalRamp": [
-          "oklch(15% 0.08538 163.57)",
-          "oklch(26% 0.08538 163.57)",
-          "oklch(38% 0.08538 163.57)",
-          "oklch(49% 0.08538 163.57)",
-          "oklch(61% 0.08538 163.57)",
-          "oklch(72% 0.08538 163.57)",
-          "oklch(84% 0.08538 163.57)",
-          "oklch(95% 0.08538 163.57)"
+          "oklch(15% 0.00911 53.13)",
+          "oklch(26% 0.00911 53.13)",
+          "oklch(38% 0.00911 53.13)",
+          "oklch(49% 0.00911 53.13)",
+          "oklch(61% 0.00911 53.13)",
+          "oklch(72% 0.00911 53.13)",
+          "oklch(84% 0.00911 53.13)",
+          "oklch(95% 0.00911 53.13)"
         ]
       },
       "focus": {
         "role": "primary",
-        "displayName": "Focus",
+        "displayName": "Burgundy focus",
         "tonalRamp": [
-          "oklch(15% 0.17544 262.67)",
-          "oklch(26% 0.17544 262.67)",
-          "oklch(38% 0.17544 262.67)",
-          "oklch(49% 0.17544 262.67)",
-          "oklch(61% 0.17544 262.67)",
-          "oklch(72% 0.17544 262.67)",
-          "oklch(84% 0.17544 262.67)",
-          "oklch(95% 0.17544 262.67)"
+          "oklch(15% 0.09818 20.14)",
+          "oklch(26% 0.09818 20.14)",
+          "oklch(38% 0.09818 20.14)",
+          "oklch(49% 0.09818 20.14)",
+          "oklch(61% 0.09818 20.14)",
+          "oklch(72% 0.09818 20.14)",
+          "oklch(84% 0.09818 20.14)",
+          "oklch(95% 0.09818 20.14)"
         ]
       },
       "control-border": {
         "role": "neutral",
-        "displayName": "Control Border",
+        "displayName": "Muted field border",
         "tonalRamp": [
-          "oklch(15% 0.03233 254.37)",
-          "oklch(26% 0.03233 254.37)",
-          "oklch(38% 0.03233 254.37)",
-          "oklch(49% 0.03233 254.37)",
-          "oklch(61% 0.03233 254.37)",
-          "oklch(72% 0.03233 254.37)",
-          "oklch(84% 0.03233 254.37)",
-          "oklch(95% 0.03233 254.37)"
+          "oklch(15% 0.01033 84.59)",
+          "oklch(26% 0.01033 84.59)",
+          "oklch(38% 0.01033 84.59)",
+          "oklch(49% 0.01033 84.59)",
+          "oklch(61% 0.01033 84.59)",
+          "oklch(72% 0.01033 84.59)",
+          "oklch(84% 0.01033 84.59)",
+          "oklch(95% 0.01033 84.59)"
         ]
       },
       "pressed": {
         "role": "primary",
-        "displayName": "Pressed",
+        "displayName": "Soft pressed wash",
         "tonalRamp": [
-          "oklch(15% 0.03228 264.40)",
-          "oklch(26% 0.03228 264.40)",
-          "oklch(38% 0.03228 264.40)",
-          "oklch(49% 0.03228 264.40)",
-          "oklch(61% 0.03228 264.40)",
-          "oklch(72% 0.03228 264.40)",
-          "oklch(84% 0.03228 264.40)",
-          "oklch(95% 0.03228 264.40)"
+          "oklch(15% 0.00921 150.69)",
+          "oklch(26% 0.00921 150.69)",
+          "oklch(38% 0.00921 150.69)",
+          "oklch(49% 0.00921 150.69)",
+          "oklch(61% 0.00921 150.69)",
+          "oklch(72% 0.00921 150.69)",
+          "oklch(84% 0.00921 150.69)",
+          "oklch(95% 0.00921 150.69)"
         ]
       },
       "selected-border": {
         "role": "primary",
-        "displayName": "Selected Border",
+        "displayName": "Burgundy selected rule",
         "tonalRamp": [
-          "oklch(15% 0.06162 265.50)",
-          "oklch(26% 0.06162 265.50)",
-          "oklch(38% 0.06162 265.50)",
-          "oklch(49% 0.06162 265.50)",
-          "oklch(61% 0.06162 265.50)",
-          "oklch(72% 0.06162 265.50)",
-          "oklch(84% 0.06162 265.50)",
-          "oklch(95% 0.06162 265.50)"
+          "oklch(15% 0.09818 20.14)",
+          "oklch(26% 0.09818 20.14)",
+          "oklch(38% 0.09818 20.14)",
+          "oklch(49% 0.09818 20.14)",
+          "oklch(61% 0.09818 20.14)",
+          "oklch(72% 0.09818 20.14)",
+          "oklch(84% 0.09818 20.14)",
+          "oklch(95% 0.09818 20.14)"
         ]
       },
       "error-border": {
         "role": "secondary",
-        "displayName": "Error Border",
+        "displayName": "Fixed error border",
         "tonalRamp": [
-          "oklch(15% 0.05611 8.56)",
-          "oklch(26% 0.05611 8.56)",
-          "oklch(38% 0.05611 8.56)",
-          "oklch(49% 0.05611 8.56)",
-          "oklch(61% 0.05611 8.56)",
-          "oklch(72% 0.05611 8.56)",
-          "oklch(84% 0.05611 8.56)",
-          "oklch(95% 0.05611 8.56)"
+          "oklch(15% 0.13957 17.45)",
+          "oklch(26% 0.13957 17.45)",
+          "oklch(38% 0.13957 17.45)",
+          "oklch(49% 0.13957 17.45)",
+          "oklch(61% 0.13957 17.45)",
+          "oklch(72% 0.13957 17.45)",
+          "oklch(84% 0.13957 17.45)",
+          "oklch(95% 0.13957 17.45)"
         ]
       },
       "loading": {
         "role": "neutral",
-        "displayName": "Loading",
+        "displayName": "Soft loading fill",
         "tonalRamp": [
-          "oklch(15% 0.01381 258.35)",
-          "oklch(26% 0.01381 258.35)",
-          "oklch(38% 0.01381 258.35)",
-          "oklch(49% 0.01381 258.35)",
-          "oklch(61% 0.01381 258.35)",
-          "oklch(72% 0.01381 258.35)",
-          "oklch(84% 0.01381 258.35)",
-          "oklch(95% 0.01381 258.35)"
+          "oklch(15% 0.00921 150.69)",
+          "oklch(26% 0.00921 150.69)",
+          "oklch(38% 0.00921 150.69)",
+          "oklch(49% 0.00921 150.69)",
+          "oklch(61% 0.00921 150.69)",
+          "oklch(72% 0.00921 150.69)",
+          "oklch(84% 0.00921 150.69)",
+          "oklch(95% 0.00921 150.69)"
         ]
       },
       "photo-bg": {
         "role": "neutral",
-        "displayName": "Photo Bg",
+        "displayName": "Soft photo frame",
         "tonalRamp": [
-          "oklch(15% 0.01089 256.70)",
-          "oklch(26% 0.01089 256.70)",
-          "oklch(38% 0.01089 256.70)",
-          "oklch(49% 0.01089 256.70)",
-          "oklch(61% 0.01089 256.70)",
-          "oklch(72% 0.01089 256.70)",
-          "oklch(84% 0.01089 256.70)",
-          "oklch(95% 0.01089 256.70)"
+          "oklch(15% 0.00921 150.69)",
+          "oklch(26% 0.00921 150.69)",
+          "oklch(38% 0.00921 150.69)",
+          "oklch(49% 0.00921 150.69)",
+          "oklch(61% 0.00921 150.69)",
+          "oklch(72% 0.00921 150.69)",
+          "oklch(84% 0.00921 150.69)",
+          "oklch(95% 0.00921 150.69)"
+        ]
+      },
+      "accent-text": {
+        "role": "primary",
+        "displayName": "White action text",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(26% 0.00000 0.00)",
+          "oklch(38% 0.00000 0.00)",
+          "oklch(49% 0.00000 0.00)",
+          "oklch(61% 0.00000 0.00)",
+          "oklch(72% 0.00000 0.00)",
+          "oklch(84% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
         ]
       }
     },
@@ -279,7 +296,7 @@
     "shadows": [
       {
         "name": "selected-row",
-        "value": "inset 0 0 0 1px #b1c4ed",
+        "value": "inset 0 0 0 1px var(--accent, #823B3D)",
         "purpose": "Selected physical-copy row only."
       }
     ],
@@ -317,6 +334,34 @@
         ".impeccable/review/mobile.png"
       ],
       "provenance": "Full-page production captures using synthetic records and synthetic PNG test fixture; no approved comp, shipping raster or icon assets. User photos are data."
+    },
+    "roleAliases": {
+      "hover": "accent",
+      "focus": "accent",
+      "success": "ink",
+      "control-border": "muted",
+      "pressed": "soft",
+      "selected-border": "accent",
+      "error-border": "error",
+      "loading": "soft",
+      "photo-bg": "soft"
+    },
+    "factoryTheme": {
+      "source": "packages/themes/relicrat-default.json",
+      "darkCompanionSource": "apps/api/relicrat/theme_values.py: PRESETS After hours",
+      "note": "Frontmatter records the approved light factory values. Owner themes may replace the eight supported color roles; error styling remains fixed. The synthesized tonal ramps are preview strips only."
+    },
+    "factoryThemeEvidence": {
+      "status": "Independent finish review: SHIP with no material fixes for this palette-only update and all six final captures. Not deployed.",
+      "screenshots": [
+        ".harness-results/brand-default/review/default-desktop.png",
+        ".harness-results/brand-default/review/default-mobile.png",
+        ".harness-results/brand-default/review/dark-desktop.png",
+        ".harness-results/brand-default/review/dark-mobile.png",
+        ".harness-results/brand-default/review/login-desktop.png",
+        ".harness-results/brand-default/review/login-mobile.png"
+      ],
+      "provenance": "Synthetic disposable browser verification, inspected 2026-10-31. Light default, saved dark companion and light login fallback at desktop/mobile. Historical evidence above applies to its original inventory-screen review."
     }
   },
   "components": [
@@ -325,7 +370,7 @@
       "kind": "button",
       "description": "Primary provisional-copy save.",
       "html": "<div class=\"ds-sample\"><button class=\"ds-button ds-primary\">Save copy</button></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#cdd6e2);border-radius:6px;background:var(--paper,#fff);color:var(--ink,#1b2a3d);padding:9px 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#e9effc);border-color:var(--accent,#214fbd)}.ds-button:active:not(:disabled){background:#d9e4fa}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}.ds-primary{background:var(--accent,#214fbd);color:white;border-color:var(--accent,#214fbd);padding:11px 24px}.ds-primary:hover:not(:disabled){background:var(--hover,#173d99);color:white}",
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#C6C9C3);border-radius:var(--radius,6px);background:var(--paper,#FFFFFF);color:var(--ink,#302B28);padding:var(--control-pad,10px) 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#E8EEE9);border-color:var(--accent,#823B3D)}.ds-button:active:not(:disabled){background:var(--soft,#E8EEE9)}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}.ds-primary{background:var(--accent,#823B3D);color:var(--accent-text,#FFFFFF);border-color:var(--accent,#823B3D);padding:var(--control-pad,10px) 24px}.ds-primary:hover:not(:disabled){background:var(--hover,#823B3D);color:var(--accent-text,#FFFFFF);text-decoration:underline}",
       "refersTo": "button-primary"
     },
     {
@@ -333,7 +378,7 @@
       "kind": "button",
       "description": "Separate photo and location saves.",
       "html": "<div class=\"ds-sample\"><button class=\"ds-button\">Upload photo</button></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#cdd6e2);border-radius:6px;background:var(--paper,#fff);color:var(--ink,#1b2a3d);padding:9px 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#e9effc);border-color:var(--accent,#214fbd)}.ds-button:active:not(:disabled){background:#d9e4fa}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}",
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#C6C9C3);border-radius:var(--radius,6px);background:var(--paper,#FFFFFF);color:var(--ink,#302B28);padding:var(--control-pad,10px) 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#E8EEE9);border-color:var(--accent,#823B3D)}.ds-button:active:not(:disabled){background:var(--soft,#E8EEE9)}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}",
       "refersTo": "button-secondary"
     },
     {
@@ -341,15 +386,15 @@
       "kind": "input",
       "description": "Persistent label with quiet placeholder.",
       "html": "<div class=\"ds-sample\"><label class=\"ds-label\" for=\"ds-title\">Title</label><input class=\"ds-input\" id=\"ds-title\" placeholder=\"e.g. Comic with a blue cover\"></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-label{display:block;font-size:.9rem;font-weight:650;margin:0 0 7px}.ds-input{font:inherit;width:100%;min-width:0;min-height:44px;color:var(--ink,#1b2a3d);background:var(--paper,#fff);border:1px solid #9baabd;border-radius:5px;padding:10px 12px;caret-color:var(--accent,#214fbd)}.ds-input::placeholder{color:var(--muted,#53647a);opacity:1}.ds-input:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}",
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-label{display:block;font-size:.9rem;font-weight:650;margin:0 0 7px}.ds-input{font:inherit;width:100%;min-width:0;min-height:44px;color:var(--ink,#302B28);background:var(--paper,#FFFFFF);border:1px solid var(--muted,#595650);border-radius:var(--radius,6px);padding:var(--control-pad,10px) 12px;caret-color:var(--accent,#823B3D)}.ds-input::placeholder{color:var(--muted,#595650);opacity:1}.ds-input:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
       "refersTo": "input"
     },
     {
       "name": "Intake panel",
       "kind": "card",
-      "description": "Paper intake grouping.",
+      "description": "White intake grouping with the current balanced-spacing defaults.",
       "html": "<div class=\"ds-sample\"><section class=\"ds-intake\"><h1>Add a find</h1><p>Start with what you know. Identification can come later.</p></section></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-intake{background:var(--paper,#fff);padding:28px 30px;border:1px solid var(--rule,#cdd6e2);border-radius:12px}.ds-intake h1{font-size:1.75rem;font-weight:700;letter-spacing:-.025em;line-height:1.2;margin:0 0 10px}.ds-intake p{color:var(--muted,#53647a);margin:0 0 22px;max-width:65ch}@media(max-width:850px){.ds-intake{padding:24px 20px}}",
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-intake{background:var(--paper,#FFFFFF);padding:calc(var(--space,32px) - 4px);border:1px solid var(--rule,#C6C9C3);border-radius:var(--panel-radius,12px)}.ds-intake h1{font-family:var(--heading-font,system-ui);font-size:1.75rem;font-weight:700;letter-spacing:-.025em;line-height:1.2;margin:0 0 10px}.ds-intake p{color:var(--muted,#595650);margin:0 0 22px;max-width:65ch}@media(max-width:850px){.ds-intake{padding:24px 20px}}",
       "refersTo": "intake-panel"
     },
     {
@@ -357,7 +402,7 @@
       "kind": "button",
       "description": "One selected physical copy, identified with aria-pressed.",
       "html": "<div class=\"ds-sample\"><button class=\"ds-row\" aria-pressed=\"true\"><strong>Synthetic blue-cover comic</strong><span>A provisional copy for the first trial.</span><small>Not identified yet \u00b7 No location yet</small></button></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-row{font:inherit;width:100%;min-height:44px;border:0;border-radius:0;text-align:left;padding:18px 16px;display:block;color:var(--ink,#1b2a3d);background:var(--soft,#e9effc);box-shadow:inset 0 0 0 1px #b1c4ed;cursor:pointer}.ds-row strong,.ds-row span,.ds-row small{display:block;overflow-wrap:anywhere}.ds-row strong{font-weight:650;font-size:1rem;line-height:1.4}.ds-row span{font-size:.875rem;color:var(--muted,#53647a);font-weight:400;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:5px}.ds-row small{font-size:.75rem;color:var(--muted,#53647a);font-weight:500;margin-top:9px}.ds-row:hover{background:var(--soft,#e9effc)}.ds-row:active{background:#d9e4fa}.ds-row:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}",
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-row{font:inherit;width:100%;min-height:44px;border:0;border-radius:0;text-align:left;padding:var(--row-pad,18px) 16px;display:block;color:var(--ink,#302B28);background:var(--soft,#E8EEE9);box-shadow:inset 0 0 0 1px var(--accent,#823B3D);cursor:pointer}.ds-row strong,.ds-row span,.ds-row small{display:block;overflow-wrap:anywhere}.ds-row strong{font-weight:650;font-size:1rem;line-height:1.4}.ds-row span{font-size:.875rem;color:var(--muted,#595650);font-weight:400;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:5px}.ds-row small{font-size:.75rem;color:var(--muted,#595650);font-weight:500;margin-top:9px}.ds-row:hover{background:var(--soft,#E8EEE9)}.ds-row:active{background:var(--soft,#E8EEE9)}.ds-row:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
       "refersTo": "inventory-row-selected"
     },
     {
@@ -365,28 +410,29 @@
       "kind": "custom",
       "description": "Explicit read/write failure feedback.",
       "html": "<div class=\"ds-sample\"><p class=\"ds-error\" role=\"alert\">Save could not be confirmed. Reload and inspect the record before trying again.</p></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-error{font-size:.9rem;line-height:1.55;color:var(--error,#8d2433);background:var(--error-bg,#fff1f2);border:1px solid #e8b8bf;border-radius:6px;padding:12px 14px;overflow-wrap:anywhere}"
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-error{font-size:.9rem;line-height:1.55;color:var(--error,#8d2433);background:var(--error-bg,#fff1f2);border:1px solid var(--error,#8d2433);border-radius:var(--radius,6px);padding:12px 14px;overflow-wrap:anywhere}"
     },
     {
       "name": "Inventory pagination",
       "kind": "nav",
       "description": "Bounded page navigation with disabled ends.",
       "html": "<div class=\"ds-sample\"><nav class=\"ds-pages\" aria-label=\"Inventory pages\"><button class=\"ds-button\" disabled>Previous</button><span>Page 1</span><button class=\"ds-button\">Next</button></nav></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#cdd6e2);border-radius:6px;background:var(--paper,#fff);color:var(--ink,#1b2a3d);padding:9px 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#e9effc);border-color:var(--accent,#214fbd)}.ds-button:active:not(:disabled){background:#d9e4fa}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}.ds-pages{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:24px;font-size:.85rem;font-variant-numeric:tabular-nums}"
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-button{font:inherit;min-height:44px;border:1px solid var(--rule,#C6C9C3);border-radius:var(--radius,6px);background:var(--paper,#FFFFFF);color:var(--ink,#302B28);padding:var(--control-pad,10px) 16px;font-weight:600;cursor:pointer}.ds-button:hover:not(:disabled){background:var(--soft,#E8EEE9);border-color:var(--accent,#823B3D)}.ds-button:active:not(:disabled){background:var(--soft,#E8EEE9)}.ds-button:disabled{opacity:.55;cursor:default}.ds-button:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(prefers-reduced-motion:no-preference){.ds-button{transition:background-color .15s ease-out,border-color .15s ease-out}}.ds-pages{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:24px;font-size:.85rem;font-variant-numeric:tabular-nums}"
     },
     {
       "name": "Record disclosure",
       "kind": "custom",
       "description": "Native disclosure for secondary working sections.",
       "html": "<div class=\"ds-sample\"><details class=\"ds-details\"><summary>Create a storage location</summary><p>Location creation and copy movement save separately.</p></details></div>",
-      "css": ".ds-sample{font-family:system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.5;color:var(--ink,#1b2a3d)}.ds-details{border-top:1px solid var(--rule,#cdd6e2);padding:14px 0;margin-top:20px}.ds-details summary{font-weight:600;font-size:.9rem;cursor:pointer;padding:5px 0;overflow-wrap:anywhere}.ds-details summary:focus-visible{outline:3px solid var(--focus,#1647b0);outline-offset:3px}"
+      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-details{border-top:1px solid var(--rule,#C6C9C3);padding:14px 0;margin-top:20px}.ds-details summary{font-weight:600;font-size:.9rem;cursor:pointer;padding:5px 0;overflow-wrap:anywhere}.ds-details summary:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}"
     }
   ],
   "narrative": {
     "northStar": "The new-arrivals workbench",
-    "overview": "This is a descriptive record of the current inventory implementation, extracted from apps/web/app/globals.css and its React components. The new-arrivals workbench uses white paper, cool blue-gray support, restrained navy ink and cobalt actions to make provisional physical copies easy to record and find. The surface operates as a working register, with plain labeled controls and text-led records.\n\nThe owner chose an add-first screen and a direct working-interface build for this task. This record does not infer a permanent brand, palette preference or global build-path preference. The separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance.",
+    "overview": "This is a record of the current inventory implementation, extracted from apps/web/app/globals.css, its React components and the bounded theme styles in apps/api/relicrat/theme_values.py. The new-arrivals workbench uses warm ivory, white surfaces, charcoal ink and restrained burgundy actions to make physical copies easy to record and find. Plain labeled controls and text-led records keep collection information prominent, without paper texture or faux-vintage controls.\n\nThe owner approved these factory theme values on 2026-10-31, including sans body/headings, balanced spacing, soft corners and comfortable density. The forest and light-gold After hours preset is the dark companion. Approval covers application theme values; brand-wide master specifications, proposed logos, mascot extensions and navigation layouts remain separate decisions. Owners can explicitly preview and apply their own supported theme. This record describes the implementation for review, not deployment or production readiness.\n\nThe separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance. The original add-first and direct-build choices do not establish a standing build-path preference.",
     "keyCharacteristics": [
       "System UI sans for an Operate workflow.",
+      "Approved ivory, charcoal and burgundy factory palette with a forest/gold dark companion.",
       "Flat paper and ruled rows with one explicit selection.",
       "Visible save, loading, conflict and recovery states.",
       "Responsive reading order and keyboard focus."
@@ -399,19 +445,20 @@
       },
       {
         "name": "The Separate Save Rule",
-        "body": "Make confirmed copy, photo and location saves distinguishable; selecting a location does not move the copy.",
+        "body": "Make confirmed copy, photo and location saves distinguishable; choosing a location immediately saves a revision-checked move and confirms its destination beside the selector. Creating a location remains a separate save.",
         "section": "components"
       }
     ],
     "dos": [
       "**Do** preserve visible labels, focus outlines and textual status alongside color.",
       "**Do** use contained photos of the physical copy as user data.",
-      "**Do** preserve separate save actions and explicit review after uncertain writes."
+      "**Do** keep copy/photo/catalog/location creation separate, save location choices immediately, and require explicit review after uncertain writes."
     ],
     "donts": [
       "**Don't** turn the historical progress report into app design guidance.",
       "**Don't** imply saved data, identity or production readiness through visual state alone.",
-      "**Don't** treat this implementation record as a permanent user brand preference."
+      "**Don't** treat factory-theme approval as approval for proposed logos, mascot extensions, layouts or brand-wide master specifications.",
+      "**Don't** apply paper texture or faux-vintage controls across the product interface."
     ]
   }
 }
