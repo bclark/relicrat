@@ -1,0 +1,64 @@
+RELICRAT UI EXPLORATION — DESIGN BRIEF
+Prepared October 31, 2026 | Status: EXPLORATORY CONCEPTS
+
+Purpose
+Carry forward the three original mockup exports from “UI exploration.” These
+are discussion references, not approved production designs or brand masters.
+The PNGs are preserved without visual edits and renamed to make status clear.
+
+Direction
+Create modern, polished, collection-first software for comics, trading cards,
+records, art, toys, books, and other collectibles. Prioritize imagery, readable
+metadata, efficient search/filtering, condition, and provenance. Use forest-green
+navigation, clean ivory/neutral surfaces, and restrained burgundy accents.
+Avoid sepia dashboards, blanket paper textures, and ornate antique-shop styling.
+The intended next-iteration format is three separate full 4:3 desktop screens.
+The supplied originals are crops from one exploration, not finished 4:3 layouts:
+home 724 x 619 px; collection 724 x 619 px; details 1448 x 467 px. Do not stretch
+them to imply that composition work is complete.
+
+Screens
+01-relicrat-home-EXPLORATORY.png
+  Home/dashboard: collection overview, recent additions, category navigation,
+  search, and an add-item action. Let the collection lead; use mascot moments
+  selectively rather than allowing illustration to overwhelm inventory.
+02-relicrat-collection-EXPLORATORY.png
+  Collection browser: image-first grid with category tabs, filters, sorting,
+  and alternate views. Fictional collectibles provide illustrative content.
+03-relicrat-item-details-EXPLORATORY.png
+  Item details/provenance: large collectible image, metadata, condition/grade,
+  owned copies, acquisition history, provenance events, and supporting images.
+  Counts, prices, grades, certificates, and history are illustrative placeholders;
+  they do not establish verified authenticity, valuation, or implemented features.
+
+Canonical brand references — retain in place, do not replace or duplicate
+The existing Project source RELICRAT_BRAND(1).md is the canonical creative-
+direction document (v1.0; production specifications remain in progress).
+It identifies these required visual references:
+  a_clean_character_concept_illustration_on_a_cream.png
+    Primary mascot anatomy, face, proportions, outfit, and personality.
+  a_clean_character_design_and_iconography_presentat.png
+    Exploratory silhouette/icon treatments.
+  a_clean_stylized_brand_identity_board_illustratio.png
+    Approved modern-collectibles creative direction; individual assets exploratory.
+These images are referenced here, not re-exported or duplicated in this package.
+Their presence as standalone Project sources was not verified.
+
+Preserve the established mascot: charcoal-gray fur, cream muzzle, oversized
+rounded pink ears, swept-back fur, pink nose/tail, burgundy waistcoat, cream
+rolled-sleeve shirt, brown trousers, and leather satchel. The primary mascot
+reference and written brand constraints take precedence over inconsistencies
+in these mockups. Do not extract a new mascot, icon, logo, font, or palette
+from generated UI pixels. Final wordmark, typography, exact colors, and vector
+masters remain unapproved. Generated collectible artwork is not production art.
+
+Next review
+Recompose each screen at full 4:3; reconcile mascot/wordmark inconsistencies
+against canonical references; refine legible UI typography, responsive behavior,
+contrast, and practical workflows. Approve production decisions explicitly.
+
+Provenance
+Source chat: https://chatgpt.com/c/6ae0af0e-230c-83ea-aa39-6e29089f96a5
+Original filenames: relicrat_home_mockup.png, relicrat_collection_mockup.png,
+relicrat_item_details_mockup.png. Only these three concepts and this brief are
+intended as new Project sources. Keep them classified as UI exploration.

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "RelicRat \u00b7 Modern collecting (proposed)",
+  "mode": "light",
+  "colors": {
+    "page": "#F7F3E9",
+    "paper": "#FFFFFF",
+    "ink": "#302B28",
+    "muted": "#595650",
+    "rule": "#C6C9C3",
+    "accent": "#29483E",
+    "accent_text": "#FFFFFF",
+    "soft": "#E8EEE9"
+  },
+  "font": "sans",
+  "heading_font": "sans",
+  "spacing": "balanced",
+  "corners": "soft",
+  "density": "comfortable"
+}

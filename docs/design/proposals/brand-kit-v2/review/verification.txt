@@ -1,0 +1,22 @@
+October 31, 2026 — revision 2
+node --check prototype/app.js: passed.
+python3 check.py: passed. Eight SVGs parsed; required theme text contrast
+minimum 6.21:1 light / 6.92:1 dark.
+python3 build-review.py: passed; 11 local references embedded.
+All canonical reference files match revision 1 byte for byte.
+Sharp metadata/stats: both standalone mascot PNGs are 1024x1536 with real alpha,
+fully transparent pixels and near-opaque foreground pixels. No raster edits used.
+Browser: desktop 1200x900, mobile 390x844; home, collection, details and brand
+review inspected. Fixed contact-sheet bleed using nested clipped SVG viewports.
+Offline bundle: home image references and brand images embedded; no external
+image references; all brand img elements loaded. Unmatched search, clear filters,
+and list/grid switching checked (8 seeded physical copies).
+Mobile document width375 <= viewport390 (scrollbar occupies remaining width).
+Impeccable detector: exit2, 34 findings:31 advisory,3 warnings. Warnings are the
+explicitly retained ivory brand canvas and two inherited unused cover-art border
+rules (disc/bands). Advisory findings concern incomplete token/type-ramp records
+and inherited seed-art colors. This is not a clean detector run or a full audit.
+No API tests run: changes affect the separate brand review package only.
+No production app, data, live theme, canonical references or project sources changed.
+Review state: PROPOSED. A complete turnaround/expression library and production
+integration remain separate work. The earlier sheet is superseded exploration.

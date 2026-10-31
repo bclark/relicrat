@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "RelicRat \u00b7 Evening archive (proposed)",
+  "mode": "dark",
+  "colors": {
+    "page": "#18251F",
+    "paper": "#203028",
+    "ink": "#F7F3E9",
+    "muted": "#C2C9C1",
+    "rule": "#586A5E",
+    "accent": "#E9C590",
+    "accent_text": "#18251F",
+    "soft": "#2B3C31"
+  },
+  "font": "sans",
+  "heading_font": "sans",
+  "spacing": "balanced",
+  "corners": "soft",
+  "density": "comfortable"
+}
