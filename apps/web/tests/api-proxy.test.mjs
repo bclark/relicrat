@@ -221,3 +221,13 @@ test('collection preferences use the protected fixed endpoint and same-origin JS
   assert.equal((await forwardApi(request(path+'/unsafe'),[path,'unsafe'])).status,404);
   assert.equal(observed.length,count);
 });
+
+
+test('type definitions use a fixed read-only owner endpoint',async()=>{
+  const path='collection-settings/types';
+  assert.equal((await forwardApi(request(path),path.split('/'))).status,200);
+  const count=observed.length;
+  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,405);
+  assert.equal((await forwardApi(request(path+'/record'),[...path.split('/'),'record'])).status,404);
+  assert.equal(observed.length,count);
+});

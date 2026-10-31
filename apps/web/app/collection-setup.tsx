@@ -1,12 +1,12 @@
 'use client';
 
 import { useRef, useState, type FormEvent } from 'react';
-import { api, ApiError, errorText, jsonSave, type CollectionSettings, type RecordField, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, errorText, jsonSave, type CollectionSettings, type CollectionTypes, type RecordField, type RunSave } from '../lib/inventory-client';
 
-const fields: { key: RecordField; label: string }[] = [{key:'artist',label:'Artist or band'}, {key:'format',label:'Format'}, {key:'edition',label:'Edition or pressing'}, {key:'notes',label:'Notes'}];
-type Props = { settings: CollectionSettings; runSave: RunSave; locked: boolean; saved: (value: CollectionSettings) => void; reload: () => void };
+type Props = { types: CollectionTypes; settings: CollectionSettings; runSave: RunSave; locked: boolean; saved: (value: CollectionSettings) => void; reload: () => void };
 
-export default function CollectionSetup({ settings, runSave, locked, saved, reload }: Props) {
+export default function CollectionSetup({ types, settings, runSave, locked, saved, reload }: Props) {
+  const fields = types.record.fields as (typeof types.record.fields[number] & {key: RecordField})[];
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [enabled, setEnabled] = useState(settings.records_enabled);
@@ -16,7 +16,7 @@ export default function CollectionSetup({ settings, runSave, locked, saved, relo
   const [review, setReview] = useState(false);
   const [notice, setNotice] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
-  function start() { setStep(1); setEnabled(settings.records_enabled); setDefaultType(settings.default_type); setSelected(settings.record_fields); setError(''); setReview(false); setNotice(''); setOpen(true); }
+  function start() { setStep(1); setEnabled(settings.records_enabled); setDefaultType(settings.default_type); setSelected(settings.status==='not_started' && settings.revision===0 ? fields.filter(field=>field.suggested).map(field=>field.key) : settings.record_fields); setError(''); setReview(false); setNotice(''); setOpen(true); }
   function next(value: number) { setStep(value); requestAnimationFrame(() => heading.current?.focus()); }
   async function commit(status: 'configured' | 'skipped') {
     if (locked || review) return;
@@ -36,19 +36,19 @@ export default function CollectionSetup({ settings, runSave, locked, saved, relo
       <h2 ref={heading} tabIndex={-1}>Collection setup · Step {step} of 3</h2>
       <form onSubmit={submit} aria-label="Set up collection"><fieldset disabled={locked || review}>
         {step===1 && <><h3>What do you collect?</h3><p>Records have tailored fields today. Use Other for anything else.</p>
-          <label><input type="checkbox" checked={enabled} onChange={event => { setEnabled(event.target.checked); setDefaultType(event.target.checked ? 'record' : 'other'); }} /> Records</label>
+          <label><input type="checkbox" checked={enabled} onChange={event => { setEnabled(event.target.checked); setDefaultType(event.target.checked ? 'record' : 'other'); }} /> {types.record.plural_label}</label>
           <p className="hint">Other is always available. Existing finds keep their type and details.</p>
-          {enabled && <><label htmlFor="default-type">Start new finds as</label><select id="default-type" value={defaultType} onChange={event => setDefaultType(event.target.value as 'other'|'record')}><option value="record">Record</option><option value="other">Other</option></select></>}
+          {enabled && <><label htmlFor="default-type">Start new finds as</label><select id="default-type" value={defaultType} onChange={event => setDefaultType(event.target.value as 'other'|'record')}>{Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
         </>}
         {step===2 && <><h3>What matters to you about your records?</h3><p>Choose the fields you want to see. All of them are optional when adding a record.</p>
-          <p>Album title is always shown.</p>{fields.map(field => <label key={field.key}><input type="checkbox" checked={selected.includes(field.key)} onChange={event => setSelected(before => event.target.checked ? [...before,field.key] : before.filter(key => key!==field.key))} /> {field.label}</label>)}
+          <p>{types.record.title.label} is always shown.</p>{fields.map(field => <label key={field.key}><input type="checkbox" checked={selected.includes(field.key)} onChange={event => setSelected(before => event.target.checked ? [...before,field.key] : before.filter(key => key!==field.key))} /> {field.label}</label>)}
           <p className="hint">These are suggested fields you can adjust. Hiding a field never deletes saved values. Photos and storage remain available after saving.</p>
         </>}
         {step===3 && <><h3>Preview your entry form</h3><p>This example is not added to your collection.</p><div className="setup-preview">
-          <p><strong>{enabled ? 'Album title' : 'Title'}:</strong> Example album</p>
+          <p><strong>{types[enabled ? 'record' : 'other'].title.label}:</strong> Example album</p>
           {enabled && fields.filter(field=>selected.includes(field.key)).map(field=><p key={field.key}>{field.label} (optional)</p>)}
           {!enabled && <p>Notes (optional)</p>}
-          </div><p>New finds start as {enabled && defaultType==='record' ? 'Record' : 'Other'}. You can change these choices later in Collection settings.</p></>}
+          </div><p>New finds start as {types[enabled ? defaultType : 'other'].label}. You can change these choices later in Collection settings.</p></>}
         <div className="setup-actions">{step>1 && <button type="button" onClick={()=>next(step===3 && !enabled ? 1 : step-1)}>Back</button>}<button className="primary" type="submit">{step===3 ? 'Save setup' : 'Continue'}</button><button type="button" className="quiet" onClick={()=>setOpen(false)}>Cancel setup</button></div>
       </fieldset></form>
     </>}

@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type Location, type Photo, type Movement, type RecordField, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type Location, type Photo, type Movement, type RecordField, type CollectionTypes, type RunSave } from '../lib/inventory-client';
 
 import Identification from './identification';
 import CopyDetailsForm from './copy-details-form';
 
-type Props = { copyId: string; runSave: RunSave; busy: boolean; blocked: boolean; changed: () => void; recordFields: RecordField[] };
+type Props = { types: CollectionTypes | null; copyId: string; runSave: RunSave; busy: boolean; blocked: boolean; changed: () => void; recordFields: RecordField[] };
 const mergeLocations = (before: Location[], after: Location[]) => [...new Map([...before, ...after].map(item => [item.id, item])).values()];
 
-export default function CopyDetail({ copyId, runSave, busy, blocked, changed, recordFields }: Props) {
+export default function CopyDetail({ types, copyId, runSave, busy, blocked, changed, recordFields }: Props) {
   const [copy, setCopy] = useState<InventoryCopy | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -140,7 +140,7 @@ export default function CopyDetail({ copyId, runSave, busy, blocked, changed, re
     {loading ? <p role="status">Loading copy, photos, and storage…</p> : !copy ? <p>Reload this copy to try again, or open another copy.</p> : <>
       <div className="record-state"><span>Saved copy</span><span>{locationName(copy.storage_location_id)}</span></div>
       {copy.description && <p className="copy-notes">{copy.description}</p>}
-      <CopyDetailsForm fields={recordFields} copy={copy} runSave={runSave} locked={locked} saved={record => { setCopy(record); changed(); }} failed={failed} />
+      <CopyDetailsForm types={types} fields={recordFields} copy={copy} runSave={runSave} locked={locked} saved={record => { setCopy(record); changed(); }} failed={failed} />
       <h3>Photos</h3>
       {photos.length ? <div className="photos">{photos.map((photo, index) => <a key={photo.id} href={`/api/v1/inventory/${copyId}/photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/v1/inventory/${copyId}/photos/${photo.id}`} alt={`Photo ${index + 1} of ${copyName(copy)}`} loading="lazy" /><span>View photo {index + 1}</span></a>)}</div> : <p className="hint">No photos yet. Add a clear view of this physical copy.</p>}
       <form onSubmit={upload} aria-label="Add photo"><fieldset disabled={locked}><label htmlFor="photo">Photo file</label><input ref={photoInput} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files?.[0] || null)} aria-describedby="photo-help" /><p className="hint" id="photo-help">JPEG, PNG, or WebP. Up to 15 MiB. Photos save separately from the copy.</p><button disabled={!file} type="submit">Upload photo</button></fieldset></form>

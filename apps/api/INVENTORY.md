@@ -309,3 +309,11 @@ invalid values422; missing preference row503. A no-op keeps its revision. Both
 methods require owner authentication; writes retain same-origin browser defenses.
 Setup writes never alter inventory, visibility preferences never delete copy data,
 and all preferences are included in database capture and independent recovery.
+
+
+`GET /api/v1/collection-settings/types` is an owner-only, read-only map of the
+bundled version-1 entry definitions (`other`, `record`). Setup/intake labels,
+optional field order, suggested visibility and bounded input lengths come from
+these validated JSON files. Definitions never change ownership or stored owner
+preferences. The existing collection-settings GET/POST contract is unchanged.
+Unsupported methods are rejected; custom type uploads are not supported.

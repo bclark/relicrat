@@ -127,3 +127,17 @@ def test_preferences_concurrency_and_transaction_failure(context):
             save_settings(SaveSettings(status='configured',records_enabled=True,default_type='record',record_fields=[],expected_revision=before['revision']),db)
     finally:event.remove(engine,'before_cursor_execute',fail)
     assert api.get(SETTINGS).json()==before
+
+
+def test_type_definitions_are_owner_only_read_only_and_do_not_change_preferences(context):
+    api,_,_=context
+    before=api.get(SETTINGS).json()
+    response=api.get(SETTINGS+'/types')
+    assert response.status_code==200
+    definitions=response.json()
+    assert set(definitions)=={'other','record'}
+    assert definitions['record']['title']['label']=='Album title'
+    assert api.post(SETTINGS+'/types',json=definitions).status_code==405
+    assert api.get(SETTINGS).json()==before
+    api.headers.pop('Authorization')
+    assert api.get(SETTINGS+'/types').status_code==401

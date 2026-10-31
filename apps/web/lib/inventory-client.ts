@@ -14,7 +14,9 @@ export type RunSave = <T>(action: () => Promise<T>) => Promise<T | undefined>;
 export const copyName = (copy: InventoryCopy) => copy.collection_type === 'record' && copy.record_details?.artist ? `${copy.record_details.artist} — ${copy.title || copy.description || 'Untitled copy'}` : copy.title || copy.description || 'Untitled copy';
 export type RecordField = 'artist' | 'format' | 'edition' | 'notes';
 export type CollectionSettings = { status: 'not_started'|'skipped'|'configured'; records_enabled: boolean; default_type: 'other'|'record'; record_fields: RecordField[]; revision: number };
-export const DEFAULT_RECORD_FIELDS: RecordField[] = ['artist','format','edition','notes'];
+export type TypeField = { key: 'title' | RecordField; label: string; max_length: number; placeholder: string; suggested: boolean };
+export type CollectionType = { schema_version: 1; id: 'other'|'record'; label: string; plural_label: string; title: TypeField; fields: TypeField[] };
+export type CollectionTypes = Record<'other'|'record', CollectionType>;
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
