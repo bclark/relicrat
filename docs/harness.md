@@ -1076,3 +1076,48 @@ verification. Containers, volumes, networks and project-tagged images were check
 absent; temporary source files were removed and the loopback bridge stopped.
 Cleanup evidence is `.harness-results/appearance/relicrat-appearance-cleanup.log`.
 `git diff --check` passed. No trial deployment or backup/restore run occurred.
+
+## CSV importer verification (2026-10-31)
+
+The importer uses generated synthetic CLZ/Discogs fixtures. No owner exports are
+committed, uploaded to tests or imported into the trial. The full API suite passed
+215 tests before adding one additional direct-constraint test; the final focused
+import suite exercises parsing, preview read-only behavior, status/quantity
+rejection, rollback, retained evidence, exact-file replay, concurrent retries,
+provenance constraints and guarded downgrade. The existing API runner also checks
+empty-schema migration downgrade/upgrade. Node proxy/security checks passed 27
+tests; web TypeScript, production build and HTTP/photo-persistence smoke passed.
+
+Run the dedicated importer browser scenarios separately against an explicitly
+owned disposable stack:
+
+```sh
+RELICRAT_TEST_WEB_URL=http://127.0.0.1:<disposable-test-port> \
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=<installed-chromium-path> \
+node --test apps/web/tests/import.browser.mjs
+```
+
+Both importer scenarios passed with no skips: UI preview/confirmation/import of a
+large synthetic collection, exact-file replay prevention, original-field history,
+paging, scoped search, phone layout, invalid rows and uncertain-write recovery.
+Screenshots were inspected for fit and readability. The normal inventory browser
+suite ran with the large collection retained: 44 scenarios passed; its explicitly
+empty-inventory scenario correctly refused to run. That scenario passed on a
+separate fresh stack. Its first isolated attempt timed out while loading details;
+API logs confirmed the synthetic save, and a fresh isolated rerun passed with no
+application or guard changes. Keep this transport limitation distinct from an
+application failure; do not weaken the empty-inventory safety check.
+
+A separate named-volume synthetic capture/restore verified batch provenance,
+original unknown/source fields, quantity-expanded physical-copy UUIDs, every row,
+schema and media fingerprints. Restore API/web were never started. Exact owned
+capture/restore resources were removed after success. This is development
+verification; it is not permission to import real collections into the trial or
+a production-readiness claim. Migration 0009 still needs the explicit release
+backup/rehearsal plan before deployment. Source evidence survives normal full
+backups; downgrade refuses retained import batches.
+
+Final focused PostgreSQL import run: **14 passed**, two dependency/configuration
+deprecation warnings, no skips. Direct SQL attempts to violate source, digest,
+parser-version, counts, evidence-object and row/copy bounds were rejected;
+restrictive references prevented deleting retained copies or batches.

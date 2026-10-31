@@ -132,3 +132,26 @@ def test_concurrent_imports_create_one_batch_and_guard_downgrade():
             db.execute(text('DELETE FROM import_copies'));db.execute(text('DELETE FROM import_batches'))
             for ident in ids:db.execute(text('DELETE FROM owned_copies WHERE id=:id'),{'id':ident})
         engine.dispose()
+
+
+def test_provenance_constraints_and_restrictive_references(client):
+    from sqlalchemy.exc import DBAPIError
+    api,connection=client;raw=encoded('discogs',[{}]);digest=hashlib.sha256(raw).hexdigest()
+    result=post(api,'commit',raw,'discogs',reviewed_sha256=digest).json();batch=result['batch']['id']
+    copy=api.get('/api/v1/imports/'+batch+'/rows').json()[0]['copy_id']
+    statements=[
+        ("UPDATE import_batches SET source='unknown' WHERE id=:id",batch),
+        ("UPDATE import_batches SET sha256='invalid' WHERE id=:id",batch),
+        ('UPDATE import_batches SET parser_version=2 WHERE id=:id',batch),
+        ('UPDATE import_batches SET row_count=0 WHERE id=:id',batch),
+        ('UPDATE import_batches SET copy_count=10001 WHERE id=:id',batch),
+        ("UPDATE import_copies SET source_row='[]'::jsonb WHERE owned_copy_id=:id",copy),
+        ('UPDATE import_copies SET row_number=1 WHERE owned_copy_id=:id',copy),
+        ('UPDATE import_copies SET copy_number=0 WHERE owned_copy_id=:id',copy),
+        ('DELETE FROM import_batches WHERE id=:id',batch),
+        ('DELETE FROM owned_copies WHERE id=:id',copy),
+    ]
+    for statement,ident in statements:
+        with pytest.raises(DBAPIError):
+            with connection.begin_nested():connection.execute(text(statement),{'id':ident})
+    assert api.get('/api/v1/imports/'+batch+'/rows').json()[0]['copy_id']==copy
