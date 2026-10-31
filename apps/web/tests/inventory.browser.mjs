@@ -24,6 +24,9 @@ async function fixture(t, initial = {}) {
   const typesResponse = await context.request.get(base+'/api/v1/collection-settings/types');
   assert.equal(typesResponse.status(),200);
   const types = await typesResponse.json();
+  const appearanceResponse = await context.request.get(base+'/api/v1/appearance');
+  assert.equal(appearanceResponse.status(),200);
+  const appearance = await appearanceResponse.json();
   initial.configureTypes?.(types);
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -37,7 +40,20 @@ async function fixture(t, initial = {}) {
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
     if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
-    if (path === 'collection-settings/publisher-suggestions') {
+    if (path === 'appearance' && method === 'GET') {
+      result = appearance;
+    } else if (path === 'appearance/preview' || path === 'appearance' && method === 'POST') {
+      const payload = request.postDataJSON();
+      const validated = await context.request.post(base+'/api/v1/appearance/preview',{data:{theme:payload.theme},headers:{Origin:new URL(base).origin}});
+      result = await validated.json(); status = validated.status();
+      if (status === 200 && path === 'appearance') {
+        if (state.appearanceConflict) appearance.revision++;
+        if (payload.expected_revision !== appearance.revision) { status=409; result={detail:'Appearance changed elsewhere. Reload appearance and review your theme.'}; }
+        else { Object.assign(appearance,result,{revision:appearance.revision+1}); result=appearance;
+          if (state.appearanceUncertain) {status=502;result={detail:'Save could not be confirmed. Reload appearance and review.'};}
+        }
+      }
+    } else if (path === 'collection-settings/publisher-suggestions') {
       const q=(url.searchParams.get('q') || '').trim().toLowerCase();result=[...new Set(state.copies.filter(copy=>copy.collection_type==='comic').map(copy=>copy.comic_details?.publisher).filter(Boolean))].filter(value=>value.toLowerCase().startsWith(q)).slice(0,20);
     } else if (path === 'collection-settings/artist-suggestions') {
       if(state.failSuggestions) {status=502;result={detail:'Suggestions unavailable'};}
@@ -1230,4 +1246,99 @@ test('saving outside the visible type filter keeps the find type and explains wh
   assert.equal(await page.getByRole('button',{name:'Open A generic find',exact:true}).count(),0);
   await filter.selectOption('');await page.getByRole('button',{name:'Open A generic find',exact:true}).waitFor();
   assert.equal(state.writes.filter(write=>write.path==='inventory').length,1);
+});
+
+test('appearance drafts preview in isolation, import safely, and apply without inventory writes', async t => {
+  const {page,state} = await fixture(t);
+  await page.getByRole('button',{name:'Appearance',exact:true}).click();
+  const editor = page.getByRole('region',{name:'Appearance',exact:true});
+  const before = await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor);
+  await page.getByLabel('Start from',{exact:true}).selectOption('2');
+  assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),before);
+  assert.equal(await page.getByRole('button',{name:'Apply theme',exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Preview theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Preview ready'}).waitFor();
+  assert.notEqual(await page.getByLabel('Theme preview',{exact:true}).evaluate(node=>getComputedStyle(node).backgroundColor),before);
+  assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),before);
+  await page.getByLabel('Theme name',{exact:true}).fill('My night theme');
+  assert.equal(await page.getByRole('button',{name:'Apply theme',exact:true}).isDisabled(),true);
+  await page.getByLabel('Control and list density',{exact:true}).selectOption('compact');
+  await page.getByLabel('Corners',{exact:true}).selectOption('square');
+  await page.getByLabel('Section spacing',{exact:true}).selectOption('airy');
+  await page.getByRole('button',{name:'Preview theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Preview ready'}).waitFor();
+  assert.equal(await page.getByLabel('Theme preview',{exact:true}).evaluate(node=>getComputedStyle(node).paddingTop),'36px');
+  await page.getByRole('button',{name:'Apply theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Appearance saved'}).waitFor();
+  assert.notEqual(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),before);
+  assert.equal(await page.getByLabel('Find a copy',{exact:true}).evaluate(node=>getComputedStyle(node).borderRadius),'0px');
+  assert.equal(await page.getByLabel('Find a copy',{exact:true}).evaluate(node=>getComputedStyle(node).minHeight),'44px');
+  await editor.getByText('Make a theme with AI',{exact:true}).click();
+  await page.getByLabel('Describe your look',{exact:true}).fill('Warm paper and forest green');
+  await page.getByRole('button',{name:'Create AI prompt',exact:true}).click();
+  const prompt = await page.getByLabel('Copy this prompt into your AI app',{exact:true}).inputValue();
+  assert.ok(prompt.includes('Warm paper and forest green') && prompt.includes('4.5:1'));
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download AI guidelines (.md)',exact:true}).click();
+  const guidelinesDownload=await downloadPromise;
+  assert.equal(guidelinesDownload.suggestedFilename(),'relicrat-theme-guidelines.md');
+  assert.equal(await guidelinesDownload.failure(),null);
+  await editor.getByText('Import or export a theme',{exact:true}).click();
+  await page.getByLabel('Theme JSON (up to 8 KiB)',{exact:true}).fill('{"css":"url(https://example.test/secret)"}');
+  await page.getByRole('button',{name:'Import and preview',exact:true}).click();
+  await editor.getByRole('alert').filter({hasText:'Theme rejected'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Apply theme',exact:true}).isDisabled(),true);
+  assert.equal(state.writes.filter(write=>write.path==='inventory').length,0);
+});
+
+test('uncertain appearance save requires reload and prevents repeated writes',async t=>{
+  const {page,state}=await fixture(t,{appearanceUncertain:true});
+  await page.getByRole('button',{name:'Appearance',exact:true}).click();
+  await page.getByLabel('Theme name',{exact:true}).fill('Saved despite lost response');
+  await page.getByRole('button',{name:'Preview theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Preview ready'}).waitFor();
+  await page.getByRole('button',{name:'Apply theme',exact:true}).click();
+  await page.getByRole('button',{name:'Reload appearance',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Apply theme',exact:true}).isDisabled(),true);
+  assert.equal(state.writes.filter(write=>write.path==='appearance').length,1);
+  await page.getByRole('button',{name:'Reload appearance',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#theme-name')?.value==='Saved despite lost response' && !document.querySelector('#theme-name')?.disabled);
+  assert.equal(state.writes.filter(write=>write.path==='appearance').length,1);
+});
+
+test('real theme apply persists after reload, rejects stale saves, and restores default',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
+  const context=await browser.newContext({viewport:{width:1440,height:1050}});
+  let original;
+  t.after(async()=>{
+    try {
+      if (original) {
+        const current=await (await context.request.get(base+'/api/v1/appearance')).json();
+        const reset=await context.request.post(base+'/api/v1/appearance',{data:{theme:original.default_theme,expected_revision:current.revision},headers:{Origin:new URL(base).origin}});
+        assert.equal(reset.status(),200);
+      }
+    } finally { await context.close(); }
+  });
+  await signIn(context);
+  original=await (await context.request.get(base+'/api/v1/appearance')).json();
+  const page=await context.newPage(); await page.goto(base);
+  await page.getByRole('button',{name:'Appearance',exact:true}).click();
+  await page.getByLabel('Start from',{exact:true}).selectOption('1');
+  await page.getByRole('button',{name:'Preview theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Preview ready'}).waitFor();
+  const appearanceShots=process.env.RELICRAT_APPEARANCE_SCREENSHOTS || process.env.RELICRAT_SCREENSHOTS;
+  if(appearanceShots){
+    const output=resolve(appearanceShots);await mkdir(output,{recursive:true});
+    await page.screenshot({path:`${output}/appearance-desktop.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.screenshot({path:`${output}/appearance-mobile.png`,fullPage:true});
+  }
+  await page.getByRole('button',{name:'Apply theme',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Appearance saved'}).waitFor();
+  const stale=await context.request.post(base+'/api/v1/appearance',{data:{theme:original.default_theme,expected_revision:original.revision},headers:{Origin:new URL(base).origin}});
+  assert.equal(stale.status(),409);
+  await page.reload();
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.themed-app')).backgroundColor==='rgb(244, 239, 228)');
+  await page.getByRole('button',{name:'Appearance',exact:true}).click();
+  assert.equal(await page.getByLabel('Theme name',{exact:true}).inputValue(),'Archive');
 });

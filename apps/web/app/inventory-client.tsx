@@ -3,13 +3,15 @@
 import ObservationInput from './observation-input';
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
+import Appearance from './appearance';
 
-import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
 import CopyDetail from './copy-detail';
 
 const PAGE = 20;
 export default function InventoryClient() {
+  const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
   const [settings, setSettings] = useState<CollectionSettings | null>(null);
@@ -109,11 +111,12 @@ export default function InventoryClient() {
     event.preventDefault(); setQuery(draftQuery.trim()); setPage(0); changed();
   }
   return (
-    <>
+    <div className="themed-app" style={appearanceStyles}>
       <a className="skip-link" href="#add-find">Skip to adding a find</a>
       <header className="masthead"><a className="brand" href="/">RelicRat</a><span>Your collection, one copy at a time.</span><SignOut /></header>
       <main>
         <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
+        <Appearance applied={setAppearanceStyles} />
         {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
@@ -169,6 +172,6 @@ export default function InventoryClient() {
         </div>
       </main>
       <footer>Provisional intake, photos, manual identification, storage, and search. Production recovery and broader deployment hardening remain unfinished.</footer>
-    </>
+    </div>
   );
 }

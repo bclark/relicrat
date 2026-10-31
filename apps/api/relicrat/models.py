@@ -2,15 +2,29 @@
 from __future__ import annotations
 
 import uuid
+import json
 from datetime import datetime
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from relicrat.theme_values import DEFAULT_THEME, THEME_CHECK
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class AppearanceSettings(Base):
+    __tablename__ = 'appearance_settings'
+    __table_args__ = (
+        CheckConstraint('id = 1', name='appearance_singleton'),
+        CheckConstraint('revision >= 0', name='appearance_revision'),
+        CheckConstraint(THEME_CHECK, name='appearance_theme'),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    theme: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=json.dumps(DEFAULT_THEME))
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
 
 
 class Timestamps:

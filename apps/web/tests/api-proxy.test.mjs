@@ -222,6 +222,18 @@ test('collection preferences use the protected fixed endpoint and same-origin JS
   assert.equal(observed.length,count);
 });
 
+test('appearance and preview retain owner, method, size and origin boundaries',async()=>{
+  const count=observed.length;
+  assert.equal((await forwardApi(request('appearance'),['appearance'])).status,200);
+  assert.equal((await forwardApi(request('appearance',post()),['appearance'])).status,201);
+  assert.equal((await forwardApi(request('appearance/preview',post()),['appearance','preview'])).status,201);
+  assert.equal(observed.length,count+3);
+  assert.equal((await forwardApi(request('appearance/preview'),['appearance','preview'])).status,405);
+  assert.equal((await forwardApi(request('appearance',post('{}',{origin:'https://evil.test'})),['appearance'])).status,403);
+  assert.equal((await forwardApi(request('appearance/unsafe',post()),['appearance','unsafe'])).status,404);
+  assert.equal(observed.length,count+3);
+});
+
 
 test('type definitions use a fixed read-only owner endpoint',async()=>{
   const path='collection-settings/types';

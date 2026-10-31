@@ -88,3 +88,29 @@ for new entry. Other remains generic; more specialized types and financial field
 are deferred. This feature is not deployed until review, merge, verified recovery
 and an explicit migration0006/API/web rollout. Existing combined titles and their
 physical-copy identities must not be rewritten automatically.
+
+## Appearance authoring (implemented for review, 2026-10-31)
+
+The owner selected visual themes for colors, body/heading fonts, section spacing,
+corners and density, with manual controls and preview. AI assistance uses a prompt
+or Markdown guidelines file describing the supported values. The app generates
+that file from the current theme and JSON Schema; users provide it to their own AI
+tool and import its JSON response. RelicRat makes no external AI request. A reusable
+source guide lives at `packages/themes/AUTHORING-PROMPT.md`.
+
+The inline Appearance editor inherits the incumbent interface. Draft changes stay
+in an isolated sample until explicit apply, and edits invalidate preview. Both
+manual/imported themes use strict bounded values and palette contrast checks.
+Control targets stay at least 44 px, error styling remains fixed, and no custom
+CSS, external fonts, layout/navigation or inventory changes are supported. One
+active owner theme is durable server data with its own conflict revision.
+Unconfirmed/stale saves require reload and review. Login retains default styling;
+the saved appearance loads after authentication and can briefly flash from default.
+
+Migration 0008 adds only appearance settings and refuses downgrade of customized
+themes. This change has not rolled out to the live trial. Current synthetic checks:
+201 API tests plus full migration downgrade/upgrade, 26 Node boundary tests,
+production build/typecheck, and 40 browser scenarios passed with zero skips or
+failures. A final preview-spacing correction was rebuilt and its three affected
+browser scenarios passed again, including persistence and desktop/mobile captures.
+Details and evidence are in `docs/harness.md`; backup/restore was not rerun here.

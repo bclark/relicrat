@@ -18,7 +18,7 @@ def test_comics_upgrade_preserves_rows_and_downgrade_refuses_data_history_and_pr
             db.execute(text("INSERT INTO owned_copies(id,provisional_title,collection_type,record_details) VALUES (:id,'Existing album','record',jsonb_build_object('artist','Existing artist'))"),{'id':old})
             before=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':old}).mappings().one())
             preferences=dict(db.execute(text('SELECT * FROM collection_settings WHERE id=1')).mappings().one())
-        command.upgrade(config,'head')
+        command.upgrade(config,'0007_comics')
         with engine.begin() as db:
             actual=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':old}).mappings().one())
             assert actual.pop('comic_details')=={} and actual==before

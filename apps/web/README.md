@@ -5,6 +5,26 @@ storage changes, and inventory search. Use synthetic records and test photos onl
 The server exposes the existing inventory/storage API at `/api/v1/...` on the same
 origin behind single-owner authentication. This remains a synthetic development deployment.
 
+## Appearance
+
+Appearance supports visual themes for colors, body/heading fonts, section spacing,
+corners and density. Choose a starting theme or adjust the controls, preview the
+sample, then explicitly apply it. Applied appearance is an owner preference stored
+on the server, with a separate conflict revision. It does not change inventory or
+collection setup. Login retains the default look; the saved theme loads after
+authentication. Reload appearance after an uncertain save or revision conflict.
+
+Under **Make a theme with AI**, describe a look and copy the generated prompt or
+download its Markdown guidelines. Give it to your preferred AI app, then paste
+the returned JSON under **Import or export a theme**. RelicRat makes no model
+requests and needs no AI key. The guidelines contain the description and theme
+settings, without collection data. Manual/imported themes use the same strict
+validation and contrast checks. The reusable guide is
+[AUTHORING-PROMPT.md](../../packages/themes/AUTHORING-PROMPT.md).
+
+This feature requires migration `0008_appearance` and matching API/web code.
+Downgrade refuses customized themes; see [ADR 0007](../../docs/decisions/0007-appearance.md).
+
 ## First screen
 
 A title is the only required field when adding a find in the browser. Notes, edition,

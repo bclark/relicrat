@@ -982,3 +982,97 @@ record observations and record-only edit events. Never use that downgrade as an
 automatic live rollback. A verified fresh recovery capture, review/merge and
 API/schema/web rollout are required. The existing owner trial was not modified;
 empty-image-store and off-site recovery were not repeated for this feature.
+
+## Visual theme authoring and appearance (2026-10-31)
+
+This change adds an owner appearance editor and an AI authoring contract. Users
+choose/edit colors, body/heading fonts, spacing, corners and density; preview stays
+in a labeled sample until explicit apply. The API rejects unsupported values,
+unknown keys, CSS/URLs and insufficient palette contrast. Applying locks a separate
+singleton row and checks an independent revision; previews never write inventory
+or preferences. The AI workflow generates a prompt or downloadable Markdown
+file, then validates imported JSON. No AI provider or external request is added.
+
+Migration `0008_appearance` adds only appearance settings. Database checks bound
+the document and enforce required keys, color syntax and supported options. The
+API additionally enforces text contrast on preview/read/apply. There are no theme
+timestamps or history. Downgrade locks and refuses a customized theme; export and
+explicitly restore default before a reviewed rollback. The earlier Comics
+migration test now upgrades specifically to the migration it exercises instead
+of assuming it is forever the latest schema. Existing inventory and collection
+preferences remain independent. See [ADR 0007](decisions/0007-appearance.md).
+
+Validation executed against synthetic disposable data:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **201 passed**, zero skips
+  or expected failures, 44 warnings; full downgrade to base and upgrade through
+  `0008_appearance` passed and resources were removed. This includes parser,
+  contrast, direct SQL constraints, rollback, concurrent saves, authentication,
+  preview isolation, no-op/stale saves and guarded downgrade tests. Evidence:
+  `.harness-results/20261031T151857.257652Z/run.log`.
+- In `apps/web`, `npm test`: **26 passed**, zero skips/failures; `npm run lint`
+  and `npm run build` passed. The disposable worker web image also passed its
+  production build/typecheck. Local build warned about the pre-existing root
+  lockfile; it was left untouched.
+- With the disposable worker stack bridged on loopback `63122`, the focused
+  browser command `PLAYWRIGHT_CHROMIUM_EXECUTABLE=<existing chromium headless shell>
+  RELICRAT_TEST_WEB_URL=http://127.0.0.1:63122 RELICRAT_REAL_UI_TEST=1
+  node --test --test-name-pattern='appearance|real theme'
+  tests/inventory.browser.mjs` passed **3 scenarios**, zero skips/failures.
+  It checks isolated drafts, manual choices, rejected imports, Markdown download,
+  no inventory writes, unconfirmed-save reload, real persistence and stale saves.
+- `impeccable detect --json apps/web/app/appearance.tsx
+  apps/web/app/inventory-client.tsx apps/web/app/globals.css` returned `[]`.
+  This mechanical result is not a whole-interface accessibility certification.
+
+The first API run had 200 passes and one failure: the older Comics migration test
+hard-coded `0007_comics` as the current head after a failed downgrade. The test
+was pinned to its intended revision before the final passing run. Sandboxed local
+Node servers could not complete; they were interrupted and the same Node checks
+passed with loopback access. Playwright's default browser was absent; the focused
+checks used the existing Chromium executable through the runner's supported
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` setting.
+
+The guide is [packages/themes/AUTHORING-PROMPT.md](../packages/themes/AUTHORING-PROMPT.md).
+One active owner theme is supported; there is no integrated model, downloaded
+font, custom layout/navigation, theme history, or production rollout. Login keeps
+the default appearance, and a default-to-saved-theme flash can occur after page
+load. Existing full database backup logic includes all public tables; backup and
+restore were not rerun for this increment. No real data or live trial was used.
+
+The complete browser regression then passed **40 scenarios**, zero skips/failures,
+including real authentication, photos/storage, Records, Comics and theme persistence.
+It used the disposable no-port worker stack and the repository loopback bridge:
+
+```sh
+cd apps/web
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/Users/bryanclark/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell \
+RELICRAT_TEST_WEB_URL=http://127.0.0.1:63122 \
+RELICRAT_REAL_UI_TEST=1 \
+RELICRAT_APPEARANCE_SCREENSHOTS=/Users/bryanclark/Developer/relicrat/.harness-results/appearance/review \
+npm run test:browser
+```
+
+The final local correction makes section spacing affect the isolated sample's
+padding and action separation. The worker production image was rebuilt, then the
+same browser command with `node --test --test-name-pattern='appearance|real theme'
+tests/inventory.browser.mjs` replacing `npm run test:browser` reruns the affected
+scenarios, including a computed preview-spacing assertion and final captures.
+Evidence for the full regression is
+`.harness-results/appearance/relicrat-appearance-browser-final.log`; the production
+build is `relicrat-appearance-build-final.log` in that same directory.
+
+The final affected browser rerun passed **3 scenarios**, zero skips/failures.
+`relicrat-appearance-browser-spacing.log` records that result. Final valid captures
+are `.harness-results/appearance/review/appearance-desktop.png` (1440 px wide) and
+`appearance-mobile.png` (390 px wide), opened and checked together after the last
+correction. They show the isolated Archive sample alongside the unchanged app and
+synthetic inventory. A fresh independent Impeccable finish review returned
+**ship**, with no material fixes, for this appearance extension and both captures.
+No design-system replacement or production-readiness claim is implied.
+
+The disposable worker project `relicrat-appearance-sm5ib6uypd` was removed after
+verification. Containers, volumes, networks and project-tagged images were checked
+absent; temporary source files were removed and the loopback bridge stopped.
+Cleanup evidence is `.harness-results/appearance/relicrat-appearance-cleanup.log`.
+`git diff --check` passed. No trial deployment or backup/restore run occurred.
