@@ -70,3 +70,16 @@ def test_comic_definition_matches_bounded_storage():
     assert ComicDetails(issue_number=' 001½ ',publisher=' Example Press ').model_dump()=={'issue_number':'001½','publisher':'Example Press'}
     for values in ({'issue_number':'x'*101},{'publisher':'x'*251},{'issue_number':423},{'unknown':'x'}):
         with pytest.raises(ValidationError):ComicDetails(**values)
+
+
+def test_browse_grouping_is_bounded_and_uses_supported_fields():
+    from copy import deepcopy
+    from pydantic import ValidationError
+    from relicrat.collection_types import CollectionType,load_types
+    definitions=load_types()
+    assert definitions['record'].grouping.field=='artist'
+    assert definitions['comic'].grouping.order=='issue_number'
+    assert definitions['other'].grouping is None
+    for patch in ({'field':'price'},{'field':'title'},{'order':'issue_number'},{'unknown_label':'bad\x00label'},{'url':'https://invalid.test'}):
+        value=deepcopy(definitions['record'].model_dump());value['grouping'].update(patch)
+        with pytest.raises(ValidationError):CollectionType.model_validate(value)

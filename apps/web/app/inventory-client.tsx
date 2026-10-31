@@ -5,6 +5,9 @@ import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
+import GroupedCollection from './grouped-collection';
+import CollectionRows from './collection-rows';
+import StorageFilter from './storage-filter';
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
@@ -50,6 +53,8 @@ export default function InventoryClient() {
   const [busy, setBusy] = useState(false);
   const saveLock = useRef(false);
   const titleInput = useRef<HTMLInputElement>(null);
+  const [browseView,setBrowseView]=useState<'groups'|'copies'>('groups');
+  const [storageFilter,setStorageFilter]=useState('');
   const [typeFilter, setTypeFilter] = useState<CollectionTypeId | ''>('');
   const [draftQuery, setDraftQuery] = useState('');
   const [query, setQuery] = useState('');
@@ -70,10 +75,13 @@ export default function InventoryClient() {
   }, []);
   const changed = useCallback(() => setRefresh(value => value + 1), []);
 
+  const grouped=browseView==='groups' && (!typeFilter || !!types?.[typeFilter].grouping);
+  const filters=`&q=${encodeURIComponent(query)}${typeFilter?`&collection_type=${typeFilter}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
   useEffect(() => {
+    if(grouped){setLoading(false);return;}
     const controller = new AbortController();
     setLoading(true); setListError('');
-    api<InventoryCopy[]>(`inventory?limit=${PAGE + 1}&offset=${page * PAGE}&q=${encodeURIComponent(query)}${typeFilter ? `&collection_type=${encodeURIComponent(typeFilter)}` : ''}`, { signal: controller.signal })
+    api<InventoryCopy[]>(`inventory?limit=${PAGE + 1}&offset=${page * PAGE}${filters}`, { signal: controller.signal })
       .then(result => {
         if (controller.signal.aborted) return;
         setItems(result.slice(0, PAGE)); setMore(result.length > PAGE);
@@ -82,7 +90,7 @@ export default function InventoryClient() {
       .catch(error => { if (!controller.signal.aborted) setListError(errorText(error)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [query, page, refresh, typeFilter]);
+  }, [filters, page, refresh, grouped]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -105,7 +113,7 @@ export default function InventoryClient() {
   }
   function reloadInventory() {
     reviewReload.current = true;
-    if (uncertain) { setDraftQuery(''); setQuery(''); setPage(0); }
+    if (uncertain) { setBrowseView('copies'); setTypeFilter(''); setStorageFilter(''); setDraftQuery(''); setQuery(''); setPage(0); }
     changed();
   }
   function search(event: FormEvent) {
@@ -155,21 +163,26 @@ export default function InventoryClient() {
           </div>
           <section className="collection" aria-labelledby="collection-title">
             <div className="section-heading"><h2 id="collection-title">Your collection</h2><button className="quiet" disabled={busy || loading} onClick={reloadInventory}>Reload inventory</button></div>
+            <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={browseView} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups">Grouped collection</option><option value="copies">Individual copies</option></select>
             <label htmlFor="collection-type-filter">Show collection type</label>
             <select id="collection-type-filter" value={typeFilter} disabled={busy || !types} onChange={event=>{setTypeFilter(event.target.value as CollectionTypeId | '');setPage(0);}}>
               <option value="">All types</option>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.plural_label}</option>)}
             </select>
+            <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>
               <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Search titles, notes, or identified names" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
               {query && <button className="text-button" type="button" disabled={busy} onClick={() => { setDraftQuery(''); setQuery(''); setPage(0); }}>Clear search</button>}
             </form>
+            {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={id=>{setSelected(id);setNotice('');}} chooseType={value=>{setTypeFilter(value);setPage(0);}}/>:<>
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${typeFilter ? ` · ${types?.[typeFilter].plural_label || typeFilter}` : ''}${query ? ` matching “${query}”` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
               : items.length === 0 ? <div className="empty"><h3>{query || typeFilter ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{typeFilter ? 'Try another collection type or choose All types. You can also clear the search.' : query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
-              : <ul className="inventory-list">{items.map(copy => <li key={copy.id}><button disabled={busy} className="inventory-row" aria-label={`Open ${copyName(copy)}${copy.edition_label ? ` · ${copy.edition_label}` : ''}`} aria-pressed={copy.id === selected} onClick={() => { setSelected(copy.id); setNotice(''); }}><strong>{copyName(copy)}</strong><span>{copy.description && copy.title ? copy.description : 'Open this physical copy'}</span><small>{copy.edition_label || (copy.edition_label === null && copy.release_id ? 'Catalog matched' : 'Saved copy')} · {copy.storage_location_id ? 'Location assigned' : 'No location yet'}</small></button></li>)}</ul>}
+              : <CollectionRows items={items} busy={busy} selected={selected} open={id=>{setSelected(id);setNotice('');}}/>}
+
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
+            </>}
           </section>
         </div>
       </main>

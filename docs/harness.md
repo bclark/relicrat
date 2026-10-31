@@ -1121,3 +1121,45 @@ Final focused PostgreSQL import run: **14 passed**, two dependency/configuration
 deprecation warnings, no skips. Direct SQL attempts to violate source, digest,
 parser-version, counts, evidence-object and row/copy bounds were rejected;
 restrictive references prevented deleting retained copies or batches.
+
+## Grouped collection verification (2026-10-31)
+
+The shared inventory filter/group read change passed the full PostgreSQL API suite
+(**219 passed**, 46 dependency/configuration deprecation warnings, no skips).
+After grouping metadata moved into the bounded type configs, the affected
+inventory/group/config suite passed **60 tests**, one deprecation warning, no
+skips. These cover full-result counts before pagination, exact member scope,
+literal wildcard/markup keys, missing artists/series, stable ordering, separate
+case values, exact storage/unassigned filters, deleted records and owner access.
+No schema migration or data write was introduced.
+
+`npm run lint --prefix apps/web` passed. Node proxy/security checks passed **28 tests**. The worker web harness passed production build, static/Node and
+HTTP/photo-persistence smoke checks; final source was rebuilt after the UI fixes.
+The existing inventory browser suite explicitly selects Individual copies for its
+original workflows and passed **45 scenarios**, no skips/failures, on fresh
+synthetic data. Both existing CSV browser scenarios then passed on the updated
+browse screen. Three grouped-browser scenarios passed with the resulting large
+synthetic collection retained and extended, covering independent group/member
+pages, counts, search, unknown artists, draft retention, exact storage, obsolete
+reads and a failed location page beyond the first 100.
+
+A final presentation correction indents group members with the existing theme's
+rule color and uses count-neutral summary wording. After the final rebuild,
+**all three grouped scenarios passed again**, no skips/failures, with generated
+large-volume intake. Phone overflow was checked in the browser and the final
+mobile capture was inspected. Earlier desktop/mobile captures were also reviewed.
+
+Run the focused grouped suite only on an explicitly owned disposable stack:
+
+```sh
+RELICRAT_TEST_WEB_URL=http://127.0.0.1:<disposable-test-port> \
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=<installed-chromium-path> \
+node --test apps/web/tests/groups.browser.mjs
+```
+
+The suite generates its own source CSVs; never use owner exports or the trial URL.
+No trial or collection data was used. Backup/restore was not rerun for this
+read-only/no-migration increment. Runtime API/web file hashes are checked against
+the reviewed source and only the owned test stack, bridge and staging are removed
+after success. Build cache and previous retained recovery resources are outside
+cleanup scope. Deployment remains a separate reviewed release step.

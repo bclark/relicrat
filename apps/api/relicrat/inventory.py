@@ -3,7 +3,7 @@
 Manual identification preserves the physical copy and its provisional information.
 """
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from relicrat.inventory_queries import copies_query,copy_order
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.intake import CreateProvisionalCopy, stage_copy
@@ -72,32 +73,13 @@ def list_copies(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     collection_type: Literal['other', 'record', 'comic'] | None = Query(default=None),
+    storage_location_id: UUID | None = None,
+    unassigned: bool = False,
+    group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     db: Session = Depends(get_db),
 ) -> list[OwnedCopy]:
-    stmt = (
-        select(OwnedCopy)
-        .where(OwnedCopy.deleted_at.is_(None))
-        .order_by(OwnedCopy.created_at.desc(), OwnedCopy.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    if collection_type is not None:
-        stmt = stmt.where(OwnedCopy.collection_type == collection_type)
-    if q and (term := q.strip()):
-        # Match literal text; SQLAlchemy escapes LIKE wildcards and binds values.
-        stmt = stmt.outerjoin(CatalogItem, OwnedCopy.catalog_item_id == CatalogItem.id).outerjoin(
-            Release, OwnedCopy.release_id == Release.id
-        ).where(or_(
-            OwnedCopy.provisional_title.icontains(term, autoescape=True),
-            OwnedCopy.description.icontains(term, autoescape=True),
-            OwnedCopy.record_details['artist'].astext.icontains(term, autoescape=True),
-            OwnedCopy.record_details['format'].astext.icontains(term, autoescape=True),
-            OwnedCopy.comic_details['issue_number'].astext.icontains(term, autoescape=True),
-            OwnedCopy.comic_details['publisher'].astext.icontains(term, autoescape=True),
-            OwnedCopy.edition_label.icontains(term, autoescape=True),
-            CatalogItem.canonical_name.icontains(term, autoescape=True),
-            Release.name.icontains(term, autoescape=True),
-        ))
+    stmt=copies_query(q,collection_type,storage_location_id,unassigned,group)
+    stmt=stmt.order_by(*copy_order(collection_type,group)).limit(limit).offset(offset)
     return list(db.scalars(stmt).all())
 
 

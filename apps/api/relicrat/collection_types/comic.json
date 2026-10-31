@@ -47,5 +47,11 @@
     "publisher",
     "edition",
     "notes"
-  ]
+  ],
+  "grouping": {
+    "field": "title",
+    "plural_label": "Series",
+    "unknown_label": "Series not recorded",
+    "order": "issue_number"
+  }
 }

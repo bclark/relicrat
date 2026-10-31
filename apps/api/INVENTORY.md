@@ -411,3 +411,37 @@ Batch/source references use restrictive foreign keys. Existing full database
 backups include these tables. Migration downgrade refuses any retained batch;
 retain provenance or use a verified pre-import recovery copy. There is no batch
 delete/undo API or automatic matching across revised exports.
+
+## Grouped browsing
+
+Owner-only `GET /api/v1/collection-groups` returns collection-type counts when
+`collection_type` is omitted, or configured artist/series summaries when it is
+`record`/`comic`. Each summary has `collection_type`, `value` (nullable), `label`
+and `copy_count`. Counts cover the entire matching inventory before summary
+pagination. `limit` defaults to 20 (maximum 100); `offset` defaults to 0. Results
+sort by label, with unrecorded group fields last. Unknown artist/series groups use
+a null value; ordinary labels remain exact, case-sensitive saved text after
+trimming outer spaces. These are navigation groups, not canonical identities.
+
+Both summaries and `GET inventory` accept the same literal `q`, optional
+`storage_location_id` UUID, and `unassigned` boolean. Location matches the copy's
+exact current location, without descendants. Choosing a location together with
+`unassigned=true` is rejected. Soft-deleted copies are excluded, consistently with
+normal listing. Summaries group across the full filtered result; member paging is
+independent.
+
+`GET inventory?collection_type=record|comic&group=…` lists exact group members.
+`group=` selects copies with an unrecorded group field; omitting group preserves
+the existing individual-copy listing. Group requires Albums/Comics, is bounded to
+500 characters, and is bound as data even when it contains wildcards or markup.
+Search and location filters apply before member limit/offset. Grouped Albums sort
+by title. Comic issues sort by their leading whole number, then full issue text;
+non-numeric/special issues follow numeric prefixes and missing issues sort last.
+The issue text is never rewritten or interpreted as an identity.
+
+`grouping` in the bundled collection-type JSON defines its field, plural label,
+unknown label and supported member order. Only the deployed artist/title grouping
+and title/issue ordering combinations are accepted; Other remains ungrouped.
+Grouping performs no writes or inference, changes no UUIDs, and never combines
+physical copies. No migration, provider, new index or stored owner preference is
+introduced.

@@ -282,3 +282,12 @@ test('CSV imports forward only fixed private routes and bound actual file bytes'
  assert.equal((await forwardApi(request('imports/commit',{...options(csv),headers:{origin:'https://evil.test','content-type':'text/csv'}}),['imports','commit'])).status,403);
  assert.equal(observed.length,count);
 });
+
+test('collection group summaries are private read-only fixed routes',async()=>{
+ assert.equal((await forwardApi(request('collection-groups?collection_type=comic&unassigned=true'),['collection-groups'])).status,200);
+ assert.equal(observed.at(-1).url,'/api/v1/collection-groups?collection_type=comic&unassigned=true');
+ const count=observed.length;
+ assert.equal((await forwardApi(request('collection-groups',post()),['collection-groups'])).status,405);
+ assert.equal((await forwardApi(request('collection-groups/delete'),['collection-groups','delete'])).status,404);
+ assert.equal(observed.length,count);
+});
