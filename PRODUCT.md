@@ -123,7 +123,7 @@ spacing, soft corners and comfortable density. The dark preset uses forest and
 contrasting light gold. This approves application theme tokens, not proposed
 brand masters, logos, mascot artwork, navigation or layouts.
 
-Migration 0009 aligns the database factory default and updates only exact legacy
+Migration 0010 aligns the database factory default and updates only exact legacy
 factory settings at revision zero, incrementing that revision. Other saved owner
 choices are preserved. Login and initial browser fallback match the branded light
 palette. Downgrade maps the exact new default back to the older default with a

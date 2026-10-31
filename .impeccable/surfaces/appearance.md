@@ -17,7 +17,7 @@ navigation, logos or mascot assets. The application remains the existing Operate
 workbench; the original extension and finish records below describe its history.
 
 The default export is `packages/themes/relicrat-default.json`. Browser fallback
-and login must match it; migration 0009 updates only pristine legacy factory
+and login must match it; migration 0010 updates only pristine legacy factory
 values and preserves other owner choices. Any migration-driven appearance change
 increments its conflict revision. Require desktop/mobile evidence for initial
 light appearance, login and the dark preset. No new comp or raster assets are

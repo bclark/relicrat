@@ -15,11 +15,11 @@ pytestmark = pytest.mark.skipif(not URL, reason='TEST_DATABASE_URL not configure
 @pytest.mark.parametrize('factory,revision', [(True, 0), (True, 7), (False, 0), (False, 9)])
 def test_brand_default_preserves_choices_and_revisions(factory, revision):
     engine = create_engine(URL); config = Config('alembic.ini')
-    migration = runpy.run_path('alembic/versions/0009_brand_default.py')
+    migration = runpy.run_path('alembic/versions/0010_brand_default.py')
     old = json.loads(migration['OLD_DEFAULT'])
     theme = old if factory else PRESETS[1]
     try:
-        command.downgrade(config, '0008_appearance')
+        command.downgrade(config, '0009_csv_import')
         with engine.begin() as db:
             db.execute(text('UPDATE appearance_settings SET theme=CAST(:theme AS jsonb),revision=:revision WHERE id=1'),
                        {'theme':json.dumps(theme), 'revision':revision})
@@ -31,7 +31,7 @@ def test_brand_default_preserves_choices_and_revisions(factory, revision):
             assert row.theme == (DEFAULT_THEME if changed else theme)
             assert row.revision == revision + int(changed)
             assert dict(db.execute(text('SELECT * FROM collection_settings WHERE id=1')).mappings().one()) == preferences
-        command.downgrade(config, '0008_appearance')
+        command.downgrade(config, '0009_csv_import')
         with engine.connect() as db:
             row = db.execute(text('SELECT theme,revision FROM appearance_settings WHERE id=1')).one()
             assert row.theme == theme
@@ -52,7 +52,7 @@ def test_brand_default_preserves_choices_and_revisions(factory, revision):
 
 def test_fresh_install_and_database_default_match_runtime():
     engine = create_engine(URL); config = Config('alembic.ini')
-    migration = runpy.run_path('alembic/versions/0009_brand_default.py')
+    migration = runpy.run_path('alembic/versions/0010_brand_default.py')
     assert json.loads(migration['NEW_DEFAULT']) == DEFAULT_THEME
     try:
         command.downgrade(config, '0007_comics')
@@ -64,7 +64,7 @@ def test_fresh_install_and_database_default_match_runtime():
             db.execute(text('DELETE FROM appearance_settings WHERE id=1'))
             db.execute(text('INSERT INTO appearance_settings (id) VALUES (1)'))
             assert db.scalar(text('SELECT theme FROM appearance_settings WHERE id=1')) == DEFAULT_THEME
-        command.downgrade(config, '0008_appearance')
+        command.downgrade(config, '0009_csv_import')
         with engine.connect() as db:
             db.execute(text('DELETE FROM appearance_settings WHERE id=1'))
             db.execute(text('INSERT INTO appearance_settings (id) VALUES (1)'))

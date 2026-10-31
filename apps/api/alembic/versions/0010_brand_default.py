@@ -8,8 +8,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision = '0009_brand_default'
-down_revision = '0008_appearance'
+revision = '0010_brand_default'
+down_revision = '0009_csv_import'
 branch_labels = None
 depends_on = None
 

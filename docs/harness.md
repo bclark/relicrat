@@ -1175,7 +1175,7 @@ not silently replaced. No logos, mascot assets, layouts, navigation or theme-sch
 fields were added. See the [shared decision record](design/README.md) and
 [appearance ADR](decisions/0007-appearance.md).
 
-Migration `0009_brand_default` changes the column default and adopts the new palette
+Migration `0010_brand_default` changes the column default and adopts the new palette
 only for exact legacy factory values at revision zero. Changed rows increment
 revision so open clients must review stale saves. Previously saved factory choices
 and custom values are preserved. Downgrade maps exact new defaults back to old

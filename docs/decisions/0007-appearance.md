@@ -56,12 +56,11 @@ preset uses the kit's forest surfaces and contrasting light-gold accent. Approva
 covers these application theme values; it does not promote proposed logos,
 mascot studies, layouts or brand-wide master specifications.
 
-Migration `0009_brand_default` changes the database column default and updates
+Migration `0010_brand_default` changes the database column default and updates
 only an exact old factory theme whose revision is zero. It increments that row's
 revision, so an already open editor cannot overwrite the change with a stale
 save. Other saved palettes, including a previously selected old default at a
-nonzero revision, remain unchanged. Fresh installations traverse migrations 0008
-and 0009 and therefore start with the approved theme at revision one. Login and
+nonzero revision, remain unchanged. Fresh installations traverse migrations 0008 through 0010 and therefore start with the approved theme at revision one. Login and
 the browser's initial fallback use the same approved palette.
 
 Downgrade restores the older column default and translates an exact new factory

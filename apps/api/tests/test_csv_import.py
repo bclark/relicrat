@@ -121,10 +121,11 @@ def test_concurrent_imports_create_one_batch_and_guard_downgrade():
         assert sorted(r['already_imported'] for r in results)==[False,True]
         assert len({r['batch']['id'] for r in results})==1
         config=Config('alembic.ini')
+        with engine.connect() as db: original_revision=db.scalar(text('SELECT version_num FROM alembic_version'))
         with pytest.raises(RuntimeError,match='Import provenance exists'):command.downgrade(config,'0008_appearance')
         with engine.connect() as db:
             assert db.scalar(text('SELECT count(*) FROM import_copies'))==2
-            assert db.scalar(text('SELECT version_num FROM alembic_version'))=='0009_csv_import'
+            assert db.scalar(text('SELECT version_num FROM alembic_version'))==original_revision
     finally:
         with engine.begin() as db:
             # Disposable test records only. Real application has no hard-delete API.
