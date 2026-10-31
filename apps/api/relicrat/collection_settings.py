@@ -29,7 +29,7 @@ class SettingsValues(BaseModel):
     @model_validator(mode='after')
     def valid_default(self):
         if self.default_type == 'record' and not self.records_enabled:
-            raise ValueError('Enable Records before making it the default')
+            raise ValueError(f"Enable {COLLECTION_TYPES['record'].plural_label} before making it the default")
         return self
 
 

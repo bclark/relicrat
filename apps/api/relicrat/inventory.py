@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.record_details import RecordDetails
+from relicrat.collection_types import COLLECTION_TYPES
 from relicrat.reconciliation import ReconciliationError, reconcile
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -32,7 +33,7 @@ class CreateProvisionalCopy(BaseModel):
         self.title = self.title.strip() if self.title else None
         self.description = self.description.strip() if self.description else None
         if self.collection_type == 'other' and self.record_details.model_dump(exclude_none=True):
-            raise ValueError('Choose Record before adding artist or format')
+            raise ValueError(f"Choose {COLLECTION_TYPES['record'].label} before adding artist or format")
         if not self.title and not self.description:
             raise ValueError("A title or description is required")
         return self

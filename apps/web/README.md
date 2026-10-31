@@ -179,16 +179,16 @@ SSH preview access; no NAS TCP-forwarding settings changed. It and the synthetic
 stack were removed after verification. A usable hands-on trial requires a
 separately started private preview with synthetic data.
 
-## Records setup
+## Album setup
 
-Set up your collection is optional. Enable Records, choose the default entry type,
+Set up your collection is optional. Enable Albums, choose the default entry type,
 adjust suggested Artist, Format, Edition/pressing and Notes fields, then preview
 and Save setup. Back/cancel do not save; Skip for now keeps generic entry.
-Collection settings reopens the same flow. Only Records and Other have implemented
+Collection settings reopens the same flow. Only Albums and Other have implemented
 entry flows today. Photos and storage remain optional actions after saving.
 
-The native type dropdown allows a one-off Record without changing the owner's
-default. Record entry requires only Album title. Artist and format are bounded,
+The native type dropdown allows a one-off Album without changing the owner's
+default. Album entry requires only Album title. Artist and format are bounded,
 optional personal text; no album lookup, automatic title parsing, catalog creation
 or ownership inference occurs. A nonempty draft must be explicitly discarded
 before changing its type. Saved rows display Artist — Album when an artist is
