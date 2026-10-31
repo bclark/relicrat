@@ -153,3 +153,16 @@ Discogs folder names remain source information pending a separate physical-stora
 decision. There is no automatic import-time mapping, bulk reassignment or undo;
 confirmed placements can subsequently be changed through the ordinary individual
 copy location control with retained history. No schema migration is required.
+
+
+## Barcode camera prototype
+
+A read-only scanner beside Add a find requests video only, decodes UPC/EAN
+on-device, preserves leading zeroes, shows any detected supplement separately,
+and stops after a read or explicit cancellation. It also stops on backgrounding,
+page exit, disconnect, error and a one-minute limit. Readings stay in the tab
+until close/reload; scanning never fills or saves an owned copy or calls a
+provider. Existing draft details remain intact. New decoder dependencies are
+lazy-loaded and compatible with the current Node 22 runtime. There is no API or
+schema migration. Private HTTPS phone access and real-phone camera verification
+are pending; see [the trial guide](docs/barcode-scanning.md).

@@ -5,6 +5,7 @@ import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
+import BarcodeScanner from './barcode-scanner';
 import GroupedCollection from './grouped-collection';
 import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
@@ -135,6 +136,7 @@ export default function InventoryClient() {
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
               <p className="intro">Start with a title. Everything else is optional.</p>
+              <BarcodeScanner />
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}

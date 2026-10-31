@@ -111,3 +111,15 @@ placements and prior manual unassignments are preserved; Discogs folders remain
 source information. It uses existing theme tokens and movement history without
 changing navigation, branding assets, schema or the collection editor. Implemented on the storage-mapping branch; synthetic verification and rollout
 are recorded separately in the harness evidence.
+
+
+### Camera barcode trial (2026-10-31)
+
+The owner chose phone-camera scanning and accepted a barcode-only prototype
+before catalog lookup. A compact inline scanner beside Add a find inherits the
+current Operate surface, theme and native controls. It reads on-device, keeps
+readings transient, and makes no ownership or catalog changes. Explicit start,
+stop, rescan and close controls preserve intake drafts and keyboard focus. No
+new brand assets, layout system, theme schema or type-config fields are needed.
+Implementation and synthetic camera verification precede physical-phone testing;
+private HTTPS access and phone/browser selection remain separate setup work.

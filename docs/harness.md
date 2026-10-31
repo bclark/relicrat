@@ -1295,3 +1295,61 @@ verification, not whole-interface accessibility certification. Local evidence is
 under `.harness-results/storage-mapping/`; synthetic screenshots are in the
 operator checkout's matching ignored evidence folder. No collection data was used
 as test input. Backup/restore and live rollout were not run for this increment.
+
+## Read-only barcode camera trial (2026-10-31)
+
+The inline scanner captures video only and lazily decodes UPC-A/UPC-E/EAN-8/EAN-13
+on-device. It displays a bounded string and any detected supplement; no form
+prefill, persistence, provider call or ownership change. A reading stops the
+camera; explicit stop/close, page exit/backgrounding, disconnect, error and a
+one-minute limit stop it too. Cancelled runs dispose of late permission responses
+and own distinct video elements to avoid interference with subsequent scans.
+The scan/stop button stays mounted to preserve keyboard focus; a successful
+reading focuses its heading. No API or migration changes.
+
+The locally bundled ZXing browser layer 0.1.5 and decoder peer 0.21.3 replace a
+custom decoder and sampling loop while supporting the existing Node 22 images.
+Newer pairs requiring Node 24 were rejected before final verification. The
+software decoder is needed because native BarcodeDetector is not consistently
+available across browsers. No runtime CDN or provider authentication is used.
+The existing owner's collection and Mac-loopback bridge were untouched. Private
+HTTPS phone access and physical-device autofocus/lighting/permission validation
+remain pending, not established by headless camera tests.
+
+Executed checks, generated fixtures and disposable worker projects only:
+
+- In `apps/web`, `npm test`: **31 passed**, zero skips/failures; `npm run lint`
+  passed. The package audit reported zero known vulnerabilities for the pinned
+  dependency pair. No optional install-script approval was changed.
+- Final worker `sh scripts/test-web.sh`: production build/typecheck, **31 Node
+  tests**, authenticated HTTP smoke, migration initialization and exact photo
+  persistence after API recreation passed. Its own containers, volumes, network,
+  tagged images and temporary staging were removed with exit zero.
+- Existing browser selection `add-first workflow|storage selection saves once|password-manager autofill`:
+  **3 passed**, zero skips/failures. Unselected scenarios were not run. The full
+  API and 46-scenario inventory browser suites were not repeated for this
+  frontend-only increment.
+- `node --test apps/web/tests/barcode.browser.mjs`: **6 passed in Chromium and
+  6 passed in WebKit**, zero skips/failures. An independently drawn synthetic
+  UPC-A SVG is streamed through a canvas camera into the actual decoder. Checks
+  cover leading zeroes, no post/upload/provider requests, draft preservation,
+  video-only constraints, rescan, permission denial/retry, cancelled late streams,
+  stop/close, page exit/backgrounding, timeout and insecure-context recovery.
+  Initial test selector, cross-browser camera-mock installation and continuous
+  blank-frame generation were corrected. Failure logs remain private; final tests
+  assert the synthetic camera replaces the real API before any scan.
+- Two targeted Chromium capture scenarios passed afterward with full-page result
+  and active-camera captures at 390px and 1440px. The active feed explicitly labels
+  its generated synthetic frame. All four captures were opened and inspected;
+  no horizontal overflow was found. These do not establish physical-phone focus,
+  lighting, permission-dialog behavior or production camera performance.
+- The mechanical design detector returned `[]`. Independent finish review returned
+  **ship** for this scanner-only extension and supplied synthetic evidence, with
+  no material fixes. The independent documenter confirmed documentation complete;
+  the incumbent design-system files were preserved.
+
+Evidence is under `.harness-results/barcode-camera/`; review captures are in the
+operator checkout's matching ignored evidence folder. Full API tests, copied
+backup/restore, phone network setup and live rollout were not run for this
+frontend-only prototype. No claim of phone readiness is made until private HTTPS
+and a hands-on device trial are complete.
