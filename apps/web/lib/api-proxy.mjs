@@ -11,6 +11,8 @@ const catalogItem = new RegExp(`^catalog/items/${uuid}$`);
 const releases = new RegExp(`^catalog/items/${uuid}/releases$`);
 const release = new RegExp(`^catalog/items/${uuid}/releases/${uuid}$`);
 const importRows = new RegExp(`^imports/${uuid}/rows$`);
+const storageLabels = new RegExp(`^imports/${uuid}/storage-labels$`);
+const storageMapping = new RegExp(`^imports/${uuid}/storage-(preview|apply)$`);
 const importUpload = /^imports\/(preview|commit)$/;
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
@@ -23,8 +25,8 @@ export async function forwardApi(request, segments) {
   const path = segments.join('/');
   const methods = path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
-      ? ['GET'] : importUpload.test(path) || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
+    : storageLabels.test(path) || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
+      ? ['GET'] : storageMapping.test(path) || importUpload.test(path) || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
   let upstream;

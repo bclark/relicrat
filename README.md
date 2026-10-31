@@ -30,6 +30,7 @@ Start with a title. Add the details when you have them.
 | --- | --- |
 | **Comics, albums and other finds** | Add a physical copy with just a title; attach notes, an edition label and photos later. Albums support artist and format; Comics support series, issue and publisher. |
 | **CLZ and Discogs imports** | Upload a CSV, review the mapping and samples, then explicitly import. Original fields stay attached to each copy; exact-file retries do not add duplicates. |
+| **Review imported storage** | Map a CLZ box label to a physical location after previewing its copies. Existing placements and earlier manual unassignments stay intact. Discogs folders remain source information. |
 | **Groups that make sense** | Browse Comics by series and Albums by artist, with counts and paginated copies. Search and filter by collection type or assigned storage location. |
 | **A place for every copy** | Create nested locations, assign a copy to a box or shelf, and retain its movement history. |
 | **Details without losing history** | Edit personal copy details or optionally match a shared catalog item and edition. Physical copies keep their own identities, photos and history. |

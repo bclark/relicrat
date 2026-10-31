@@ -1,5 +1,6 @@
 'use client';
 import {useRef,useState} from 'react';
+import ImportStorage from './import-storage';
 import {api,errorText,type RunSave} from '../lib/inventory-client';
 type Batch={id:string;source:'clz'|'discogs';row_count:number;copy_count:number;created_at:string};
 type Preview={sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
@@ -9,6 +10,7 @@ export default function CsvImport({runSave,locked,changed,openCopy}:{runSave:Run
  const [open,setOpen]=useState(false),[source,setSource]=useState<'clz'|'discogs'>('clz'),[file,setFile]=useState<File|null>(null);
  const [preview,setPreview]=useState<Preview|null>(null),[reviewed,setReviewed]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [batches,setBatches]=useState<Batch[]>([]),[batchPage,setBatchPage]=useState(0),[historyLoaded,setHistoryLoaded]=useState(false),[selected,setSelected]=useState<Batch|null>(null),[rows,setRows]=useState<SourceRow[]>([]),[rowPage,setRowPage]=useState(0);
+ const [mappingBatch,setMappingBatch]=useState<Batch|null>(null);
  const pending=useRef(false);const disabled=locked||working;
  function reset(){setPreview(null);setReviewed(false);setError('');setNotice('');}
  async function task(action:()=>Promise<void>){if(pending.current||locked)return;pending.current=true;setWorking(true);setError('');try{await action();}catch(e){setError(errorText(e));}finally{pending.current=false;setWorking(false);}}
@@ -49,7 +51,8 @@ export default function CsvImport({runSave,locked,changed,openCopy}:{runSave:Run
    </div>}
    {working&&<p role="status">Working… Keep this page open.</p>}{notice&&<p role="status">{notice}</p>}{error&&<p className="error" role="alert">{error} Preview the same file again to check whether an import completed. Saves are never retried automatically.</p>}
    <h3>Import history</h3><button disabled={disabled} onClick={()=>void task(()=>history(0))}>Reload import history</button>
-   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button></li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}
+   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button>{b.source==='clz'?<button disabled={disabled} onClick={()=>setMappingBatch(b)}>Map storage boxes</button>:<span> · Discogs folders are source information, not physical locations.</span>}</li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}
+   {mappingBatch&&<ImportStorage key={mappingBatch.id} batchId={mappingBatch.id} locked={disabled} runSave={runSave} changed={changed}/>}
    {selected&&<><h4>Original source rows · {names[selected.source]}</h4><ul>{rows.slice(0,20).map(r=><li key={r.copy_id}><button disabled={disabled} onClick={()=>openCopy(r.copy_id)}>Open copy from row {r.row}, copy {r.copy_number}</button><details><summary>View retained fields</summary><dl>{Object.entries(r.source).map(([key,value])=><div key={key}><dt>{key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{value||'(empty)'}</dd></div>)}</dl></details></li>)}</ul><nav aria-label="Source row pages"><button disabled={disabled||!rowPage} onClick={()=>void task(()=>sourceRows(selected,rowPage-1))}>Previous source rows</button><span>Page {rowPage+1}</span><button disabled={disabled||rows.length<=20} onClick={()=>void task(()=>sourceRows(selected,rowPage+1))}>Next source rows</button></nav></>}
   </>}
  </section>;

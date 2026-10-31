@@ -100,3 +100,14 @@ Restore default draft → Preview theme → Apply theme to adopt it explicitly.
 Integration checks and rollout evidence are separate from the historical theme
 checks above. The prototype layouts, new mascot extensions and wordmark masters
 remain proposed; this release adopts application colors, not a new navigation UI.
+
+
+### Reviewed storage mapping (2026-10-31)
+
+The owner accepted explicit CLZ storage-box mapping after CSV import. This
+increment adds a native-control flow within import history: source label →
+physical destination → paginated preview → explicit confirmation. Existing
+placements and prior manual unassignments are preserved; Discogs folders remain
+source information. It uses existing theme tokens and movement history without
+changing navigation, branding assets, schema or the collection editor. Implemented on the storage-mapping branch; synthetic verification and rollout
+are recorded separately in the harness evidence.

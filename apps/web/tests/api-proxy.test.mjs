@@ -291,3 +291,17 @@ test('collection group summaries are private read-only fixed routes',async()=>{
  assert.equal((await forwardApi(request('collection-groups/delete'),['collection-groups','delete'])).status,404);
  assert.equal(observed.length,count);
 });
+
+test('reviewed import storage exposes only fixed bounded owner JSON routes',async()=>{
+ const labels=`imports/${id}/storage-labels`,preview=`imports/${id}/storage-preview`,apply=`imports/${id}/storage-apply`;
+ assert.equal((await forwardApi(request(labels+'?limit=21&offset=20'),labels.split('/'))).status,200);
+ for(const path of [preview,apply]){
+  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,201);
+  assert.equal((await forwardApi(request(path),path.split('/'))).status,405);
+  assert.equal((await forwardApi(request(path,post('{}',{origin:'https://evil.test'})),path.split('/'))).status,403);
+  assert.equal((await forwardApi(request(path,post('x'.repeat(65537))),path.split('/'))).status,413);
+  assert.equal((await forwardApi(request(path,{method:'POST',headers:{origin,'content-type':'text/csv'},body:'x'}),path.split('/'))).status,415);
+ }
+ assert.equal((await forwardApi(request(labels,post()),labels.split('/'))).status,405);
+ assert.equal((await forwardApi(request(apply+'/unsafe',post()),[...apply.split('/'),'unsafe'])).status,404);
+});
