@@ -350,3 +350,25 @@ Migration 0007 requires the release plan in ADR 0006 and refuses destructive dow
 Omitting it returns all types. The validated exact type condition is combined
 with literal `q` search and applied before limit/offset; ordering, deletion filters
 and owner access are unchanged. Filtering never changes ownership or type.
+
+## Appearance (schema 0008)
+
+Owner-only `GET /api/v1/appearance` returns `theme`, allowlisted React `styles`,
+`revision`, `default_theme`, `presets`, and the theme JSON `schema` for authoring.
+Theme fields and color roles are documented in
+[the authoring guidelines](../../packages/themes/AUTHORING-PROMPT.md).
+
+`POST /api/v1/appearance/preview` accepts `{ "theme": <theme object> }`, validates
+it, and returns `theme` and `styles`. It writes nothing. `POST /api/v1/appearance`
+accepts `{ "theme": <theme object>, "expected_revision": <integer> }` and returns
+`theme`, `styles`, and `revision` after commit. It locks the singleton row and
+increments the independent appearance revision only when values change. A stale
+revision returns 409, invalid values/contrast return 422 with a bounded explanation,
+and unavailable/invalid persisted settings return 503. Unknown fields and executable
+styling are rejected. All three endpoints use the same owner/origin gateway boundary.
+
+Previews and applies do not touch inventory, history, catalog or collection setup.
+Unconfirmed writes require reload/review, with no automatic retry. The app uses
+prompts/Markdown guidelines with a user-selected AI tool; no model endpoint is
+called. See [ADR 0007](../../docs/decisions/0007-appearance.md) for migration,
+rollback, accessibility checks and remaining limits.
