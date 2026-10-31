@@ -345,3 +345,8 @@ transaction boundaries are unchanged. `GET collection-settings/publisher-suggest
 is owner-only, read-only and returns at most 20 deduplicated literal prefix matches;
 `q` is at most 250 characters without NUL. Definitions now include `comic`.
 Migration 0007 requires the release plan in ADR 0006 and refuses destructive downgrade.
+
+`GET /api/v1/inventory` accepts optional `collection_type=record|comic|other`.
+Omitting it returns all types. The validated exact type condition is combined
+with literal `q` search and applied before limit/offset; ordering, deletion filters
+and owner access are unchanged. Filtering never changes ownership or type.

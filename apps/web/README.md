@@ -215,3 +215,10 @@ copy displays Series #Issue when an issue was entered. Photos/storage and option
 catalog matching retain the existing flow. Type changes and hidden fields never
 erase saved observations; edits use the existing Save details transaction/history.
 API/schema/web rollout and verified recovery are required before using this flow.
+
+The collection list has a Show collection type selector (All types, Albums,
+Comics, Other) labelled from the bundled definitions. Search and pagination stay
+within the selection; a type change starts at page one. It is page-local browsing
+state, independent of intake/default type, open-copy edits and setup preferences.
+Clearing search retains the selected type. Saving a different type retains the
+filter and explains how to show the saved find. Nothing is retagged automatically.

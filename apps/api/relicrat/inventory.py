@@ -91,6 +91,7 @@ def list_copies(
     q: str | None = Query(default=None, max_length=200, pattern=r"^[^\x00]*$"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    collection_type: Literal['other', 'record', 'comic'] | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[OwnedCopy]:
     stmt = (
@@ -100,6 +101,8 @@ def list_copies(
         .limit(limit)
         .offset(offset)
     )
+    if collection_type is not None:
+        stmt = stmt.where(OwnedCopy.collection_type == collection_type)
     if q and (term := q.strip()):
         # Match literal text; SQLAlchemy escapes LIKE wildcards and binds values.
         stmt = stmt.outerjoin(CatalogItem, OwnedCopy.catalog_item_id == CatalogItem.id).outerjoin(

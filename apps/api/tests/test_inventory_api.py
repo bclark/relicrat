@@ -234,3 +234,22 @@ def test_search_preserves_copy_history_and_photo(search_inventory, tmp_path, mon
     assert api.get(f"{base}/locations").json() == movements
     assert api.get(f"{base}/photos").json() == [photo]
     assert api.get(f"{base}/photos/{photo['id']}").content == data
+
+
+def test_collection_type_filter_search_pagination_and_legacy_default(client):
+    api,_=client
+    albums=[]
+    for i in range(23):
+        albums.append(api.post('/api/v1/inventory',json={'title':f'Shared album {i}','collection_type':'record'}).json()['id'])
+    comic=api.post('/api/v1/inventory',json={'title':'Shared comic','collection_type':'comic','comic_details':{'issue_number':'423'}}).json()['id']
+    other=api.post('/api/v1/inventory',json={'title':'Shared other'}).json()['id']
+    assert {copy['id'] for copy in api.get('/api/v1/inventory',params={'q':'Shared','limit':100}).json()}==set(albums+[comic,other])
+    assert [copy['id'] for copy in api.get('/api/v1/inventory',params={'collection_type':'comic','q':'Shared','limit':1}).json()]==[comic]
+    assert api.get('/api/v1/inventory',params={'collection_type':'record','q':'comic'}).json()==[]
+    page1=api.get('/api/v1/inventory',params={'collection_type':'record','limit':20}).json()
+    page2=api.get('/api/v1/inventory',params={'collection_type':'record','limit':20,'offset':20}).json()
+    assert len(page1)==20 and len(page2)==3
+    assert {copy['id'] for copy in page1+page2}==set(albums)
+    assert [copy['id'] for copy in api.get('/api/v1/inventory',params={'collection_type':'other'}).json()]==[other]
+    for invalid in ('','album','comic OR true','%','../../secret'):
+        assert api.get('/api/v1/inventory',params={'collection_type':invalid}).status_code==422
