@@ -264,3 +264,21 @@ test('publisher suggestions retain the fixed read-only owner boundary',async()=>
   assert.equal((await forwardApi(request(path+'/unsafe'),[...path.split('/'),'unsafe'])).status,404);
   assert.equal(observed.length,count);
 });
+
+test('CSV imports forward only fixed private routes and bound actual file bytes',async()=>{
+ const options=body=>({method:'POST',headers:{origin,'content-type':'text/csv'},body});
+ const csv='Title,Artist,Format,release_id\nSynthetic,Test band,CD,1\n';
+ assert.equal((await forwardApi(request('imports/preview?source=discogs',options(csv)),['imports','preview'])).status,201);
+ assert.equal(observed.at(-1).body.toString(),csv);
+ assert.equal(observed.at(-1).headers.authorization,`Bearer ${token}`);
+ assert.equal((await forwardApi(request('imports/commit?source=discogs&reviewed_sha256='+ 'a'.repeat(64),options(csv)),['imports','commit'])).status,201);
+ assert.equal((await forwardApi(request('imports'),['imports'])).status,200);
+ assert.equal((await forwardApi(request(`imports/${id}/rows`),['imports',id,'rows'])).status,200);
+ const count=observed.length;
+ assert.equal((await forwardApi(request('imports/preview',options('x'.repeat(4*1024*1024+1))),['imports','preview'])).status,413);
+ assert.equal((await forwardApi(request('imports/preview',post()),['imports','preview'])).status,415);
+ assert.equal((await forwardApi(request('imports/preview'),['imports','preview'])).status,405);
+ assert.equal((await forwardApi(request('imports/delete',options(csv)),['imports','delete'])).status,404);
+ assert.equal((await forwardApi(request('imports/commit',{...options(csv),headers:{origin:'https://evil.test','content-type':'text/csv'}}),['imports','commit'])).status,403);
+ assert.equal(observed.length,count);
+});

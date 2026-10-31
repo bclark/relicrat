@@ -236,3 +236,35 @@ class CollectionSettings(Timestamps, Base):
     default_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default='other')
     record_fields: Mapped[list] = mapped_column(JSONB, nullable=False, server_default='["artist","format","edition","notes"]')
     revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
+
+
+class ImportBatch(Base):
+    __tablename__ = 'import_batches'
+    __table_args__ = (
+        UniqueConstraint('source', 'sha256', name='import_file_once'),
+        CheckConstraint("source IN ('clz', 'discogs')", name='import_source'),
+        CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name='import_sha256'),
+        CheckConstraint('row_count BETWEEN 1 AND 5000 AND copy_count BETWEEN 1 AND 10000', name='import_counts'),
+        CheckConstraint('parser_version = 1', name='import_parser_version'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    parser_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    copy_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ImportCopy(Base):
+    __tablename__ = 'import_copies'
+    __table_args__ = (
+        UniqueConstraint('batch_id','row_number','copy_number',name='import_row_copy_once'),
+        CheckConstraint('row_number BETWEEN 2 AND 5001 AND copy_number BETWEEN 1 AND 10000',name='import_row_numbers'),
+        CheckConstraint("jsonb_typeof(source_row) = 'object'",name='import_source_row'),
+    )
+    owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), primary_key=True)
+    batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('import_batches.id', ondelete='RESTRICT'), nullable=False, index=True)
+    row_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    copy_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_row: Mapped[dict] = mapped_column(JSONB, nullable=False)

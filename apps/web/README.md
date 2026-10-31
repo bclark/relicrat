@@ -242,3 +242,26 @@ within the selection; a type change starts at page one. It is page-local browsin
 state, independent of intake/default type, open-copy edits and setup preferences.
 Clearing search retains the selected type. Saving a different type retains the
 filter and explains how to show the saved find. Nothing is retagged automatically.
+
+## CLZ and Discogs CSV intake
+
+**Import CSV** opens an inline upload/preview/confirm flow. Choose CLZ Comics or
+Discogs Albums and a UTF-8 comma-separated CSV (up to 4 MiB). Preview displays
+counts, field mapping, ten sample records, duplicate-ID advisories and errors;
+all rows must be valid before the explicit acknowledgement and Import action.
+Nothing is imported by selecting a file or previewing it. Existing draft intake,
+type filters and owner preferences remain separate.
+
+Imports retain every original column in private database provenance. Browse
+paginated **Import history** and **View retained fields**, or open the associated
+physical copy. File contents and filenames are never written into the repository.
+Storage labels, prices, grades and external IDs stay source data rather than
+silently becoming locations, financial valuations or catalog matches. Exact-file
+retries add no copies; changed exports can duplicate existing items. There is no
+cross-export reconciliation or batch undo in this first increment.
+
+The fixed proxy accepts bounded `text/csv` only for preview/commit, keeps the
+existing same-origin/owner-cookie boundary, and forwards only to the configured
+private API. The UI never evaluates cells. Uncertain saves clear confirmation and
+require a fresh preview, which can identify a completed exact-file batch.
+Requires migration `0009_csv_import` and matching API/web images.

@@ -10,6 +10,8 @@ const catalogCollection = /^(catalog\/categories|catalog\/items)$/;
 const catalogItem = new RegExp(`^catalog/items/${uuid}$`);
 const releases = new RegExp(`^catalog/items/${uuid}/releases$`);
 const release = new RegExp(`^catalog/items/${uuid}/releases/${uuid}$`);
+const importRows = new RegExp(`^imports/${uuid}/rows$`);
+const importUpload = /^imports\/(preview|commit)$/;
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
 /** @param {Request} request @param {string[]} segments */
@@ -21,8 +23,8 @@ export async function forwardApi(request, segments) {
   const path = segments.join('/');
   const methods = path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
-      ? ['GET'] : path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
+    : path === 'imports' || importRows.test(path) || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
+      ? ['GET'] : importUpload.test(path) || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
   let upstream;
@@ -38,12 +40,13 @@ export async function forwardApi(request, segments) {
   if (request.method === 'POST') {
     const contentType = request.headers.get('content-type') || '';
     const photo = photoPath.test(path);
-    if (!(photo ? /^multipart\/form-data;\s*boundary=/i : /^application\/json(?:;|$)/i).test(contentType)) {
-      return error(415, photo ? 'Choose a photo file to upload' : 'Expected a JSON request');
+    const csv = importUpload.test(path);
+    if (!(csv ? /^text\/csv(?:;|$)/i : photo ? /^multipart\/form-data;\s*boundary=/i : /^application\/json(?:;|$)/i).test(contentType)) {
+      return error(415, csv ? 'Choose a CSV file' : photo ? 'Choose a photo file to upload' : 'Expected a JSON request');
     }
     // Bound actual bytes, including chunked requests with no Content-Length.
     // Photo envelope allows 15 MiB image bytes plus multipart metadata.
-    const maximum = photo ? 16 * 1024 * 1024 : 64 * 1024;
+    const maximum = csv ? 4 * 1024 * 1024 : photo ? 16 * 1024 * 1024 : 64 * 1024;
     const reader = request.body?.getReader();
     const chunks = [];
     let size = 0;
@@ -55,7 +58,7 @@ export async function forwardApi(request, segments) {
           size += chunk.value.byteLength;
           if (size > maximum) {
             await reader.cancel();
-            return error(413, photo ? 'Upload is too large; photos must be at most 15 MiB' : 'Request is too large');
+            return error(413, csv ? 'CSV must be at most 4 MiB' : photo ? 'Upload is too large; photos must be at most 15 MiB' : 'Request is too large');
           }
           chunks.push(chunk.value);
         }

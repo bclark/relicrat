@@ -4,6 +4,7 @@ import ObservationInput from './observation-input';
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import Appearance from './appearance';
+import CsvImport from './csv-import';
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
@@ -120,6 +121,7 @@ export default function InventoryClient() {
         {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
+        <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={setSelected} />
         <div className="workspace">
           <div className="workbench">
             <section className="intake" aria-labelledby="add-find">
