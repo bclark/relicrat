@@ -45,9 +45,11 @@ export default function CollectionSetup({ types, settings, runSave, locked, save
           <p className="hint">These are suggested fields you can adjust. Hiding a field never deletes saved values. Photos and storage remain available after saving.</p>
         </>}
         {step===3 && <><h3>Preview your entry form</h3><p>This example is not added to your collection.</p><div className="setup-preview">
-          <p><strong>{types[enabled ? 'record' : 'other'].title.label}:</strong> Example album</p>
-          {enabled && fields.filter(field=>selected.includes(field.key)).map(field=><p key={field.key}>{field.label} (optional)</p>)}
-          {!enabled && <p>Notes (optional)</p>}
+          {types[enabled ? 'record' : 'other'].entry_order.map(key=>{
+            if(key==='title') return <p key={key}><strong>{types[enabled ? 'record' : 'other'].title.label}:</strong> Example album</p>;
+            const field=types[enabled ? 'record' : 'other'].fields.find(field=>field.key===key);
+            return field && (!enabled || selected.includes(key)) ? <p key={key}>{field.label} (optional)</p> : null;
+          })}
           </div><p>New finds start as {types[enabled ? defaultType : 'other'].label}. You can change these choices later in Collection settings.</p></>}
         <div className="setup-actions">{step>1 && <button type="button" onClick={()=>next(step===3 && !enabled ? 1 : step-1)}>Back</button>}<button className="primary" type="submit">{step===3 ? 'Save setup' : 'Continue'}</button><button type="button" className="quiet" onClick={()=>setOpen(false)}>Cancel setup</button></div>
       </fieldset></form>

@@ -16,14 +16,21 @@
       "label": "Artist or band",
       "max_length": 500,
       "placeholder": "",
-      "suggested": true
+      "suggested": true,
+      "input": "autocomplete"
     },
     {
       "key": "format",
       "label": "Format",
       "max_length": 100,
       "placeholder": "e.g. Vinyl, CD or cassette",
-      "suggested": true
+      "suggested": true,
+      "input": "select",
+      "options": [
+        "Vinyl",
+        "CD",
+        "Cassette"
+      ]
     },
     {
       "key": "edition",
@@ -39,5 +46,12 @@
       "placeholder": "Distinctive details, condition, or where you found it",
       "suggested": true
     }
+  ],
+  "entry_order": [
+    "artist",
+    "title",
+    "format",
+    "edition",
+    "notes"
   ]
 }

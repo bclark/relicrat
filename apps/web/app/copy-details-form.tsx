@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type CollectionTypes, type RunSave } from '../lib/inventory-client';
+import ObservationInput from './observation-input';
 import { Pages, usePage } from './identification';
 
 type Props = { types: CollectionTypes | null; fields: RecordField[]; copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy) => void; failed: (error: unknown) => void };
@@ -50,14 +51,17 @@ export default function CopyDetailsForm({ types, fields, copy, runSave, locked, 
     } catch (problem) { setNotice(''); setNeedsReview(problem instanceof ApiError && (problem.uncertain || problem.status === 409)); failed(problem); }
   }
   const dirty = title.trim() !== (copy.title || '') || edition.trim() !== initialEdition || recordType!==copy.collection_type || artist.trim()!==(copy.record_details.artist || '') || format.trim()!==(copy.record_details.format || '');
+  const artistFirst = recordType==='record' && !!types && types.record.entry_order.indexOf('artist') < types.record.entry_order.indexOf('title');
+  const artistInput = ((recordType==='record' && fields.includes('artist')) || artist || copy.record_details.artist) && <><label htmlFor="copy-artist">{types?.record.fields.find(field=>field.key==='artist')?.label || 'artist'} (optional)</label><ObservationInput key={`artist-${copy.id}-${copy.details_revision}`} id="copy-artist" field={types?.record.fields.find(field=>field.key==='artist') || {key:'artist',label:'Artist',max_length:500,placeholder:'',suggested:true}} value={artist} change={value=>{setArtist(value);setNotice('');}} /></>;
   return <div className="copy-details-form">
     <h3>Edit this copy</h3>
     <form aria-label="Edit copy details" onSubmit={submit}><fieldset disabled={locked || !ready}>
       <label htmlFor="copy-type">Collection type</label><select id="copy-type" value={recordType} onChange={event=>{setRecordType(event.target.value as 'other'|'record');setNotice('');}}>{types ? Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>) : <option value={recordType}>{recordType}</option>}</select>
       {recordType!==copy.collection_type && <p className="hint">Changing type keeps this physical copy and its saved details. Save details to apply it.</p>}
+      {artistFirst && artistInput}
       <label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input id="copy-title" maxLength={types?.[recordType].title.max_length || 500} value={title} onChange={event => { setTitle(event.target.value); setNotice(''); }} />
-      {((recordType==='record' && fields.includes('artist')) || artist || copy.record_details.artist) && <><label htmlFor="copy-artist">{types?.record.fields.find(field=>field.key==='artist')?.label || 'artist'} (optional)</label><input id="copy-artist" maxLength={types?.record.fields.find(field=>field.key==='artist')?.max_length || 500} value={artist} onChange={event=>{setArtist(event.target.value);setNotice('');}} /></>}
-      {((recordType==='record' && fields.includes('format')) || format || copy.record_details.format) && <><label htmlFor="copy-format">{types?.record.fields.find(field=>field.key==='format')?.label || 'format'} (optional)</label><input id="copy-format" maxLength={types?.record.fields.find(field=>field.key==='format')?.max_length || 100} value={format} onChange={event=>{setFormat(event.target.value);setNotice('');}} /></>}
+      {!artistFirst && artistInput}
+      {((recordType==='record' && fields.includes('format')) || format || copy.record_details.format) && <><label htmlFor="copy-format">{types?.record.fields.find(field=>field.key==='format')?.label || 'format'} (optional)</label><ObservationInput key={`format-${copy.id}-${copy.details_revision}`} id="copy-format" field={types?.record.fields.find(field=>field.key==='format') || {key:'format',label:'Format',max_length:100,placeholder:'',suggested:true}} value={format} change={value=>{setFormat(value);setNotice('');}} /></>}
       {recordType==='record' && <p className="hint">Saved record details stay editable even when hidden from new entry forms.</p>}
       {(recordType!=='record' || fields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) && <><label htmlFor="copy-edition">Edition</label><input id="copy-edition" maxLength={500} value={edition} onChange={event => { setEdition(event.target.value); setNotice(''); }} aria-describedby="copy-edition-help" />
       <p className="hint" id="copy-edition-help">Optional. For example, Blue vinyl or First printing.</p></>}

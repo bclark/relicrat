@@ -11,6 +11,9 @@ def test_bundled_definitions_and_api_limits():
     assert list(types) == ['other', 'record']
     assert types['record'].title.label == 'Album title'
     assert [field.key for field in types['record'].fields if field.suggested] == ['artist', 'format', 'edition', 'notes']
+    assert types['record'].entry_order[0:2] == ['artist','title']
+    assert types['record'].fields[0].input == 'autocomplete'
+    assert types['record'].fields[1].options == ['Vinyl','CD','Cassette']
     for key in ('artist', 'format'):
         limit = next(field.max_length for field in types['record'].fields if field.key == key)
         assert getattr(RecordDetails(**{key: 'x'*limit}),key) == 'x'*limit
@@ -31,9 +34,26 @@ def test_bundled_definitions_and_api_limits():
     lambda value: value['fields'][0].update(suggested='yes'),
     lambda value: value['title'].update(key='artist'),
     lambda value: value.update(fields=[]),
+    lambda value: value.update(entry_order=[]),
+    lambda value: value.update(entry_order=['artist','title','format','edition','artist']),
+    lambda value: value.update(entry_order=['title','format','edition','notes']),
+    lambda value: value['fields'][0].update(input='select',options=['A']),
+    lambda value: value['fields'][1].update(input='autocomplete',options=[]),
+    lambda value: value['fields'][1].update(options=['Vinyl','vinyl']),
+    lambda value: value['fields'][1].update(options=[]),
+    lambda value: value['fields'][1].update(options=['__other__']),
+    lambda value: value['fields'][1].update(options=['x'*101]),
+    lambda value: value['fields'][1].update(options=[' ']),
+    lambda value: value['fields'][0].update(options=['x']),
 ])
 def test_reject_invalid_definition(change):
     value = copy.deepcopy(COLLECTION_TYPES['record'].model_dump())
     change(value)
     with pytest.raises(ValidationError):
         CollectionType.model_validate(value)
+
+
+def test_earlier_v1_definitions_keep_title_first_when_order_is_omitted():
+    value=COLLECTION_TYPES['record'].model_dump(exclude={'entry_order'})
+    definition=CollectionType.model_validate(value)
+    assert definition.entry_order==['title','artist','format','edition','notes']

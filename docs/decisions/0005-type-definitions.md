@@ -31,3 +31,24 @@ endpoint. Old web remains compatible with the new API. Source definitions travel
 in the existing image and git-archived recovery capsule; no external runtime
 configuration is needed for restore. Reverting this release needs no database
 rollback because persisted data shapes are unchanged.
+
+
+## Entry assistance
+
+The definition may set `entry_order`; version-1 definitions that omit it retain
+title-first order. Records now puts optional artist before required album title.
+Bounded control metadata selects native text/autocomplete or a Format select.
+Only artist can query saved-value suggestions; only Format has a configured
+choice list, always allowing Other and unknown. Unsupported control/field
+combinations, duplicate or overlong choices and duplicate/missing order keys
+fail definition validation. No code, query expressions or URL is configurable.
+
+Artist suggestions are a protected, read-only, bounded database query over
+non-deleted Record observations, independent of inventory pagination. Native
+input/datalist preserves arbitrary typed artists and keyboard use. Requests are
+debounced and aborted when obsolete. Failure leaves free typing and saving
+available. Suggestions are never selected or persisted automatically.
+Custom formats stay editable, including when owner preferences hide the field.
+Selecting Other opens text entry; a failed save keeps that draft. Saving a new
+find resets the dropdown to unknown. No acquisition/catalog/ownership inference
+or migration accompanies these controls.

@@ -141,3 +141,36 @@ def test_type_definitions_are_owner_only_read_only_and_do_not_change_preferences
     assert api.get(SETTINGS).json()==before
     api.headers.pop('Authorization')
     assert api.get(SETTINGS+'/types').status_code==401
+
+
+def test_artist_suggestions_saved_private_literal_deduplicated_and_read_only(context):
+    api,engine,create=context
+    for artist in ['Ramones','ramones','The Replacements','A%_Band','AXYBand']:
+        create(title='Example album',collection_type='record',record_details={'artist':artist})
+    hidden=create(title='Removed album',collection_type='record',record_details={'artist':'Removed artist'})
+    other=create(title='Changed type',collection_type='record',record_details={'artist':'Other type artist'})
+    with engine.begin() as db:
+        db.execute(text('UPDATE owned_copies SET deleted_at=now() WHERE id=:id'),{'id':UUID(hidden['id'])})
+        db.execute(text("UPDATE owned_copies SET collection_type='other' WHERE id=:id"),{'id':UUID(other['id'])})
+    before=api.get(SETTINGS).json()
+    path=SETTINGS+'/artist-suggestions'
+    assert api.get(path,params={'q':' ra '}).json()==['Ramones']
+    assert api.get(path,params={'q':'A%_'}).json()==['A%_Band']
+    assert api.get(path,params={'q':'nonesuch'}).json()==[]
+    assert api.get(path).json()==['A%_Band','AXYBand','Ramones','The Replacements']
+    assert api.get(path,params={'q':'x'*501}).status_code==422
+    assert api.get(path,params={'q':'bad\x00'}).status_code==422
+    assert api.post(path,json={}).status_code==405
+    assert api.get(SETTINGS).json()==before
+    api.headers.pop('Authorization')
+    assert api.get(path).status_code==401
+
+
+def test_artist_suggestions_bound_results_and_query_beyond_inventory_page(context):
+    api,_,create=context
+    for i in range(35):
+        create(title='Example album',collection_type='record',record_details={'artist':f'Band {i:02d}'})
+    path=SETTINGS+'/artist-suggestions'
+    assert len(api.get(path).json())==20
+    assert api.get(path,params={'q':'Band 34'}).json()==['Band 34']
+    assert api.get(path,params={'q':'Band 00'}).json()==['Band 00']

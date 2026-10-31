@@ -12,6 +12,23 @@ class TypeField(BaseModel):
     max_length: int = Field(ge=1, le=10000)
     placeholder: str = Field(max_length=120, pattern=r'^[^\x00]*$')
     suggested: bool
+    input: Literal['text', 'autocomplete', 'select'] = 'text'
+    options: list[str] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode='after')
+    def supported_control(self):
+        if self.input == 'autocomplete' and self.key != 'artist':
+            raise ValueError('Saved-value autocomplete is supported for artist only')
+        if self.input == 'select':
+            if self.key != 'format' or not self.options:
+                raise ValueError('Format choices must be nonempty')
+            if any(option == '__other__' or not option.strip() or option != option.strip() or len(option) > self.max_length or '\x00' in option for option in self.options):
+                raise ValueError('Choices must be meaningful bounded text')
+            if len({option.casefold() for option in self.options}) != len(self.options):
+                raise ValueError('Choices must be unique')
+        elif self.options:
+            raise ValueError('Choices require a select control')
+        return self
 
 
 class CollectionType(BaseModel):
@@ -22,6 +39,7 @@ class CollectionType(BaseModel):
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
+    entry_order: list[Literal['title', 'artist', 'format', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
 
     @field_validator('schema_version', mode='before')
     @classmethod
@@ -38,6 +56,10 @@ class CollectionType(BaseModel):
         keys = [field.key for field in self.fields]
         if self.title.key != 'title' or len(keys) != len(set(keys)) or set(keys) != allowed:
             raise ValueError('Definition must describe exactly the supported fields')
+        if 'entry_order' not in self.model_fields_set:
+            self.entry_order = ['title', *keys]
+        if len(self.entry_order) != len(set(self.entry_order)) or set(self.entry_order) != allowed | {'title'}:
+            raise ValueError('Entry order must contain every supported field exactly once')
         if any(field.max_length != limits[field.key] for field in [self.title, *self.fields]):
             raise ValueError('Field limits must match deployed storage validation')
         return self
