@@ -8,7 +8,7 @@ const base = process.env.RELICRAT_TEST_WEB_URL || 'http://127.0.0.1:63112';
 assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:', 'Use an isolated loopback test server');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const id = number => `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`;
-const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', collection_type:'other', record_details:{}, catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
+const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', collection_type:'other', record_details:{}, comic_details:{}, catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
 const ownerPassword = 'synthetic-only-owner-password';
 let browser;
 async function signIn(context) {
@@ -37,7 +37,9 @@ async function fixture(t, initial = {}) {
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
     if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
-    if (path === 'collection-settings/artist-suggestions') {
+    if (path === 'collection-settings/publisher-suggestions') {
+      const q=(url.searchParams.get('q') || '').trim().toLowerCase();result=[...new Set(state.copies.filter(copy=>copy.collection_type==='comic').map(copy=>copy.comic_details?.publisher).filter(Boolean))].filter(value=>value.toLowerCase().startsWith(q)).slice(0,20);
+    } else if (path === 'collection-settings/artist-suggestions') {
       if(state.failSuggestions) {status=502;result={detail:'Suggestions unavailable'};}
       else {const q=(url.searchParams.get('q') || '').trim().toLowerCase();if(state.slowSuggestions && q==='ra') await new Promise(resolve=>setTimeout(resolve,500));result=[...new Set(state.copies.filter(copy=>copy.collection_type==='record').map(copy=>copy.record_details?.artist).filter(Boolean))].filter(artist=>artist.toLowerCase().startsWith(q)).slice(0,20);}
     } else if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
@@ -54,7 +56,7 @@ async function fixture(t, initial = {}) {
       else {
         const q = url.searchParams.get('q') || '';
         if (q === 'Old') await new Promise(resolve => setTimeout(resolve, 400));
-        result = state.copies.filter(item => `${item.title || ''} ${item.description || ''} ${item.record_details?.artist || ''} ${item.record_details?.format || ''}`.toLowerCase().includes(q.toLowerCase()));
+        result = state.copies.filter(item => `${item.title || ''} ${item.description || ''} ${item.record_details?.artist || ''} ${item.record_details?.format || ''} ${item.comic_details?.issue_number || ''} ${item.comic_details?.publisher || ''}`.toLowerCase().includes(q.toLowerCase()));
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         result = result.slice(offset, offset + limit);
       }
@@ -62,7 +64,7 @@ async function fixture(t, initial = {}) {
       const payload = request.postDataJSON();
       if (state.failCreate === 'validation') { status = 422; result = { detail: 'Synthetic validation error' }; }
       else {
-        const item = copy(state.copies.length + 1, payload.title, { description: payload.description,collection_type:payload.collection_type || 'other',record_details:Object.fromEntries(Object.entries(payload.record_details || {}).filter(([,value])=>value)),edition_label:payload.edition_label || null });
+        const item = copy(state.copies.length + 1, payload.title, { description: payload.description,collection_type:payload.collection_type || 'other',record_details:Object.fromEntries(Object.entries(payload.record_details || {}).filter(([,value])=>value)),comic_details:Object.fromEntries(Object.entries(payload.comic_details || {}).filter(([,value])=>value)),edition_label:payload.edition_label || null });
         state.copies.unshift(item);
         status = state.failCreate === 'uncertain' ? 502 : 201;
         result = status === 201 ? item : { detail: 'Save could not be confirmed. Reload inventory before retrying.' };
@@ -115,8 +117,8 @@ async function fixture(t, initial = {}) {
         if (state.failDetails === 'validation') { status = 422; result = { detail: 'Synthetic copy edit rejected' }; }
         else if (payload.expected_details_revision !== item.details_revision || payload.expected_identification_revision !== item.identification_revision) { status = 409; result = { detail: 'This copy changed elsewhere' }; }
         else {
-          state.edits[cid] = [...(state.edits[cid] || []), { id: id(8000 + state.writes.length), before_collection_type:item.collection_type,after_collection_type:payload.collection_type || item.collection_type,before_record_details:item.record_details,after_record_details:payload.record_details || item.record_details,before_title: item.title, after_title: payload.title, before_edition_label: item.edition_label, after_edition_label: payload.edition_label, after_revision: item.details_revision + 1, created_at: item.created_at }];
-          item.collection_type=payload.collection_type || item.collection_type; item.record_details=Object.fromEntries(Object.entries(payload.record_details || item.record_details).filter(([,value])=>value)); item.title = payload.title; item.edition_label = payload.edition_label; item.details_revision += 1;
+          state.edits[cid] = [...(state.edits[cid] || []), { id: id(8000 + state.writes.length), before_collection_type:item.collection_type,after_collection_type:payload.collection_type || item.collection_type,before_comic_details:item.comic_details,after_comic_details:payload.comic_details || item.comic_details,before_record_details:item.record_details,after_record_details:payload.record_details || item.record_details,before_title: item.title, after_title: payload.title, before_edition_label: item.edition_label, after_edition_label: payload.edition_label, after_revision: item.details_revision + 1, created_at: item.created_at }];
+          item.comic_details=Object.fromEntries(Object.entries(payload.comic_details || item.comic_details || {}).filter(([,value])=>value)); item.collection_type=payload.collection_type || item.collection_type; item.record_details=Object.fromEntries(Object.entries(payload.record_details || item.record_details).filter(([,value])=>value)); item.title = payload.title; item.edition_label = payload.edition_label; item.details_revision += 1;
           status = state.uncertainDetails ? 502 : 200;
           result = status === 200 ? item : { detail: 'Save could not be confirmed. Reload and inspect.' };
         }
@@ -1066,4 +1068,78 @@ test('Album labels reach type selection and history while stored identities stay
   await page.getByText('Type: Other to Album',{exact:true}).waitFor();
   assert.equal(state.copies[0].collection_type,'record');
   assert.equal(state.edits[item.id][0].after_collection_type,'record');
+});
+
+
+test('Comics setup previews without writes; series-only and issue/publisher entry reuse the copy workflow',async t=>{
+  const {page,state}=await fixture(t,{settings:{...freshSettings(),comics_enabled:false,comic_fields:['issue_number','publisher','edition','notes']}});
+  await page.getByRole('button',{name:'Set up your collection',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Comics',exact:true}).check();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  assert.equal(state.writes.length,0);
+  await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  const form=page.getByRole('form',{name:'Add a find',exact:true});
+  await form.getByLabel('Series/title',{exact:true}).fill('Example heroes');
+  await form.getByLabel('Issue number (optional)',{exact:true}).fill('001½');
+  await form.getByLabel('Publisher (optional)',{exact:true}).fill('Example Press');
+  await form.getByLabel('Edition or cover (optional)',{exact:true}).fill('Copper cover');
+  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await form.screenshot({path:`${output}/comic-desktop.png`});await page.setViewportSize({width:390,height:844});await form.screenshot({path:`${output}/comic-mobile.png`});}
+  await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:'Example heroes #001½',exact:true}).waitFor();
+  assert.equal(state.copies.length,1);assert.equal(state.items.length,0);
+  await form.getByLabel('Publisher (optional)',{exact:true}).fill('Ex');
+  await page.locator('#find-publisher-suggestions option[value="Example Press"]').waitFor({state:'attached'});
+  await form.getByLabel('Publisher (optional)',{exact:true}).fill('');
+  const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editor.getByLabel('Issue number (optional)',{exact:true}).fill('Annual 1');
+  await editor.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByRole('heading',{name:'Example heroes #Annual 1',exact:true}).waitFor();
+  await editor.getByLabel('Collection type',{exact:true}).selectOption('other');
+  await editor.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  assert.deepEqual(state.copies[0].comic_details,{issue_number:'Annual 1',publisher:'Example Press'});
+  assert.equal(await editor.getByLabel('Publisher (optional)',{exact:true}).inputValue(),'Example Press');
+  await form.getByLabel('Series/title',{exact:true}).fill('Series title only');
+  await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:'Series title only',exact:true}).waitFor();
+  assert.deepEqual(state.copies[0].comic_details,{});
+});
+
+test('real Comics persist issue publisher photo and storage across reload',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
+  const context=await browser.newContext();t.after(()=>context.close());await signIn(context);
+  const title='Synthetic comic trial '+Date.now(); const display=title+' #423';
+  const page=await context.newPage();await page.goto(base);
+  await page.getByRole('button',{name:'Collection settings',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Comics',exact:true}).check();
+  await page.getByLabel('Start new finds as',{exact:true}).selectOption('comic');
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});
+  await intake.getByLabel('Series/title',{exact:true}).fill(title);
+  await intake.getByLabel('Issue number (optional)',{exact:true}).fill('423');
+  await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic Press');
+  await intake.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:display,exact:true}).waitFor();
+  await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic-comic.png',mimeType:'image/png',buffer:png});
+  await page.getByRole('button',{name:'Upload photo',exact:true}).click();
+  await page.getByAltText('Photo 1 of '+display).waitFor();
+  await page.getByText('Create a storage location',{exact:true}).click();
+  await page.getByLabel('Location name',{exact:true}).fill('Synthetic Comics box');
+  await page.getByRole('button',{name:'Create location',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'created. Choose it under Location'}).waitFor();
+  const box=await page.getByLabel('Location',{exact:true}).locator('option').filter({hasText:'Synthetic Comics box'}).getAttribute('value');
+  await page.getByLabel('Location',{exact:true}).selectOption(box);
+  await page.getByRole('status').filter({hasText:'Added to Synthetic Comics box.'}).waitFor();
+  const original=await page.evaluate(async title=> (await (await fetch('/api/v1/inventory?q='+encodeURIComponent(title))).json())[0],title);
+  assert.deepEqual(original.comic_details,{issue_number:'423',publisher:'Synthetic Comic Press'});
+  await page.reload();
+  await page.getByRole('button',{name:'Open '+display,exact:true}).click();
+  await page.getByAltText('Photo 1 of '+display).waitFor();
+  assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
+  await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic');
+  await page.locator('#find-publisher-suggestions option[value="Synthetic Comic Press"]').waitFor({state:'attached'});
+  const restored=await page.evaluate(async id=>await (await fetch('/api/v1/inventory/'+id)).json(),original.id);
+  assert.equal(restored.id,original.id);assert.equal(restored.storage_location_id,box);assert.deepEqual(restored.comic_details,original.comic_details);
 });

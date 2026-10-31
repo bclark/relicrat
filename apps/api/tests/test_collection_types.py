@@ -8,7 +8,7 @@ from relicrat.record_details import RecordDetails
 
 def test_bundled_definitions_and_api_limits():
     types = load_types()
-    assert list(types) == ['other', 'record']
+    assert list(types) == ['other', 'record', 'comic']
     assert types['record'].label == 'Album'
     assert types['record'].plural_label == 'Albums'
     assert types['record'].id == 'record'  # Stable persisted ID; a label change needs no migration.
@@ -60,3 +60,13 @@ def test_earlier_v1_definitions_keep_title_first_when_order_is_omitted():
     value=COLLECTION_TYPES['record'].model_dump(exclude={'entry_order'})
     definition=CollectionType.model_validate(value)
     assert definition.entry_order==['title','artist','format','edition','notes']
+
+
+def test_comic_definition_matches_bounded_storage():
+    from relicrat.comic_details import ComicDetails
+    definition=COLLECTION_TYPES['comic']
+    assert definition.label=='Comic' and definition.title.label=='Series/title'
+    assert definition.entry_order==['title','issue_number','publisher','edition','notes']
+    assert ComicDetails(issue_number=' 001½ ',publisher=' Example Press ').model_dump()=={'issue_number':'001½','publisher':'Example Press'}
+    for values in ({'issue_number':'x'*101},{'publisher':'x'*251},{'issue_number':423},{'unknown':'x'}):
+        with pytest.raises(ValidationError):ComicDetails(**values)

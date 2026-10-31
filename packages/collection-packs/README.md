@@ -45,3 +45,16 @@ from the visible inventory page, browser storage or an external catalog.
 The music type is presented as **Album/Albums**, covering vinyl, CDs and tapes.
 Its stable stored ID and filename remain `record` / `record.json`; renaming a
 display label does not rewrite existing copies, preferences or audit history.
+
+## Comics
+
+`comic.json` adds Comics with Series/title, optional issue number and publisher,
+edition/cover and notes. The issue is text (including `001` or `½`), not a numeric
+identity. Publisher uses the same native saved-value suggestion control as artist,
+with its own protected fixed query. No external catalog is consulted.
+
+The explicit Comics storage/validation/history path accompanies this definition;
+adding a config file alone still does not install a new storage type. Existing
+Album and Other data are unchanged. Type changes and preference visibility never
+erase observations. The unused-Comics downgrade guard and recovery requirement
+are described in ADR 0006.

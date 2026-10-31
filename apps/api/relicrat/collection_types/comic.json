@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "comic",
+  "label": "Comic",
+  "plural_label": "Comics",
+  "title": {
+    "key": "title",
+    "label": "Series/title",
+    "max_length": 500,
+    "placeholder": "e.g. Batman",
+    "suggested": true
+  },
+  "fields": [
+    {
+      "key": "issue_number",
+      "label": "Issue number",
+      "max_length": 100,
+      "placeholder": "e.g. 423, \u00bd or Annual 1",
+      "suggested": true
+    },
+    {
+      "key": "publisher",
+      "label": "Publisher",
+      "max_length": 250,
+      "placeholder": "",
+      "suggested": true,
+      "input": "autocomplete"
+    },
+    {
+      "key": "edition",
+      "label": "Edition or cover",
+      "max_length": 500,
+      "placeholder": "",
+      "suggested": true
+    },
+    {
+      "key": "notes",
+      "label": "Notes",
+      "max_length": 10000,
+      "placeholder": "",
+      "suggested": true
+    }
+  ],
+  "entry_order": [
+    "title",
+    "issue_number",
+    "publisher",
+    "edition",
+    "notes"
+  ]
+}

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.record_details import RecordDetails
+from relicrat.comic_details import ComicDetails
 from relicrat.collection_types import COLLECTION_TYPES
 from relicrat.reconciliation import ReconciliationError, reconcile
 
@@ -22,8 +23,9 @@ router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
 
 class CreateProvisionalCopy(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    collection_type: Literal['other', 'record'] = 'other'
+    collection_type: Literal['other', 'record', 'comic'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
+    comic_details: ComicDetails = Field(default_factory=ComicDetails)
     edition_label: str | None = Field(default=None, max_length=500, pattern=r'^[^\x00]*$')
     title: str | None = Field(default=None, max_length=500)
     description: str | None = Field(default=None, max_length=10000)
@@ -32,8 +34,10 @@ class CreateProvisionalCopy(BaseModel):
     def require_content(self) -> "CreateProvisionalCopy":
         self.title = self.title.strip() if self.title else None
         self.description = self.description.strip() if self.description else None
-        if self.collection_type == 'other' and self.record_details.model_dump(exclude_none=True):
+        if self.collection_type != 'record' and self.record_details.model_dump(exclude_none=True):
             raise ValueError(f"Choose {COLLECTION_TYPES['record'].label} before adding artist or format")
+        if self.collection_type != 'comic' and self.comic_details.model_dump(exclude_none=True):
+            raise ValueError('Choose Comic before adding issue number or publisher')
         if not self.title and not self.description:
             raise ValueError("A title or description is required")
         return self
@@ -45,8 +49,9 @@ class InventoryCopy(BaseModel):
     id: UUID
     title: str | None = Field(validation_alias="provisional_title")
     description: str | None
-    collection_type: Literal['other', 'record']
+    collection_type: Literal['other', 'record', 'comic']
     record_details: dict[str, str]
+    comic_details: dict[str, str]
     edition_label: str | None
     details_revision: int
     catalog_item_id: UUID | None
@@ -62,7 +67,7 @@ class InventoryCopy(BaseModel):
 
 @router.post("", response_model=InventoryCopy, status_code=201)
 def create_copy(payload: CreateProvisionalCopy, db: Session = Depends(get_db)) -> OwnedCopy:
-    copy = OwnedCopy(provisional_title=payload.title, description=payload.description, edition_label=payload.edition_label.strip() if payload.edition_label else None, collection_type=payload.collection_type, record_details=payload.record_details.model_dump(exclude_none=True))
+    copy = OwnedCopy(provisional_title=payload.title, description=payload.description, edition_label=payload.edition_label.strip() if payload.edition_label else None, collection_type=payload.collection_type, record_details=payload.record_details.model_dump(exclude_none=True), comic_details=payload.comic_details.model_dump(exclude_none=True))
     try:
         db.add(copy)
         db.commit()
@@ -104,6 +109,8 @@ def list_copies(
             OwnedCopy.description.icontains(term, autoescape=True),
             OwnedCopy.record_details['artist'].astext.icontains(term, autoescape=True),
             OwnedCopy.record_details['format'].astext.icontains(term, autoescape=True),
+            OwnedCopy.comic_details['issue_number'].astext.icontains(term, autoescape=True),
+            OwnedCopy.comic_details['publisher'].astext.icontains(term, autoescape=True),
             OwnedCopy.edition_label.icontains(term, autoescape=True),
             CatalogItem.canonical_name.icontains(term, autoescape=True),
             Release.name.icontains(term, autoescape=True),
@@ -112,8 +119,9 @@ def list_copies(
 
 
 class EditCopyDetails(BaseModel):
-    collection_type: Literal['other', 'record'] = 'other'
+    collection_type: Literal['other', 'record', 'comic'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
+    comic_details: ComicDetails = Field(default_factory=ComicDetails)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     title: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
     edition_label: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
@@ -127,6 +135,8 @@ class DetailEventInfo(BaseModel):
     owned_copy_id: UUID
     before_collection_type: str | None
     after_collection_type: str | None
+    before_comic_details: dict | None
+    after_comic_details: dict | None
     before_record_details: dict | None
     after_record_details: dict | None
     before_title: str | None
@@ -146,7 +156,8 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
         return save_details(db, copy_id, payload.title or None, payload.edition_label,
                             payload.expected_details_revision, payload.expected_identification_revision,
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
-                            record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None)
+                            record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,
+                            comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None)
     except DetailError as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from None
 

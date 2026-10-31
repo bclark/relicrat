@@ -17,12 +17,12 @@ export default function ObservationInput({ id, field, value, change }: Props) {
     const controller = new AbortController();
     setSuggestions([]); setUnavailable(false);
     const timer = setTimeout(() => {
-      api<string[]>(`collection-settings/artist-suggestions?q=${encodeURIComponent(value)}`, {signal:controller.signal})
+      api<string[]>(`collection-settings/${field.key==='publisher' ? 'publisher' : 'artist'}-suggestions?q=${encodeURIComponent(value)}`, {signal:controller.signal})
         .then(values => { if (!controller.signal.aborted) setSuggestions(values); })
         .catch(() => { if (!controller.signal.aborted) setUnavailable(true); });
     }, 200);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [field.input, value]);
+  }, [field.input, field.key, value]);
   if (field.input === 'select') return <>
     <select id={id} value={otherSelected ? '__other__' : value} onChange={event=>{
       const other = event.target.value === '__other__'; setCustom(other); change(other ? '' : event.target.value);
@@ -34,6 +34,6 @@ export default function ObservationInput({ id, field, value, change }: Props) {
     <input id={id} maxLength={field.max_length} placeholder={field.placeholder} value={value} onChange={event=>change(event.target.value)}
       list={field.input==='autocomplete' ? `${id}-suggestions` : undefined} autoComplete={field.input==='autocomplete' ? 'off' : undefined} aria-describedby={unavailable ? `${id}-hint` : undefined} />
     {field.input==='autocomplete' && <datalist id={`${id}-suggestions`}>{suggestions.map(suggestion=><option key={suggestion} value={suggestion} />)}</datalist>}
-    {unavailable && <p id={`${id}-hint`} className="hint" role="status">Suggestions unavailable. You can still type an artist.</p>}
+    {unavailable && <p id={`${id}-hint`} className="hint" role="status">Suggestions unavailable. You can still type here.</p>}
   </>;
 }
