@@ -58,6 +58,8 @@ async function fixture(t, initial = {}) {
         if (q === 'Old') await new Promise(resolve => setTimeout(resolve, 400));
         result = state.copies.filter(item => `${item.title || ''} ${item.description || ''} ${item.record_details?.artist || ''} ${item.record_details?.format || ''} ${item.comic_details?.issue_number || ''} ${item.comic_details?.publisher || ''}`.toLowerCase().includes(q.toLowerCase()));
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
+        const type=url.searchParams.get('collection_type');
+        if(type) result=result.filter(item=>item.collection_type===type);
         result = result.slice(offset, offset + limit);
       }
     } else if (method === 'POST' && path === 'inventory') {
@@ -1185,4 +1187,47 @@ test('sign-in without JavaScript never places the password in the URL',async t=>
   const request=await submitted;
   assert.equal(new URL(request.url()).pathname,'/login');
   assert.equal(new URL(request.url()).search,'');
+});
+
+
+test('collection type filters the entire list, scopes search/pages and preserves drafts',async t=>{
+  const copies=[...Array.from({length:23},(_,n)=>copy(n+1,'Shared album '+n,{collection_type:'record'})),copy(30,'Shared comic',{collection_type:'comic',comic_details:{issue_number:'423'}}),copy(31,'Shared other')];
+  const {page,state}=await fixture(t,{copies});
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'5 copies on this page'}).waitFor();
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});
+  await intake.getByLabel('Title',{exact:true}).fill('Keep my intake draft');
+  const filter=page.getByLabel('Show collection type',{exact:true});
+  await filter.selectOption({label:'Comics'});
+  await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
+  assert.equal(await page.getByText('Page 1',{exact:true}).count(),1);
+  assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep my intake draft');
+  await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).click();
+  const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editor.getByLabel('Series/title',{exact:true}).fill('Keep my edit draft');
+  await filter.selectOption({label:'Albums'});
+  await page.getByRole('status').filter({hasText:'20 copies on this page · Albums'}).waitFor();
+  assert.equal(await editor.getByLabel('Series/title',{exact:true}).inputValue(),'Keep my edit draft');
+  await page.getByLabel('Find a copy',{exact:true}).fill('Shared comic');await page.getByRole('button',{name:'Search',exact:true}).click();
+  await page.getByRole('heading',{name:'No matching copies',exact:true}).waitFor();
+  await filter.selectOption('comic');await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Clear search',exact:true}).click();
+  assert.equal(await filter.inputValue(),'comic');
+  await filter.selectOption('other');await page.getByRole('button',{name:'Open Shared other',exact:true}).waitFor();
+  await filter.selectOption('');await page.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
+  assert.equal(state.writes.length,0);
+  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await page.locator('.collection').screenshot({path:`${output}/type-filter-desktop.png`});await page.setViewportSize({width:390,height:844});await page.locator('.collection').screenshot({path:`${output}/type-filter-mobile.png`});}
+});
+
+test('saving outside the visible type filter keeps the find type and explains where to see it',async t=>{
+  const {page,state}=await fixture(t,{copies:[copy(1,'A comic',{collection_type:'comic'})]});
+  const filter=page.getByLabel('Show collection type',{exact:true});await filter.selectOption('comic');
+  await page.getByRole('button',{name:'Open A comic',exact:true}).waitFor();
+  const form=page.getByRole('form',{name:'Add a find',exact:true});await form.getByLabel('Title',{exact:true}).fill('A generic find');
+  await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Choose All types to see it in the list.'}).waitFor();
+  assert.equal(await filter.inputValue(),'comic');assert.equal(state.copies[0].collection_type,'other');
+  assert.equal(await page.getByRole('button',{name:'Open A generic find',exact:true}).count(),0);
+  await filter.selectOption('');await page.getByRole('button',{name:'Open A generic find',exact:true}).waitFor();
+  assert.equal(state.writes.filter(write=>write.path==='inventory').length,1);
 });
