@@ -1,67 +1,64 @@
-# RelicRat 🐀
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/wordmark-reversed-PROPOSED.svg">
+    <img src="docs/brand/wordmark-PROPOSED.svg" alt="RelicRat" width="360">
+  </picture>
+</h1>
 
-**Know what you have. Know where it is. Know its story.**
+<p align="center"><strong>Modern collecting. Timeless stories.</strong></p>
 
-RelicRat is a self-hosted inventory and collection-management platform for physical collectibles. It is designed for collectors who want to catalog individual items, keep track of where they live, understand their provenance and value, and see what is missing from a collection—without surrendering control of their data.
+<p align="center">A self-hosted home for your comics, albums and other finds.<br>Know what you have, where it lives, and the story behind each copy.</p>
 
-> **Project status:** Early development. The first browser workflow supports synthetic intake, photos, storage, and search. It is **not ready for real collection data or production use**; single-owner authentication is implemented, while production deployment and recovery remain unfinished.
+<p align="center">
+  <a href="#what-works-today">Features</a> ·
+  <a href="#try-it-locally">Local setup</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="#license">AGPL-3.0-only</a>
+</p>
 
-## What we're building
+<p align="center">
+  <img src="docs/brand/mascot-vinyl-v2-PROPOSED.png" alt="RelicRat’s collector mascot carefully holding a record by its edges, wearing a burgundy waistcoat and leather satchel." width="260">
+</p>
 
-- **A home for every physical copy.** Catalog identities, editions, and individual owned copies are distinct. Each copy can have its own condition, grading, photos, location, acquisition details, and history.
-- **Fast cataloging.** Start with a photo or short description, then identify and reconcile items later. Planned workflows include barcode scanning, AI-assisted recognition, and reviewable bulk imports.
-- **Collection Packs.** Portable, versioned Markdown/YAML definitions describe categories, checklists, metadata, and completion rules. Packs never imply ownership.
-- **Organize and find things.** Nested storage locations, QR labels, manual collections, smart collections, and unified search across owned items, wishlists, listings, and missing items.
-- **Understand your collection.** Optional valuation providers, evidence and confidence, price history, completion tracking, and wishlists.
-- **Sell without losing history.** Draft listings, multi-item lots, marketplace integrations where available, and recorded sale transactions.
-- **Own your data.** Run locally on a NAS or server, use PostgreSQL and filesystem-backed media, and maintain verified backups and portable exports.
+> **Early development.** RelicRat is an experimental single-owner application, not a production-ready deployment. The setup below is for private local testing with synthetic data. Production hardening and recovery remain unfinished.
 
-These are **product goals**, not implemented features.
+## What works today
 
-## Design principles
+Start with a title. Add the details when you have them.
 
-1. **Inventory is authoritative.** AI, marketplaces, and external catalogs propose changes; the collector reviews them.
-2. **One object, one identity.** A physical copy retains its UUID and history even when identification improves.
-3. **Catalogs are shared, ownership is personal.** Multiple packs may reference the same canonical item.
-4. **Local-first deployment.** Self-hosting, backup, privacy, and data portability are fundamental.
-5. **Small, testable increments.** Build an end-to-end workflow before expanding into integrations.
-6. **Explain uncertainty.** Unknown value is not zero; tentative matches and disputed metadata remain visible.
-
-## Architecture
-
-| Layer | Planned stack |
+| Your collection | What you can do |
 | --- | --- |
-| Web | Next.js, React, TypeScript, responsive PWA |
-| API | Python, FastAPI, Pydantic |
-| Persistence | PostgreSQL, SQLAlchemy 2.x, Alembic |
-| Background work | Python worker/scheduler; queue implementation to be selected |
-| Media | Filesystem storage on the host/NAS |
-| Deployment | Docker Compose |
-| AI | Configurable local or cloud providers, opt-in where appropriate |
+| **Comics, albums and other finds** | Add a physical copy with just a title; attach notes, an edition label and photos later. Albums support artist and format; Comics support series, issue and publisher. |
+| **CLZ and Discogs imports** | Upload a CSV, review the mapping and samples, then explicitly import. Original fields stay attached to each copy; exact-file retries do not add duplicates. |
+| **Groups that make sense** | Browse Comics by series and Albums by artist, with counts and paginated copies. Search and filter by collection type or assigned storage location. |
+| **A place for every copy** | Create nested locations, assign a copy to a box or shelf, and retain its movement history. |
+| **Details without losing history** | Edit personal copy details or optionally match a shared catalog item and edition. Physical copies keep their own identities, photos and history. |
+| **A look of your own** | Preview and apply themes for colors, fonts, spacing, corners and density. Import/export theme JSON or use the authoring guidelines with your chosen AI tool. |
 
-A **modular monolith** keeps domain boundaries clear without premature microservices.
+Single-owner sign-in protects the inventory, source records and photos. PostgreSQL
+stores the records; a separate media volume holds uploaded images.
 
-### Repository layout
+Imported storage labels remain source information until you assign locations.
+Changed CSV exports can add duplicates: exact-file protection is not automatic
+reconciliation across exports. There is no embedded AI service or automatic
+catalog matching.
 
-```text
-apps/
-  api/                  FastAPI service and Alembic migrations
-  web/                  Next.js frontend
-packages/
-  collection-packs/     Pack schema and examples
-infra/
-  docker/               Docker build definitions
-docs/
-  architecture/         System design and domain model
-  decisions/            Architecture decision records
-scripts/                Developer utilities
-compose.yaml            Local services
-.env.example            Configuration template (no secrets)
-```
+## One collectible. Several editions. Your individual copies.
 
-## Getting started (development)
+RelicRat keeps three things separate:
 
-**Prerequisites:** Docker Engine with Compose v2, and Git. Local Python/Node toolchains are optional if using containers.
+- **Catalog item:** the logical collectible, such as an album.
+- **Release:** a particular edition or variant, such as a CD release.
+- **Owned copy:** your individual physical object, with its own photos, location and history.
+
+You can save a find before identifying its catalog item or edition. Grouping by
+artist or series helps you browse; it never merges your physical copies. Unknown
+values remain unknown, and catalog information never silently creates ownership.
+
+## Try it locally
+
+You’ll need **Git, Python 3.11+ and Docker Engine with Compose v2**. Containers
+provide the API and web runtimes; local Node.js is optional.
 
 ```bash
 git clone https://github.com/bclark/relicrat.git
@@ -69,66 +66,82 @@ cd relicrat
 cp .env.example .env
 python3 scripts/configure-owner.py --origin http://127.0.0.1:3000 --allow-loopback-http
 docker compose --env-file .env --env-file .env.owner up -d db
-docker compose --env-file .env --env-file .env.owner run --rm api alembic upgrade head
+docker compose --env-file .env --env-file .env.owner run --build --rm api alembic upgrade head
 docker compose --env-file .env --env-file .env.owner up --build
 ```
 
-Development URLs (synthetic data only):
+Open [localhost:3000](http://127.0.0.1:3000) and sign in with the owner password
+you configured. Add a made-up find, try a photo and storage assignment, or preview
+a synthetic CSV import.
 
-- Web: http://127.0.0.1:3000 (owner password required)
-- API and PostgreSQL: internal Compose network only; no published ports.
-- API documentation routes are disabled.
+Only the web server binds to host loopback. API and PostgreSQL services stay on
+the internal Compose network; API documentation routes are disabled. Images use
+a dedicated named media volume. Apply migrations before starting the app.
 
-See [owner setup and private access](docs/owner-access.md) for SSH setup, rotation and recovery.
-The web server forwards allowlisted `/api/v1/...` requests to the private API.
-Photo files use a dedicated named media volume; apply migrations before API use.
-See [browser/API setup and verification](apps/web/README.md).
+**This is a development setup.** It uses development database credentials; do not
+expose it to the internet or use it for real collection data. See
+[owner setup and private access](docs/owner-access.md) for configuration and
+[the web guide](apps/web/README.md) for browser/API details.
 
-**Development only:** Only the web port is bound to host loopback. The example still uses development database credentials. Do not expose it to the internet or store real collection data until production secrets, network access and off-host recovery are verified.
+## Built to stay in your hands
 
-## First milestone
+RelicRat is a modular monolith: one application with clear boundaries, rather
+than a collection of separate services for each feature.
 
-The first vertical slice is intentionally narrow:
+| Part | Stack |
+| --- | --- |
+| Web | Next.js, React, TypeScript |
+| API | Python, FastAPI, Pydantic |
+| Data | PostgreSQL, SQLAlchemy 2.x, Alembic |
+| Photos | Filesystem-backed media volume |
+| Local runtime | Docker Compose |
 
-1. Add a provisional owned copy with a description or photo.
-2. Identify/link it to a canonical catalog item and optional release.
-3. Assign a storage location.
-4. Find it using search.
-5. Back up the database and media.
+```text
+apps/api/              API, domain services, models and migrations
+apps/web/              Web interface and private API gateway
+packages/              Collection-pack and theme authoring guidelines
+docs/                  Architecture, decisions, operator guides and brand assets
+scripts/               Development checks and operator utilities
+compose.yaml           Local development services
+.env.example           Configuration template; no secrets
+```
 
-The API supports provisional copies, photos, and manual catalog/release reconciliation
-with revision checks and retained identification history, nested storage locations,
-and explicit revision-checked copy movements with retained history. Literal text
-search finds copies by provisional information and linked catalog/release names.
-See the [inventory API contract](apps/api/INVENTORY.md).
-The web screen also supports editing a saved physical copy’s title and personal
-edition label together, with retained edit history and an independent revision
-check. Shared catalog matching is optional under Advanced.
-The add-first web screen supports provisional intake, photo upload/viewing, nested
-storage creation, explicit location changes and literal search. Manual catalog
-lookup/creation, optional release selection and revision-checked identification
-with history are available in the copy record. Catalog editing/deletion, automated
-matching and production backup remain unimplemented. Single-owner access protects
-the application;
-an [offline operator backup/restore workflow](docs/backup-restore.md) is available
-for synthetic data on the dedicated worker, alongside the disposable recovery
-harness. Production recovery remains unfinished. The complete
-vertical slice is not delivered yet.
+The repository includes an offline operator backup/restore workflow and disposable
+recovery checks. These are documented development procedures, not a finished
+production recovery product. Keep credentials, collection exports and photos out
+of Git.
+
+## What comes next
+
+The longer-term direction includes:
+
+- Reviewed mapping of imported storage labels, and reconciliation across revised exports.
+- Barcode intake, reviewable identification suggestions and Collection Packs.
+- Condition and grading workflows, valuation evidence and price history.
+- Wishlists, sales and disposition workflows that preserve provenance.
+
+These are plans, not implemented capabilities. See the
+[architecture overview](docs/architecture/overview.md) for the intended boundaries.
 
 ## Documentation
 
-- [Project dashboard](docs/project-dashboard.html) — open the self-contained HTML in a browser for completed work, next steps and recorded validation. The snapshot is updated manually after merged milestones.
-- [Architecture overview](docs/architecture/overview.md)
-- [ADR 0001: Modular monolith and stack](docs/decisions/0001-modular-monolith.md)
-- [Owner setup and private access](docs/owner-access.md)
-- [ADR 0002: Single-owner access](docs/decisions/0002-single-owner-access.md)
-- [Development harness and Symphony pilot](docs/harness.md)
+| Start here | Go deeper |
+| --- | --- |
+| [Browser features and verification](apps/web/README.md) | [Inventory API contract](apps/api/INVENTORY.md) |
+| [Owner setup and private access](docs/owner-access.md) | [Architecture decisions](docs/decisions/) |
+| [Development harness and Symphony boundaries](docs/harness.md) | [Offline backup and restore](docs/backup-restore.md) |
+| [Theme authoring guidelines](packages/themes/AUTHORING-PROMPT.md) | [Brand artwork and status](docs/brand/README.md) |
 
-The architecture documentation records intended behavior. It is not a claim that integrations or database constraints are already implemented.
+The [project dashboard](docs/project-dashboard.html) is a manually maintained
+snapshot; it can lag behind merged work. Architecture documents describe design
+intent and do not establish that a planned feature is implemented.
 
-## Contributing and project status
+## Contributing
 
-RelicRat is a public, early-stage open-source project. Development is organized into small pull requests. Prefer focused changes, tests for domain invariants, and migration review before changing persistent data.
+RelicRat is public and open source. Focused pull requests are welcome. Read
+[AGENTS.md](AGENTS.md), trace the affected workflow, and include relevant tests
+for domain invariants, security boundaries and migration behavior. Keep proposed
+features separate from shipped capabilities.
 
 ## License
 
@@ -143,14 +156,3 @@ under the license's terms. See [LICENSE](LICENSE) for the full terms.
 
 Third-party components retain their own licenses. The software license does not
 change ownership of your collection records or uploaded media.
-
-## Roadmap
-
-| Phase | Focus |
-| --- | --- |
-| 1 — Foundation | Inventory, canonical identities, storage, search, imports, backups |
-| 2 — Intelligence | AI-assisted entry, Collection Packs, completion goals |
-| 3 — Valuation & commerce | Pricing evidence, listings, wishlists, notifications |
-| 4 — Extensions | Shared packs, richer integrations, optional native clients |
-
-**RelicRat** is the working project name. Branding and mascot design can evolve without changing the underlying data model.
