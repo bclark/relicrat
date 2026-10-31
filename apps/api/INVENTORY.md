@@ -372,3 +372,42 @@ Unconfirmed writes require reload/review, with no automatic retry. The app uses
 prompts/Markdown guidelines with a user-selected AI tool; no model endpoint is
 called. See [ADR 0007](../../docs/decisions/0007-appearance.md) for migration,
 rollback, accessibility checks and remaining limits.
+
+## CSV imports (schema 0009)
+
+Owner-only `POST /api/v1/imports/preview?source=clz|discogs` accepts raw UTF-8
+comma-separated CSV with `Content-Type: text/csv`. Preview writes nothing. The
+response includes an SHA256, fixed field mapping, first ten normalized rows,
+copy/row counts, up to 50 row errors, repeated-ID advisory count and an existing
+exact-file batch when present. All row errors block the whole import.
+
+`POST /api/v1/imports/commit?source=…&reviewed_sha256=…` accepts the same bytes,
+reparses and validates them, and checks the reviewed digest. A single transaction
+creates provisional physical copies, a batch, and retained original column/value
+objects per copy. CLZ accepts only `In Collection` and positive whole Quantity;
+Discogs creates one copy per row. Issue identifiers stay text; detailed Discogs
+Format values stay intact. No catalog/release, financial value, grading authority,
+storage assignment or preference is inferred. CLZ storage boxes and Discogs
+folders remain source information in this increment.
+
+Limits: 4 MiB file, 100 unique nonempty headers, 5,000 CSV records, 10,000 copies,
+standard-library CSV field limit, mapped field/domain limits and 16 MiB expanded
+JSON evidence. Invalid UTF-8, NUL, malformed records and mismatched columns are
+rejected without echoing file contents in errors. CSV record numbers (header is
+record 1) are used even when quoted fields contain line breaks. Nothing evaluates
+formulas, HTML or URLs in source cells.
+
+A unique `(source, sha256)` batch insert serializes simultaneous exact-file
+retries, including a lost response. It is not cross-export deduplication: changed
+bytes create a new batch, and repeated source IDs never merge physical copies.
+Commit does not automatically retry. Preview the same file to inspect completion
+following an uncertain write. No imported item overwrites an existing copy.
+
+`GET /api/v1/imports?limit=20&offset=0` lists batches newest first;
+`GET /api/v1/imports/{batch_id}/rows?limit=20&offset=0` lists retained fields,
+copy UUID, source record and quantity expansion index. Both are private and
+paginated (maximum 100). Source metadata is evidence, not executable content.
+Batch/source references use restrictive foreign keys. Existing full database
+backups include these tables. Migration downgrade refuses any retained batch;
+retain provenance or use a verified pre-import recovery copy. There is no batch
+delete/undo API or automatic matching across revised exports.

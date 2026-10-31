@@ -14,6 +14,7 @@ from relicrat.media import router as media_router
 from relicrat.collection_settings import router as settings_router
 from relicrat.catalog import router as catalog_router
 from relicrat.appearance import router as appearance_router
+from relicrat.csv_import import router as import_router
 
 app = FastAPI(title="RelicRat API", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(OwnerBoundary)
@@ -24,6 +25,7 @@ app.include_router(storage_router)
 app.include_router(catalog_router)
 app.include_router(settings_router)
 app.include_router(appearance_router)
+app.include_router(import_router)
 
 
 @app.get("/health", tags=["system"])
