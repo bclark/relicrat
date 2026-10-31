@@ -1353,3 +1353,41 @@ operator checkout's matching ignored evidence folder. Full API tests, copied
 backup/restore, phone network setup and live rollout were not run for this
 frontend-only prototype. No claim of phone readiness is made until private HTTPS
 and a hands-on device trial are complete.
+
+## NAS private HTTPS adapter (2026-10-31)
+
+A separate fixed-HTTPS-origin frontend preserves the Mac loopback frontend and
+cookie scope. A NAS-loopback adapter pins Host/Origin, strips client forwarding
+and authorization headers, relays only the HTTPS owner cookie, and enforces
+Secure/HttpOnly/SameSite/host-only response attributes using the standard cookie
+parser. Tailscale Serve supplies TLS outside the isolated worker. No app API,
+migration or collection behavior changed; no provider credentials are in source.
+See [the operator guide](private-phone-access.md) and its configuration templates.
+
+Executed synthetic checks:
+
+- `python3 -m unittest discover -s scripts -p 'test_private*py' -v`: **8 passed**,
+  covering original Mac bridge regressions and phone authority/framing, duplicate
+  headers, body/response preservation, trusted TLS headers, cookie isolation,
+  malformed upstream headers/cookies and bounded failure behavior.
+- A fresh disposable worker frontend configured with a synthetic HTTPS origin
+  and loopback HTTP disabled passed real sign-in, Secure host-only session cookie,
+  authenticated inventory/type reads, scanner rendering, hostile Host/Origin
+  rejection, refusal of a valid token under the Mac cookie name, and logout
+  revocation. No real owner credentials, images or collection rows were used.
+- The disposable web harness production build/typecheck, 31 Node checks,
+  authenticated smoke and photo persistence after API recreation passed before
+  the HTTPS-origin test stack was created. The app source is unchanged from PR50.
+
+Private activation, TLS and resource-cleanup receipts are operational evidence,
+separate from these tests. Phone autofocus/lighting and actual browser permission
+behavior still require an owner device trial; headless synthetic results do not
+establish those. No full API suite was repeated for this adapter-only increment.
+
+The privacy pass removes machine aliases, relay-container names, SSH ports,
+identity/known-host paths and engine names from the adapter source. They live in
+an owner-only local transport file. The adapter enforces strict SSH host-key
+checking and no agent forwarding, and refuses symlinked, foreign-owned,
+world/group-accessible or malformed transport files. The final bridge suite is
+**10 passed**. This generic configuration does not expose operator values through
+HTTP or Git. Public certificate-name disclosure is a separate owner choice.
