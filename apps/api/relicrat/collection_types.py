@@ -31,12 +31,21 @@ class TypeField(BaseModel):
         return self
 
 
+class BrowseGrouping(BaseModel):
+    model_config = ConfigDict(extra='forbid',strict=True,str_strip_whitespace=True)
+    field: Literal['artist','title']
+    plural_label: str = Field(min_length=1,max_length=80,pattern=r'^[^\x00]*$')
+    unknown_label: str = Field(min_length=1,max_length=80,pattern=r'^[^\x00]*$')
+    order: Literal['title','issue_number']
+
+
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
     id: Literal['other', 'record', 'comic']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
+    grouping: BrowseGrouping | None = None
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
     entry_order: list[Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
@@ -53,6 +62,8 @@ class CollectionType(BaseModel):
         # These limits describe deployed storage, not an arbitrary custom-field engine.
         limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250}
         allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}}[self.id]
+        if self.grouping and (self.grouping.field,self.grouping.order) != {'record':('artist','title'),'comic':('title','issue_number')}.get(self.id):
+            raise ValueError('Grouping must use supported storage fields and order')
         keys = [field.key for field in self.fields]
         if self.title.key != 'title' or len(keys) != len(set(keys)) or set(keys) != allowed:
             raise ValueError('Definition must describe exactly the supported fields')

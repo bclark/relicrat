@@ -1,0 +1,4 @@
+import {copyName,type InventoryCopy} from '../lib/inventory-client';
+export default function CollectionRows({items,busy,selected,open}:{items:InventoryCopy[];busy:boolean;selected:string|null;open:(id:string)=>void}){
+ return <ul className="inventory-list">{items.map(copy=><li key={copy.id}><button disabled={busy} className="inventory-row" aria-label={`Open ${copyName(copy)}${copy.edition_label?` · ${copy.edition_label}`:''}`} aria-pressed={copy.id===selected} onClick={()=>open(copy.id)}><strong>{copyName(copy)}</strong><span>{copy.description&&copy.title?copy.description:'Open this physical copy'}</span><small>{copy.edition_label||(copy.edition_label===null&&copy.release_id?'Catalog matched':'Saved copy')} · {copy.storage_location_id?'Location assigned':'No location yet'}</small></button></li>)}</ul>;
+}

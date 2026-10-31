@@ -639,3 +639,8 @@ footer {
   .appearance-columns { grid-template-columns:minmax(0,1fr); }
   .theme-preview { padding:clamp(12px,calc(var(--space) - 12px),28px); }
 }
+
+.collection-group-members {
+  padding-inline-start:16px;
+  border-inline-start:1px solid var(--rule);
+}

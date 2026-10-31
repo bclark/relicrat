@@ -53,5 +53,11 @@
     "format",
     "edition",
     "notes"
-  ]
+  ],
+  "grouping": {
+    "field": "artist",
+    "plural_label": "Artists",
+    "unknown_label": "Artist not recorded",
+    "order": "title"
+  }
 }

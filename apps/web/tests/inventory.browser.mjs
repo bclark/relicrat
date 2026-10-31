@@ -174,7 +174,7 @@ async function fixture(t, initial = {}) {
     if (result === undefined) { status = 404; result = { detail: 'Synthetic record not found' }; }
     try { await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) }); } catch { /* An intentionally aborted stale read may have closed. */ }
   });
-  await page.goto(base); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
+  await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
   return { page, state };
 }
 async function open(page, title, edition = '') {
@@ -438,7 +438,7 @@ test('a saved copy edits its existing title and edition in one form without cata
   assert.equal(state.copies.length, 1); assert.equal(state.edits[original.id].length, 2);
   await page.getByText('Copy edit history', { exact: true }).click();
   await page.getByText(`${before.title} to Harbor Lights`, { exact: true }).waitFor();
-  await page.reload(); await open(page, 'Harbor Lights', 'Blue vinyl');
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await open(page, 'Harbor Lights', 'Blue vinyl');
   assert.equal(await page.getByRole('form', { name: 'Edit copy details', exact: true }).getByLabel('Edition', { exact: true }).inputValue(), 'Blue vinyl');
   assert.equal(state.writes.length, 2, 'Reload must not repeat either save');
 });
@@ -520,7 +520,7 @@ test('a delayed matched edition never overwrites the next physical copy', async 
 test('real browser preserves three physical copies across shared editions, photos and nested storage', { skip: process.env.RELICRAT_REAL_UI_TEST !== '1' }, async t => {
   const context = await browser.newContext(); t.after(() => context.close());
   await signIn(context);
-  const page = await context.newPage(); await page.goto(base);
+  const page = await context.newPage(); await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   const initial = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.deepEqual(initial, [], 'Refusing to write to a nonempty live inventory');
   let title = 'Synthetic browser trial comic';
@@ -583,7 +583,7 @@ test('real browser preserves three physical copies across shared editions, photo
   assert.equal(identifications.length, 2); assert.ok(identifications[1].before_release_id);
   await page.getByLabel('Find a copy', { exact: true }).fill('Canonical Hero'); await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: `Open ${title} · My blue copy`, exact: true }).waitFor();
-  await page.reload(); await open(page, title, 'My blue copy');
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await open(page, title, 'My blue copy');
   const photos = await page.evaluate(cid => fetch(`/api/v1/inventory/${cid}/photos`).then(response => response.json()), cid);
   const bytes = await page.evaluate(async ({ cid, photo }) => [...new Uint8Array(await (await fetch(`/api/v1/inventory/${cid}/photos/${photo}`)).arrayBuffer())], { cid, photo: photos[0].id });
   assert.deepEqual(Buffer.from(bytes), png);
@@ -626,7 +626,7 @@ test('real browser preserves three physical copies across shared editions, photo
   await page.getByLabel('Find a copy', { exact: true }).fill('Synthetic Canonical Hero #1');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   for (const copyTitle of [title, ...added.map(item => item.title)]) await page.getByRole('button', { name: `Open ${copyTitle}${copyTitle === title ? ' · My blue copy' : ''}`, exact: true }).waitFor();
-  await page.reload();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   const final = await page.evaluate(async () => {
     const records = await (await fetch('/api/v1/inventory?q=Synthetic%20Canonical%20Hero%20%231')).json();
     return Promise.all(records.map(async record => {
@@ -847,6 +847,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   await page.getByLabel('Owner password', { exact: true }).fill(ownerPassword);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByRole('heading', { name: 'Add a find', exact: true }).waitFor();
+  await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   assert.equal(new URL(page.url()).pathname, '/');
   const cookies = await context.cookies();
   const session = cookies.find(cookie => cookie.name === 'relicrat_loopback_session');
@@ -867,7 +868,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
       assert.equal((await context.request.get(path)).status(), 200);
     }
   }
-  await page.reload(); await page.getByRole('button', { name: 'Sign out', exact: true }).waitFor();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await page.getByRole('button', { name: 'Sign out', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.waitForURL('**/login');
   const replay = await browser.newContext(); t.after(() => replay.close()); await replay.addCookies(cookies);
@@ -970,12 +971,12 @@ test('unavailable settings allow explicit generic entry without replacing prefer
 });
 
 test('real Records setup and artist search survive browser reload with a title-only option',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
-  const context=await browser.newContext();t.after(()=>context.close());await signIn(context);const page=await context.newPage();await page.goto(base);
+  const context=await browser.newContext();t.after(()=>context.close());await signIn(context);const page=await context.newPage();await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await startRecordSetup(page);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Album title',{exact:true}).fill('Synthetic setup album');
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup band');await intake.getByLabel('Format (optional)',{exact:true}).selectOption('Vinyl');
   await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
-  await page.reload();await intake.getByLabel('Album title',{exact:true}).waitFor();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await intake.getByLabel('Album title',{exact:true}).waitFor();
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup');
   await page.locator('#find-artist-suggestions option[value="Synthetic setup band"]').waitFor({state:'attached'});
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('');
@@ -1001,7 +1002,7 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
     definitions.record.entry_order=['notes','title','edition','artist','format'];
   };
   const {page,state} = await fixture(t,{configureTypes,settings:{status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}});
-  await page.goto(base);
+  await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Set up your collection',exact:true}).click();
   await page.getByRole('checkbox',{name:'Albums',exact:true}).check();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
@@ -1127,7 +1128,7 @@ test('Comics setup previews without writes; series-only and issue/publisher entr
 test('real Comics persist issue publisher photo and storage across reload',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
   const context=await browser.newContext();t.after(()=>context.close());await signIn(context);
   const title='Synthetic comic trial '+Date.now(); const display=title+' #423';
-  const page=await context.newPage();await page.goto(base);
+  const page=await context.newPage();await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Collection settings',exact:true}).click();
   await page.getByRole('checkbox',{name:'Comics',exact:true}).check();
   await page.getByLabel('Start new finds as',{exact:true}).selectOption('comic');
@@ -1152,7 +1153,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await page.getByRole('status').filter({hasText:'Added to Synthetic Comics box.'}).waitFor();
   const original=await page.evaluate(async title=> (await (await fetch('/api/v1/inventory?q='+encodeURIComponent(title))).json())[0],title);
   assert.deepEqual(original.comic_details,{issue_number:'423',publisher:'Synthetic Comic Press'});
-  await page.reload();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Open '+display,exact:true}).click();
   await page.getByAltText('Photo 1 of '+display).waitFor();
   assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
@@ -1320,7 +1321,7 @@ test('real theme apply persists after reload, rejects stale saves, and restores 
   });
   await signIn(context);
   original=await (await context.request.get(base+'/api/v1/appearance')).json();
-  const page=await context.newPage(); await page.goto(base);
+  const page=await context.newPage(); await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Appearance',exact:true}).click();
   await page.getByLabel('Start from',{exact:true}).selectOption('1');
   await page.getByRole('button',{name:'Preview theme',exact:true}).click();
@@ -1337,7 +1338,7 @@ test('real theme apply persists after reload, rejects stale saves, and restores 
   await page.getByRole('status').filter({hasText:'Appearance saved'}).waitFor();
   const stale=await context.request.post(base+'/api/v1/appearance',{data:{theme:original.default_theme,expected_revision:original.revision},headers:{Origin:new URL(base).origin}});
   assert.equal(stale.status(),409);
-  await page.reload();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.waitForFunction(()=>getComputedStyle(document.querySelector('.themed-app')).backgroundColor==='rgb(244, 239, 228)');
   await page.getByRole('button',{name:'Appearance',exact:true}).click();
   assert.equal(await page.getByLabel('Theme name',{exact:true}).inputValue(),'Archive');

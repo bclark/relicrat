@@ -265,3 +265,27 @@ existing same-origin/owner-cookie boundary, and forwards only to the configured
 private API. The UI never evaluates cells. Uncertain saves clear confirmation and
 require a fresh preview, which can identify a completed exact-file batch.
 Requires migration `0009_csv_import` and matching API/web images.
+
+## Grouped collection browsing
+
+**Grouped collection** is the default browse view. All types first shows counts
+by collection type. Albums then groups by saved artist; Comics groups by saved
+series/title. Choose a group to open its independently paged physical copies.
+Group summaries are paginated on the server with counts covering the full
+matching collection. Opening one group replaces the previous open group. Missing
+artists/series have an explicit group and case distinctions remain separate;
+grouping never makes a catalog match or merges copies. The grouping metadata lives
+beside the entry definitions in the collection-type JSON configs.
+
+**Individual copies** retains the previous flat browsing mode. Other is always
+shown individually. Search, collection type and the separate **Storage location**
+filter apply to both views. Storage matches copies assigned directly to that
+location; CSV box/folder labels still need a reviewed assignment before they can
+match. Location options can be explicitly loaded beyond the first 100. Filter
+changes reset browsing pages, cancel obsolete reads and preserve intake/edit
+drafts. The choice is page-local and does not change intake defaults or settings.
+
+The dedicated generated-volume browser coverage runs with an owned disposable
+loopback URL using `node --test apps/web/tests/groups.browser.mjs`. The existing
+inventory/import browser tests explicitly select Individual copies for their
+original copy-workflow coverage. Do not point test commands at the private trial.
