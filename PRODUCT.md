@@ -130,3 +130,26 @@ palette. Downgrade maps the exact new default back to the older default with a
 higher revision; custom themes remain intact. A rollback/re-upgrade does not
 automatically readopt the new default. See ADR 0007 for the explicit restore path.
 The portable theme is `packages/themes/relicrat-default.json`. This is not deployed.
+
+
+## Reviewed imported storage boxes
+
+From CSV import history, CLZ batches offer **Map storage boxes**. The owner
+chooses a retained box label and an existing or explicitly created physical
+location, reviews paginated eligible copies and preservation counts, then confirms
+the mapping. Creating a location or previewing moves nothing. Only active owned
+copies at storage revision zero with no location are eligible. Existing placements,
+prior manual unassignments and inactive copies remain unchanged. Each confirmed
+move records ordinary manual movement history; one transaction covers the entire
+label. Changed cohort revisions or a changed destination reject the whole stale
+review. Unconfirmed saves are never automatically retried. Source evidence, copy
+UUIDs, ownership, catalog identity and other history remain intact.
+
+This first increment maps one CLZ label in one batch at a time. Empty labels
+are excluded; labels over 500 characters are shown as unsupported and require
+individual assignment. Common surrounding whitespace is normalized; case and
+internal text remain significant. Labels and affected copies are paginated.
+Discogs folder names remain source information pending a separate physical-storage
+decision. There is no automatic import-time mapping, bulk reassignment or undo;
+confirmed placements can subsequently be changed through the ordinary individual
+copy location control with retained history. No schema migration is required.

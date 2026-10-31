@@ -67,6 +67,17 @@ class AssignmentError(Exception):
         self.detail = detail
 
 
+def stage_location_assignment(db: Session, copy: OwnedCopy, location_id: UUID | None) -> None:
+    """Stage an explicit move for a locked, revision-checked copy; caller commits."""
+    if copy.storage_location_id == location_id:
+        return
+    db.add(CopyLocationEvent(owned_copy_id=copy.id,
+                            before_location_id=copy.storage_location_id, after_location_id=location_id,
+                            before_revision=copy.storage_revision, after_revision=copy.storage_revision + 1))
+    copy.storage_location_id = location_id
+    copy.storage_revision += 1
+
+
 def assign_location(db: Session, copy_id: UUID, location_id: UUID | None,
                     expected_revision: int) -> OwnedCopy:
     try:
@@ -81,11 +92,7 @@ def assign_location(db: Session, copy_id: UUID, location_id: UUID | None,
         if copy.storage_location_id == location_id:
             db.commit()
             return copy
-        db.add(CopyLocationEvent(owned_copy_id=copy.id,
-                                before_location_id=copy.storage_location_id, after_location_id=location_id,
-                                before_revision=copy.storage_revision, after_revision=copy.storage_revision + 1))
-        copy.storage_location_id = location_id
-        copy.storage_revision += 1
+        stage_location_assignment(db, copy, location_id)
         db.commit()
         return copy
     except Exception:

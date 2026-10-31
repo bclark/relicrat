@@ -1236,3 +1236,62 @@ and the loopback bridge stopped. Evidence is
 reused temporary cleanup helper exited before touching resources because it
 expected a different run's manifest; cleanup then used the exact project/path
 manifest created for this task. No global cleanup or live services were used.
+
+## Reviewed CLZ storage mapping (2026-10-31)
+
+Import history now offers a CLZ-only source-label → destination → paginated
+preview → explicit confirmation flow. Previewing does not write. Creating a
+physical location is separate and does not place copies. Each confirmed move
+reuses ordinary manual storage history in a single transaction; no schema or
+migration changes. Never-placed active owned copies alone are eligible. Already
+placed copies, previous manual unassignments and inactive copies are preserved.
+The complete label cohort and destination are bound to the review token; a
+changed copy revision/status or destination invalidates the whole confirmation.
+Concurrent confirmations and races with manual placement serialize on copy locks.
+Failed/unconfirmed confirmations discard the UI confirmation and require a fresh
+preview; uncertain location creation requires reload/inspection before another
+creation. Saves are not automatically retried. Original import rows remain intact.
+
+Limits: one label in one CLZ batch per confirmation; common surrounding whitespace
+is normalized, case/internal text remain significant; empty labels excluded and
+labels longer than 500 characters explicitly unsupported. Discogs folders remain
+source information. No automatic import-time placement, bulk reassignment or bulk
+undo. The existing individual location control remains available for corrections.
+
+Validation used generated fixtures and disposable worker projects only:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **234 passed**, zero skips
+  or expected failures, 70 existing Alembic configuration deprecation warnings;
+  full upgrade/downgrade round trip through 0010 passed.
+- After readability-only backend formatting and the added manual-placement race:
+  `python3 scripts/test-api-remote.py relicrat-worker tests/test_import_storage.py`:
+  **10 passed**, zero skips/expected failures, one existing warning. Covers pure
+  preview, quantity-expanded physical copies, exact batch/label scope, pagination,
+  unusual text, input/auth/source boundaries, preservation, source evidence,
+  replay, whole-transaction rollback and actual PostgreSQL concurrent writers.
+- Disposable worker `sh scripts/test-web.sh`: production Next build, TypeScript,
+  **29 Node tests** with zero skips/failures, authenticated API smoke and persisted
+  photo after API recreation passed. Final-source images were rebuilt on fresh
+  disposable volumes before real browser checks.
+- With `RELICRAT_TEST_WEB_URL` pointing only to the disposable loopback bridge,
+  `RELICRAT_REAL_UI_TEST=1 node --test apps/web/tests/inventory.browser.mjs`:
+  **46 passed**; `node --test apps/web/tests/import.browser.mjs`: **2 passed**,
+  including 1,915 generated physical copies. Zero skips/failures. The guarded
+  empty-inventory real workflow completed before any CSV batches were seeded.
+- `node --test apps/web/tests/storage-mapping.browser.mjs`: **4 passed**, zero
+  skips/failures on the final rebuilt source. Covers explicit destination creation,
+  copy pagination, acknowledgement/double-click protection, all mapped copy states,
+  preserved placement, original evidence, stale review, ambiguous mapping and
+  ambiguous location creation. Initial fixture columns and a test's page-wait scope
+  were corrected; failure logs remain in ignored local evidence. The compact
+  radio-control visual fix affects only the new flow; its four scenarios and build
+  were rerun afterward. Existing inventory/import suites were not unnecessarily
+  repeated for that styling-only adjustment.
+
+Desktop/mobile mapping captures were opened and inspected: compact native radio
+choices, wrapped copy identifiers, readable preservation counts and explicit final
+confirmation. The 390px check found no horizontal overflow. This is focused visual
+verification, not whole-interface accessibility certification. Local evidence is
+under `.harness-results/storage-mapping/`; synthetic screenshots are in the
+operator checkout's matching ignored evidence folder. No collection data was used
+as test input. Backup/restore and live rollout were not run for this increment.
