@@ -21,6 +21,10 @@ async function fixture(t, initial = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
   t.after(() => context.close());
   await signIn(context);
+  const typesResponse = await context.request.get(base+'/api/v1/collection-settings/types');
+  assert.equal(typesResponse.status(),200);
+  const types = await typesResponse.json();
+  initial.configureTypes?.(types);
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, [], 'Unexpected browser errors'));
@@ -33,7 +37,7 @@ async function fixture(t, initial = {}) {
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
     if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
-    if (path === 'collection-settings') {
+    if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
       if(state.failSettings==='read' && method==='GET') {status=502;result={detail:'Collection settings unavailable'};}
       else if(method==='GET') result=state.settings;
       else {
@@ -959,4 +963,30 @@ test('real Records setup and artist search survive browser reload with a title-o
   assert.equal(await page.getByRole('form',{name:'Edit copy details',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Synthetic setup band');
   await intake.getByLabel('Album title',{exact:true}).fill('Synthetic title-only album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Synthetic title-only album',exact:true}).waitFor();
+});
+
+
+test('bundled type definitions drive entry and setup labels, ordering and suggestions',async t=>{
+  const configureTypes = definitions => {
+    definitions.record.title.label='Record title';
+    definitions.record.fields.find(field=>field.key==='artist').label='Performer';
+    definitions.record.fields.find(field=>field.key==='format').suggested=false;
+    definitions.record.fields.reverse();
+  };
+  const {page,state} = await fixture(t,{configureTypes,settings:{status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}});
+  await page.goto(base);
+  await page.getByRole('button',{name:'Set up your collection',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Records',exact:true}).check();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Performer',exact:true}).waitFor();
+  assert.equal(await page.getByRole('checkbox',{name:'Format',exact:true}).isChecked(),false);
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  await page.getByLabel('Record title',{exact:true}).fill('Example album');
+  await page.getByLabel('Performer (optional)',{exact:true}).fill('Example artist');
+  assert.equal(await page.locator('#find-format').count(),0);
+  assert.deepEqual(await page.getByRole('form',{name:'Add a find',exact:true}).locator('label').allTextContents(),['What are you adding?','Record title','Notes (optional)','Edition or pressing (optional)','Performer (optional)']);
+  await page.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('button',{name:/Open Example artist/}).waitFor();
+  assert.equal(state.copies[0].record_details.artist,'Example artist');
 });

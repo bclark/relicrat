@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.models import CollectionSettings
+from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
 RecordField = Literal['artist', 'format', 'edition', 'notes']
@@ -39,6 +40,11 @@ class SettingsInfo(SettingsValues):
 
 class SaveSettings(SettingsValues):
     expected_revision: int = Field(ge=0, le=2147483646, strict=True)
+
+
+@router.get('/types', response_model=dict[str, CollectionType])
+def read_types():
+    return COLLECTION_TYPES
 
 
 @router.get('', response_model=SettingsInfo)

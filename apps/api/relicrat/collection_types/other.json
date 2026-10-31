@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "other",
+  "label": "Other",
+  "plural_label": "Other",
+  "title": {
+    "key": "title",
+    "label": "Title",
+    "max_length": 500,
+    "placeholder": "e.g. A find to identify later",
+    "suggested": true
+  },
+  "fields": [
+    {
+      "key": "notes",
+      "label": "Notes",
+      "max_length": 10000,
+      "placeholder": "Distinctive details, condition, or where you found it",
+      "suggested": true
+    }
+  ]
+}

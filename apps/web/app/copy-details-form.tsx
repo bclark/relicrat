@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type CollectionTypes, type RunSave } from '../lib/inventory-client';
 import { Pages, usePage } from './identification';
 
-type Props = { fields: RecordField[]; copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy) => void; failed: (error: unknown) => void };
+type Props = { types: CollectionTypes | null; fields: RecordField[]; copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy) => void; failed: (error: unknown) => void };
 type Edit = { id: string; before_title: string | null; after_title: string | null; before_edition_label: string | null; after_edition_label: string | null; before_collection_type: string | null; after_collection_type: string | null; before_record_details: {artist?:string;format?:string}|null; after_record_details: {artist?:string;format?:string}|null; after_revision: number; created_at: string };
 
-export default function CopyDetailsForm({ fields, copy, runSave, locked, saved, failed }: Props) {
+export default function CopyDetailsForm({ types, fields, copy, runSave, locked, saved, failed }: Props) {
   const [recordType, setRecordType] = useState(copy.collection_type);
   const [artist, setArtist] = useState(copy.record_details.artist || '');
   const [format, setFormat] = useState(copy.record_details.format || '');
@@ -53,11 +53,11 @@ export default function CopyDetailsForm({ fields, copy, runSave, locked, saved, 
   return <div className="copy-details-form">
     <h3>Edit this copy</h3>
     <form aria-label="Edit copy details" onSubmit={submit}><fieldset disabled={locked || !ready}>
-      <label htmlFor="copy-type">Collection type</label><select id="copy-type" value={recordType} onChange={event=>{setRecordType(event.target.value as 'other'|'record');setNotice('');}}><option value="other">Other</option><option value="record">Record</option></select>
+      <label htmlFor="copy-type">Collection type</label><select id="copy-type" value={recordType} onChange={event=>{setRecordType(event.target.value as 'other'|'record');setNotice('');}}>{types ? Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>) : <option value={recordType}>{recordType}</option>}</select>
       {recordType!==copy.collection_type && <p className="hint">Changing type keeps this physical copy and its saved details. Save details to apply it.</p>}
-      <label htmlFor="copy-title">{recordType==='record' ? 'Album title' : 'Title'}</label><input id="copy-title" maxLength={500} value={title} onChange={event => { setTitle(event.target.value); setNotice(''); }} />
-      {((recordType==='record' && fields.includes('artist')) || artist || copy.record_details.artist) && <><label htmlFor="copy-artist">Artist or band (optional)</label><input id="copy-artist" maxLength={500} value={artist} onChange={event=>{setArtist(event.target.value);setNotice('');}} /></>}
-      {((recordType==='record' && fields.includes('format')) || format || copy.record_details.format) && <><label htmlFor="copy-format">Format (optional)</label><input id="copy-format" maxLength={100} value={format} onChange={event=>{setFormat(event.target.value);setNotice('');}} /></>}
+      <label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input id="copy-title" maxLength={types?.[recordType].title.max_length || 500} value={title} onChange={event => { setTitle(event.target.value); setNotice(''); }} />
+      {((recordType==='record' && fields.includes('artist')) || artist || copy.record_details.artist) && <><label htmlFor="copy-artist">{types?.record.fields.find(field=>field.key==='artist')?.label || 'artist'} (optional)</label><input id="copy-artist" maxLength={types?.record.fields.find(field=>field.key==='artist')?.max_length || 500} value={artist} onChange={event=>{setArtist(event.target.value);setNotice('');}} /></>}
+      {((recordType==='record' && fields.includes('format')) || format || copy.record_details.format) && <><label htmlFor="copy-format">{types?.record.fields.find(field=>field.key==='format')?.label || 'format'} (optional)</label><input id="copy-format" maxLength={types?.record.fields.find(field=>field.key==='format')?.max_length || 100} value={format} onChange={event=>{setFormat(event.target.value);setNotice('');}} /></>}
       {recordType==='record' && <p className="hint">Saved record details stay editable even when hidden from new entry forms.</p>}
       {(recordType!=='record' || fields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) && <><label htmlFor="copy-edition">Edition</label><input id="copy-edition" maxLength={500} value={edition} onChange={event => { setEdition(event.target.value); setNotice(''); }} aria-describedby="copy-edition-help" />
       <p className="hint" id="copy-edition-help">Optional. For example, Blue vinyl or First printing.</p></>}

@@ -3,14 +3,15 @@
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type InventoryCopy, type RunSave } from '../lib/inventory-client';
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
 import CopyDetail from './copy-detail';
 
 const PAGE = 20;
 export default function InventoryClient() {
   const [title, setTitle] = useState('');
   const [settings, setSettings] = useState<CollectionSettings | null>(null);
+  const [types, setTypes] = useState<CollectionTypes | null>(null);
   const [settingsError, setSettingsError] = useState('');
   const [settingsVersion, setSettingsVersion] = useState(0);
   const [genericEntry, setGenericEntry] = useState(false);
@@ -23,8 +24,9 @@ export default function InventoryClient() {
   const showField = (key: string, value: string) => !record || !!value || !!settings?.record_fields.includes(key as 'artist'|'format'|'edition'|'notes');
   useEffect(() => {
     const controller = new AbortController(); setSettingsError('');
-    api<CollectionSettings>('collection-settings', {signal:controller.signal}).then(value=>{
+    Promise.all([api<CollectionSettings>('collection-settings', {signal:controller.signal}), api<CollectionTypes>('collection-settings/types', {signal:controller.signal})]).then(([value, definitions])=>{
       if(controller.signal.aborted) return;
+      setTypes(definitions);
       setSettings(value); if(!draftTouched.current) setCollectionType(value.default_type);
     }).catch(problem=>{if(!controller.signal.aborted) setSettingsError(errorText(problem));});
     return ()=>controller.abort();
@@ -107,7 +109,7 @@ export default function InventoryClient() {
       <header className="masthead"><a className="brand" href="/">RelicRat</a><span>Your collection, one copy at a time.</span><SignOut /></header>
       <main>
         <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
-        {settings && <CollectionSetup key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
+        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
         <div className="workspace">
@@ -117,14 +119,17 @@ export default function InventoryClient() {
               <p className="intro">Start with a title. Everything else is optional.</p>
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
-                  {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as 'other'|'record')}><option value="other">Other</option><option value="record">Record</option></select></>}
-                  <label htmlFor="find-title">{record ? 'Album title' : 'Title'}</label>
-                  <input ref={titleInput} id="find-title" required maxLength={500} value={title} onChange={e => {setTitle(e.target.value);draftTouched.current=true;}} placeholder={record ? "e.g. Album title" : "e.g. A find to identify later"} aria-describedby="intake-help" />
-                  {record && showField('artist',artist) && <><label htmlFor="find-artist">Artist or band (optional)</label><input id="find-artist" maxLength={500} value={artist} onChange={event=>{setArtist(event.target.value);draftTouched.current=true;}} /></>}
-                  {record && showField('format',format) && <><label htmlFor="find-format">Format (optional)</label><input id="find-format" maxLength={100} placeholder="e.g. Vinyl, CD or cassette" value={format} onChange={event=>{setFormat(event.target.value);draftTouched.current=true;}} /></>}
-                  {record && showField('edition',edition) && <><label htmlFor="find-edition">Edition or pressing (optional)</label><input id="find-edition" maxLength={500} value={edition} onChange={event=>{setEdition(event.target.value);draftTouched.current=true;}} /></>}
-                  {showField('notes',notes) && <><label htmlFor="find-notes">Notes (optional)</label>
-                  <textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e => {setNotes(e.target.value);draftTouched.current=true;}} placeholder="Distinctive details, condition, or where you found it" aria-describedby="intake-help" /></>}
+                  {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as 'other'|'record')}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
+                  <label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
+                  <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e => {setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" />
+                  {(types?.[collectionType].fields || []).filter(field=>showField(field.key, ({artist,format,edition,notes} as Record<string,string>)[field.key] || '')).map(field=>{
+                    const values: Record<string,string> = {artist,format,edition,notes};
+                    const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,edition:setEdition,notes:setNotes};
+                    return <Fragment key={field.key}><label htmlFor={`find-${field.key}`}>{field.label} (optional)</label>
+                      {field.key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
+                        : <input id={`find-${field.key}`} maxLength={field.max_length} placeholder={field.placeholder} value={values[field.key]} onChange={e=>{setters[field.key](e.target.value);draftTouched.current=true;}} />}</Fragment>;
+                  })}
+                  {!types && <><label htmlFor="find-notes">Notes (optional)</label><textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} /></>}
                   <p className="hint" id="intake-help">You can add an edition, photos or storage whenever you like.</p>
                   <button className="primary" type="submit">{busy ? 'Saving…' : 'Save copy'}</button>
                 </fieldset>
@@ -133,7 +138,7 @@ export default function InventoryClient() {
               {uncertain && <p className="hint">Check for this copy before saving again. <button className="text-button" onClick={reloadInventory} disabled={busy || loading}>Reload inventory</button></p>}
               <p className="notice" role="status">{notice}</p>
             </section>
-            {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} recordFields={settings?.record_fields || []} />
+            {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} types={types} recordFields={settings?.record_fields || []} />
               : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </div>
           <section className="collection" aria-labelledby="collection-title">
