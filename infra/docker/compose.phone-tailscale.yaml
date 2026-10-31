@@ -1,0 +1,23 @@
+# Dedicated userspace node. No TUN, host routing, capabilities or app port mapping.
+services:
+  tailscale:
+    image: ${RELICRAT_TAILSCALE_IMAGE:?Set the verified official image digest}
+    user: ${RELICRAT_NAS_UID:?Set the state owner UID}:${RELICRAT_NAS_GID:?Set the state owner GID}
+    entrypoint: [tailscaled]
+    command:
+      - --tun=userspace-networking
+      - --statedir=/var/lib/tailscale
+      - --socket=/tmp/tailscaled.sock
+      - --port=0
+    network_mode: host
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/tmp, /run]
+    volumes:
+      - type: bind
+        source: ${RELICRAT_TAILSCALE_STATE_DIR:?Create the private state directory first}
+        target: /var/lib/tailscale
+        bind:
+          create_host_path: false
+    restart: unless-stopped

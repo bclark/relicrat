@@ -1,0 +1,16 @@
+[Unit]
+Description=RelicRat private phone HTTPS adapter
+
+[Service]
+Type=simple
+EnvironmentFile=%h/relicrat-phone-access/bridge.env
+WorkingDirectory=%h/relicrat-phone-access
+ExecStart=/usr/bin/python3 -B %h/relicrat-phone-access/source/private-https-bridge.py --origin ${RELICRAT_PHONE_ORIGIN} --container ${RELICRAT_PHONE_CONTAINER} --port ${RELICRAT_PHONE_BRIDGE_PORT} --transport-config ${RELICRAT_PHONE_TRANSPORT_CONFIG}
+UMask=0077
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

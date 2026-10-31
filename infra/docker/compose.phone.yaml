@@ -1,0 +1,17 @@
+# Optional second web frontend; same API, no database credentials or host ports.
+services:
+  phone-web:
+    image: ${RELICRAT_PHONE_WEB_IMAGE:?Set the verified web image ID}
+    environment:
+      RELICRAT_API_URL: http://api:8000
+      RELICRAT_WEB_ORIGIN: ${RELICRAT_PHONE_ORIGIN:?Set the exact private HTTPS origin}
+      RELICRAT_ALLOW_LOOPBACK_HTTP: '0'
+      NEXT_TELEMETRY_DISABLED: '1'
+    networks: [app]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+networks:
+  app:
+    external: true
+    name: ${RELICRAT_PRIVATE_NETWORK:?Set the existing internal app network}

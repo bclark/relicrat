@@ -123,3 +123,9 @@ The password parameters follow [OWASP's scrypt guidance](https://cheatsheetserie
 (N=2^17, r=8, p=1). Cookie and revocation choices follow
 [OWASP session guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
 These are implementation choices, not a security certification.
+
+
+For optional phone access through a dedicated NAS Tailscale node, use the
+[private HTTPS operator guide](private-phone-access.md). It preserves the Mac
+loopback frontend and uses a separate HTTPS-origin frontend and Secure cookie;
+putting a generic TLS proxy in front of the Mac adapter is not sufficient.
