@@ -30,6 +30,7 @@ def test_upgrade_initializes_existing_copy_and_roundtrip():
             assert after.pop('storage_revision') == 0
             assert after.pop('collection_type') == 'other'
             assert after.pop('record_details') == {}
+            assert after.pop('comic_details') == {}
             assert after.pop('edition_label') is None
             assert after.pop('details_revision') == 0
             assert after == before

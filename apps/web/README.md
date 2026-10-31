@@ -203,3 +203,15 @@ uncertain setup writes require reload/review before another save.
 This feature requires API, migration0006 and web together. No upgrade is implied
 by building the web image alone. The downgrade loses new metadata/preferences and
 record-only audit events; never automatically use it to roll back a live UI.
+
+## Comics
+
+Comics can be enabled alongside Albums in the same optional setup, with its own
+field choices and default. Entry requires only Series/title; issue number,
+publisher, edition/cover and notes are optional. The `comic.json` definition drives
+field order/labels/controls. Issue is text, preserving fractions and leading zeroes.
+Publisher suggestions come from saved Comics, not an external catalog. A saved
+copy displays Series #Issue when an issue was entered. Photos/storage and optional
+catalog matching retain the existing flow. Type changes and hidden fields never
+erase saved observations; edits use the existing Save details transaction/history.
+API/schema/web rollout and verified recovery are required before using this flow.

@@ -10,16 +10,19 @@ from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
 RecordField = Literal['artist', 'format', 'edition', 'notes']
+ComicField = Literal['issue_number', 'publisher', 'edition', 'notes']
 
 
 class SettingsValues(BaseModel):
     model_config = ConfigDict(extra='forbid')
     status: Literal['not_started', 'skipped', 'configured']
     records_enabled: bool = Field(strict=True)
-    default_type: Literal['other', 'record']
+    default_type: Literal['other', 'record', 'comic']
     record_fields: list[RecordField] = Field(max_length=4)
+    comics_enabled: bool = Field(default=False, strict=True)
+    comic_fields: list[ComicField] = Field(default_factory=lambda: ['issue_number','publisher','edition','notes'], max_length=4)
 
-    @field_validator('record_fields')
+    @field_validator('record_fields', 'comic_fields')
     @classmethod
     def unique_fields(cls, value):
         if len(set(value)) != len(value):
@@ -30,6 +33,8 @@ class SettingsValues(BaseModel):
     def valid_default(self):
         if self.default_type == 'record' and not self.records_enabled:
             raise ValueError(f"Enable {COLLECTION_TYPES['record'].plural_label} before making it the default")
+        if self.default_type == 'comic' and 'comics_enabled' in self.model_fields_set and not self.comics_enabled:
+            raise ValueError('Enable Comics before making it the default')
         return self
 
 
@@ -45,10 +50,20 @@ class SaveSettings(SettingsValues):
 @router.get('/artist-suggestions', response_model=list[str])
 def artist_suggestions(q: str = Query(default='', max_length=500, pattern=r'^[^\x00]*$'),
                        db: Session = Depends(get_db)):
-    # Only saved, non-deleted Record observations; no catalog or provider lookup.
-    value = func.btrim(OwnedCopy.record_details['artist'].astext)
+    return saved_suggestions(db, OwnedCopy.record_details['artist'].astext, 'record', q)
+
+
+@router.get('/publisher-suggestions', response_model=list[str])
+def publisher_suggestions(q: str = Query(default='', max_length=250, pattern=r'^[^\x00]*$'),
+                          db: Session = Depends(get_db)):
+    return saved_suggestions(db, OwnedCopy.comic_details['publisher'].astext, 'comic', q)
+
+
+def saved_suggestions(db, column, collection_type, q):
+    # The routes supply fixed columns/type IDs; clients never choose expressions.
+    value = func.btrim(column)
     query = select(func.min(value.collate('C'))).where(OwnedCopy.deleted_at.is_(None),
-        OwnedCopy.collection_type == 'record', value.is_not(None), value != '')
+        OwnedCopy.collection_type == collection_type, value.is_not(None), value != '')
     if term := q.strip():
         query = query.where(value.istartswith(term, autoescape=True))
     return list(db.scalars(query.group_by(func.lower(value)).order_by(func.lower(value).collate('C')).limit(20)))
@@ -76,7 +91,10 @@ def save_settings(payload: SaveSettings, db: Session = Depends(get_db)):
             raise HTTPException(503, 'Collection settings are unavailable')
         if settings.revision != payload.expected_revision:
             raise HTTPException(409, 'Collection settings changed elsewhere. Reload settings and review your choices.')
-        values = payload.model_dump(exclude={'expected_revision'})
+        values = payload.model_dump(exclude={'expected_revision'}, exclude_unset=True)
+        effective_default = values.get('default_type', settings.default_type)
+        if effective_default == 'comic' and not values.get('comics_enabled', settings.comics_enabled):
+            raise HTTPException(422, 'Enable Comics before making it the default')
         if any(getattr(settings, key) != value for key, value in values.items()):
             for key, value in values.items():
                 setattr(settings, key, value)

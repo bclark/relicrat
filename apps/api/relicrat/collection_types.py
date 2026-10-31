@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 class TypeField(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
-    key: Literal['title', 'artist', 'format', 'edition', 'notes']
+    key: Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'edition', 'notes']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     max_length: int = Field(ge=1, le=10000)
     placeholder: str = Field(max_length=120, pattern=r'^[^\x00]*$')
@@ -17,8 +17,8 @@ class TypeField(BaseModel):
 
     @model_validator(mode='after')
     def supported_control(self):
-        if self.input == 'autocomplete' and self.key != 'artist':
-            raise ValueError('Saved-value autocomplete is supported for artist only')
+        if self.input == 'autocomplete' and self.key not in ('artist','publisher'):
+            raise ValueError('Saved-value autocomplete is supported for artist and publisher only')
         if self.input == 'select':
             if self.key != 'format' or not self.options:
                 raise ValueError('Format choices must be nonempty')
@@ -34,12 +34,12 @@ class TypeField(BaseModel):
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
-    id: Literal['other', 'record']
+    id: Literal['other', 'record', 'comic']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
-    entry_order: list[Literal['title', 'artist', 'format', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
+    entry_order: list[Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
 
     @field_validator('schema_version', mode='before')
     @classmethod
@@ -51,8 +51,8 @@ class CollectionType(BaseModel):
     @model_validator(mode='after')
     def supported_storage(self):
         # These limits describe deployed storage, not an arbitrary custom-field engine.
-        limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000}
-        allowed = {'notes'} if self.id == 'other' else {'artist', 'format', 'edition', 'notes'}
+        limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250}
+        allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}}[self.id]
         keys = [field.key for field in self.fields]
         if self.title.key != 'title' or len(keys) != len(set(keys)) or set(keys) != allowed:
             raise ValueError('Definition must describe exactly the supported fields')
@@ -67,7 +67,7 @@ class CollectionType(BaseModel):
 
 def load_types() -> dict[str, CollectionType]:
     definitions = {}
-    for ident in ('other', 'record'):
+    for ident in ('other', 'record', 'comic'):
         path = Path(__file__).with_suffix('') / f'{ident}.json'
         definition = CollectionType.model_validate(json.loads(path.read_text()))
         if definition.id != ident:

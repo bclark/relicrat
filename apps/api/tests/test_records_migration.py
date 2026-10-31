@@ -22,14 +22,15 @@ def test_records_upgrade_and_disposable_downgrade():
         command.upgrade(config,'head')
         with engine.begin() as db:
             after=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one())
+            assert after.pop('comic_details')=={}
             assert after.pop('collection_type')=='other' and after.pop('record_details')=={} and after==before
             upgraded=dict(db.execute(text('SELECT * FROM copy_detail_events WHERE id=:id'),{'id':event_id}).mappings().one())
-            for key in ['before_collection_type','after_collection_type','before_record_details','after_record_details']:assert upgraded.pop(key) is None
+            for key in ['before_collection_type','after_collection_type','before_record_details','after_record_details','before_comic_details','after_comic_details']:assert upgraded.pop(key) is None
             assert upgraded==history
             assert db.scalar(text("SELECT status FROM collection_settings WHERE id=1"))=='not_started'
             db.execute(text("UPDATE owned_copies SET collection_type='record',record_details=jsonb_build_object('artist','Synthetic artist'),details_revision=2 WHERE id=:id"),{'id':cid})
             db.execute(text("INSERT INTO copy_detail_events(id,owned_copy_id,before_title,after_title,before_collection_type,after_collection_type,before_record_details,after_record_details,identification_revision,before_revision,after_revision) VALUES (:event,:id,'Old album','Old album','other','record','{}',jsonb_build_object('artist','Synthetic artist'),0,1,2)"),{'event':new_event,'id':cid})
-            current=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one());current.pop('collection_type');current.pop('record_details')
+            current=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one());current.pop('collection_type');current.pop('record_details');current.pop('comic_details')
         command.downgrade(config,'0005_copy_details')
         with engine.connect() as db:
             assert db.scalar(text("SELECT to_regclass('collection_settings')")) is None

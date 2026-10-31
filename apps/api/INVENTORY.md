@@ -326,3 +326,22 @@ with deterministic casing/order and literal case-insensitive prefix matching.
 Unknown/blank values and Other-type copies do not contribute. Suggestions never
 write ownership, settings, audit history or catalog identities. No external
 provider, new table or migration is involved.
+
+## Comics
+
+`collection_type: "comic"` accepts bounded `comic_details` with optional string
+`issue_number` (100 characters) and `publisher` (250 characters). Series/title
+uses the existing title; personal cover/edition uses `edition_label`. Values are
+trimmed and blank means unknown. Browser entry requires only Series/title.
+Create rejects nonempty Comic observations on a different type; revision-checked
+edits preserve existing observations across explicit type changes. Omitting the
+new field in an older client preserves it. Responses and history expose current
+and before/after Comic observations. Search matches literal issue/publisher text.
+
+Settings additionally expose `comics_enabled` and `comic_fields` (issue_number,
+publisher, edition, notes), and allow default `comic` only when enabled. Omitted
+new preference keys preserve their persisted values. Revision/no-op/conflict and
+transaction boundaries are unchanged. `GET collection-settings/publisher-suggestions`
+is owner-only, read-only and returns at most 20 deduplicated literal prefix matches;
+`q` is at most 250 characters without NUL. Definitions now include `comic`.
+Migration 0007 requires the release plan in ADR 0006 and refuses destructive downgrade.

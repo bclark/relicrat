@@ -83,7 +83,7 @@ def test_record_intake_edit_history_search_and_old_client_preservation(context):
     assert edit(api,generic,record_details={}).json()['record_details']=={}
 
 
-@pytest.mark.parametrize('values',[{'collection_type':'comic'},{'record_details':{'artist':'x'*501}},{'record_details':{'format':'x'*101}},{'record_details':{'artist':'bad\x00value'}},{'record_details':{'price':10}},{'record_details':{'artist':3}},{'record_details':None}])
+@pytest.mark.parametrize('values',[{'collection_type':'unsupported'},{'record_details':{'artist':'x'*501}},{'record_details':{'format':'x'*101}},{'record_details':{'artist':'bad\x00value'}},{'record_details':{'price':10}},{'record_details':{'artist':3}},{'record_details':None}])
 def test_invalid_record_details_never_write(context,values):
     api,_,create=context;copy=create()
     assert edit(api,copy,**values).status_code==422
@@ -93,7 +93,7 @@ def test_invalid_record_details_never_write(context,values):
 
 def test_record_database_constraints_and_concurrent_edits(context):
     api,engine,create=context;copy=create(collection_type='record');cid=copy['id']
-    for statement in ["UPDATE owned_copies SET collection_type='comic' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"unknown\":\"bad\"}' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"artist\": 12}' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"artist\": null}' WHERE id=:id", "UPDATE collection_settings SET default_type='record' WHERE id=1", "UPDATE collection_settings SET record_fields='[\"price\"]' WHERE id=1"]:
+    for statement in ["UPDATE owned_copies SET collection_type='unsupported' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"unknown\":\"bad\"}' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"artist\": 12}' WHERE id=:id", "UPDATE owned_copies SET record_details='{\"artist\": null}' WHERE id=:id", "UPDATE collection_settings SET default_type='record' WHERE id=1", "UPDATE collection_settings SET record_fields='[\"price\"]' WHERE id=1"]:
         with pytest.raises(DBAPIError),engine.begin() as db:db.execute(text(statement),{'id':cid})
     barrier=Barrier(2)
     def writer(artist):
@@ -135,7 +135,7 @@ def test_type_definitions_are_owner_only_read_only_and_do_not_change_preferences
     response=api.get(SETTINGS+'/types')
     assert response.status_code==200
     definitions=response.json()
-    assert set(definitions)=={'other','record'}
+    assert set(definitions)=={'other','record','comic'}
     assert definitions['record']['title']['label']=='Album title'
     assert api.post(SETTINGS+'/types',json=definitions).status_code==405
     assert api.get(SETTINGS).json()==before

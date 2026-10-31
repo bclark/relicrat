@@ -152,13 +152,14 @@ def seed():
             copy = response.json()
         response = api.post(f"{BASE}/{copy['id']}/details", json={
             'title': 'Edited synthetic recovery copy', 'edition_label': 'Blue test edition',
-            'collection_type': 'record', 'record_details': {'artist':'Synthetic recovery artist','format':'Vinyl'},
+            'collection_type': 'comic', 'record_details': {'artist':'Synthetic recovery artist','format':'Vinyl'},
+            'comic_details': {'issue_number':'001½','publisher':'Synthetic recovery press'},
             'expected_details_revision': copy['details_revision'],
             'expected_identification_revision': copy['identification_revision']})
         require(response.status_code == 200, response.text)
         copy = response.json()
         preferences = api.get('/api/v1/collection-settings').json()
-        configured = api.post('/api/v1/collection-settings', json={'status':'configured','records_enabled':True,'default_type':'record','record_fields':['artist','format'],'expected_revision':preferences['revision']})
+        configured = api.post('/api/v1/collection-settings', json={'status':'configured','records_enabled':True,'default_type':'comic','record_fields':['artist','format'],'comics_enabled':True,'comic_fields':['issue_number','publisher'],'expected_revision':preferences['revision']})
         require(configured.status_code == 200, 'Recovery preferences save failed')
         edits = api.get(f"{BASE}/{copy['id']}/detail-history").json()
         require(len(edits) == 1, 'Copy edit history missing')

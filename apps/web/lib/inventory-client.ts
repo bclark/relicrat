@@ -1,6 +1,9 @@
+export type CollectionTypeId = 'other'|'record'|'comic';
+export type ComicField = 'issue_number'|'publisher'|'edition'|'notes';
+export type EntryField = 'title'|RecordField|ComicField;
 export type InventoryCopy = {
   id: string; title: string | null; description: string | null;
-  collection_type: 'other' | 'record'; record_details: { artist?: string; format?: string };
+  collection_type: CollectionTypeId; record_details: { artist?: string; format?: string }; comic_details: {issue_number?:string;publisher?:string};
   edition_label: string | null; details_revision: number;
   catalog_item_id: string | null; release_id: string | null;
   identification_status: string; identification_revision: number;
@@ -11,12 +14,15 @@ export type Location = { id: string; name: string; parent_id: string | null };
 export type Photo = { id: string; owned_copy_id: string; content_type: string; byte_size: number };
 export type Movement = { id: string; before_location_id: string | null; after_location_id: string | null; after_revision: number; created_at: string };
 export type RunSave = <T>(action: () => Promise<T>) => Promise<T | undefined>;
-export const copyName = (copy: InventoryCopy) => copy.collection_type === 'record' && copy.record_details?.artist ? `${copy.record_details.artist} — ${copy.title || copy.description || 'Untitled copy'}` : copy.title || copy.description || 'Untitled copy';
+const titleName = (copy:InventoryCopy) => copy.title || copy.description || 'Untitled copy';
+export const copyName = (copy: InventoryCopy) => copy.collection_type==='comic' && copy.comic_details?.issue_number
+  ? `${titleName(copy)} ${copy.comic_details.issue_number.startsWith('#') ? '' : '#'}${copy.comic_details.issue_number}`
+  : copy.collection_type==='record' && copy.record_details?.artist ? `${copy.record_details.artist} — ${titleName(copy)}` : titleName(copy);
 export type RecordField = 'artist' | 'format' | 'edition' | 'notes';
-export type CollectionSettings = { status: 'not_started'|'skipped'|'configured'; records_enabled: boolean; default_type: 'other'|'record'; record_fields: RecordField[]; revision: number };
-export type TypeField = { key: 'title' | RecordField; label: string; max_length: number; placeholder: string; suggested: boolean; input?: 'text'|'autocomplete'|'select'; options?: string[] };
-export type CollectionType = { schema_version: 1; id: 'other'|'record'; label: string; plural_label: string; title: TypeField; fields: TypeField[]; entry_order: ('title'|RecordField)[] };
-export type CollectionTypes = Record<'other'|'record', CollectionType>;
+export type CollectionSettings = { status: 'not_started'|'skipped'|'configured'; records_enabled: boolean; default_type: CollectionTypeId; record_fields: RecordField[]; comics_enabled?: boolean; comic_fields?: ComicField[]; revision: number };
+export type TypeField = { key: EntryField; label: string; max_length: number; placeholder: string; suggested: boolean; input?: 'text'|'autocomplete'|'select'; options?: string[] };
+export type CollectionType = { schema_version: 1; id: CollectionTypeId; label: string; plural_label: string; title: TypeField; fields: TypeField[]; entry_order: EntryField[] };
+export type CollectionTypes = Record<CollectionTypeId, CollectionType>;
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
