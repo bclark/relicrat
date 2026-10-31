@@ -136,6 +136,8 @@ The [project dashboard](docs/project-dashboard.html) is a manually maintained
 snapshot; it can lag behind merged work. Architecture documents describe design
 intent and do not establish that a planned feature is implemented.
 
+See the shared [UI and brand context](docs/design/README.md) before changing the interface.
+
 ## Contributing
 
 RelicRat is public and open source. Focused pull requests are welcome. Read

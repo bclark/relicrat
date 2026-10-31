@@ -16,6 +16,15 @@ Build a trustworthy, self-hosted collectibles inventory and provenance applicati
 
 Treat architecture documentation as design intent, not proof that a feature is implemented.
 
+## Shared UI, brand, and theming context
+
+- Before UI, brand, or appearance work, read `docs/design/README.md` and its relevant source links. Re-read it when resuming related work; project membership does not synchronize chat transcripts.
+- Record decisions that affect another area in that shared brief, with date, status (approved direction, proposed, implemented, or deployed), source, and remaining work. Keep detailed contracts in their existing authoritative files rather than duplicating them.
+- Preserve the canonical brand references under `docs/brand/`; assets under `docs/design/proposals/` remain proposals and do not establish production defaults or implemented features.
+- Check the current theme contract before styling mockups or changing Appearance. Layout/navigation proposals require separate implementation; theme imports cannot install them.
+- Check current files and Git state before edits. If another chat is changing the same area, coordinate scope before overlapping edits. Separate worktrees/branches need the relevant committed changes before they share this context.
+- Read relevant chats when context is missing. Send cross-chat messages only when the user explicitly authorizes that communication; these repository instructions do not grant standing messaging permission.
+
 Run API checks with `sh scripts/test-api.sh` on a Docker host, or
 `python3 scripts/test-api-remote.py relicrat-worker` from the configured Mac.
 Report expected failures and skipped tests explicitly. Never reuse real data.

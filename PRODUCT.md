@@ -114,3 +114,19 @@ production build/typecheck, and 40 browser scenarios passed with zero skips or
 failures. A final preview-spacing correction was rebuilt and its three affected
 browser scenarios passed again, including persistence and desktop/mobile captures.
 Details and evidence are in `docs/harness.md`; backup/restore was not rerun here.
+
+## Approved factory appearance (implemented for review, 2026-10-31)
+
+The owner accepted the reviewed brand-kit theme as the out-of-box appearance:
+ivory/white surfaces, charcoal text, burgundy actions, sans body/headings, balanced
+spacing, soft corners and comfortable density. The dark preset uses forest and
+contrasting light gold. This approves application theme tokens, not proposed
+brand masters, logos, mascot artwork, navigation or layouts.
+
+Migration 0010 aligns the database factory default and updates only exact legacy
+factory settings at revision zero, incrementing that revision. Other saved owner
+choices are preserved. Login and initial browser fallback match the branded light
+palette. Downgrade maps the exact new default back to the older default with a
+higher revision; custom themes remain intact. A rollback/re-upgrade does not
+automatically readopt the new default. See ADR 0007 for the explicit restore path.
+The portable theme is `packages/themes/relicrat-default.json`. This is not deployed.

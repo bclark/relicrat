@@ -25,6 +25,13 @@ validation and contrast checks. The reusable guide is
 This feature requires migration `0008_appearance` and matching API/web code.
 Downgrade refuses customized themes; see [ADR 0007](../../docs/decisions/0007-appearance.md).
 
+The approved factory palette uses ivory/white surfaces, charcoal text and burgundy
+actions, with a forest/gold dark preset. Migration `0010_brand_default` aligns new
+installations and untouched legacy factory settings; saved owner choices remain
+intact. Login and initial loading use the branded light palette. A portable export
+is [relicrat-default.json](../../packages/themes/relicrat-default.json). Review the
+ADR's rollback behavior before downgrading.
+
 ## First screen
 
 A title is the only required field when adding a find in the browser. Notes, edition,

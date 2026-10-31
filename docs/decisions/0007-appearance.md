@@ -45,3 +45,29 @@ Multiple saved themes, automatic device mode, custom fonts, images, layout and
 navigation customization, theme history, and an integrated AI provider are outside
 this increment. The reusable authoring contract is
 [the Markdown guidelines](../../packages/themes/AUTHORING-PROMPT.md).
+
+## Approved factory palette (2026-10-31)
+
+The owner accepted the brand-kit review's ivory/white surfaces, charcoal text and
+burgundy shared accent, with sans body/headings, balanced spacing, soft corners
+and comfortable density. The portable export is
+[relicrat-default.json](../../packages/themes/relicrat-default.json). The dark
+preset uses the kit's forest surfaces and contrasting light-gold accent. Approval
+covers these application theme values; it does not promote proposed logos,
+mascot studies, layouts or brand-wide master specifications.
+
+Migration `0010_brand_default` changes the database column default and updates
+only an exact old factory theme whose revision is zero. It increments that row's
+revision, so an already open editor cannot overwrite the change with a stale
+save. Other saved palettes, including a previously selected old default at a
+nonzero revision, remain unchanged. Fresh installations traverse migrations 0008 through 0010 and therefore start with the approved theme at revision one. Login and
+the browser's initial fallback use the same approved palette.
+
+Downgrade restores the older column default and translates an exact new factory
+theme to the old palette, incrementing its revision again. This includes explicit
+selections that exactly match the new factory theme; export it before a reviewed
+rollback if that appearance must be retained. Other themes are preserved and
+0008's existing guard still refuses their deletion. After a rollback/re-upgrade,
+the nonzero revision is preserved: choose Restore default draft, preview and apply
+explicitly to adopt the new factory theme again. No live rollout or backup/restore
+rehearsal is implied by this implementation.

@@ -61,9 +61,9 @@ class Theme(BaseModel):
 
 DEFAULT_THEME = {
     'schema_version': 1, 'name': 'RelicRat', 'mode': 'light',
-    'colors': {'page': '#f1f4f8', 'paper': '#ffffff', 'ink': '#1b2a3d',
-               'muted': '#53647a', 'rule': '#cdd6e2', 'accent': '#214fbd',
-               'accent_text': '#ffffff', 'soft': '#e9effc'},
+    'colors': {'page': '#F7F3E9', 'paper': '#FFFFFF', 'ink': '#302B28',
+               'muted': '#595650', 'rule': '#C6C9C3', 'accent': '#823B3D',
+               'accent_text': '#FFFFFF', 'soft': '#E8EEE9'},
     'font': 'sans', 'heading_font': 'sans', 'spacing': 'balanced',
     'corners': 'soft', 'density': 'comfortable',
 }
@@ -74,9 +74,9 @@ PRESETS = [DEFAULT_THEME, {
                'accent_text': '#ffffff', 'soft': '#e8eddf'},
 }, {
     **DEFAULT_THEME, 'name': 'After hours', 'mode': 'dark',
-    'colors': {'page': '#111820', 'paper': '#1b2530', 'ink': '#edf2f7',
-               'muted': '#b6c5d4', 'rule': '#4a5e72', 'accent': '#a7ccff',
-               'accent_text': '#111820', 'soft': '#263443'},
+    'colors': {'page': '#18251F', 'paper': '#203028', 'ink': '#F7F3E9',
+               'muted': '#C2C9C1', 'rule': '#586A5E', 'accent': '#E9C590',
+               'accent_text': '#18251F', 'soft': '#2B3C31'},
 }]
 
 FONTS = {'sans': 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
