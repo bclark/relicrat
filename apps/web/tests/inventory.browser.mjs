@@ -1143,3 +1143,46 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   const restored=await page.evaluate(async id=>await (await fetch('/api/v1/inventory/'+id)).json(),original.id);
   assert.equal(restored.id,original.id);assert.equal(restored.storage_location_id,box);assert.deepEqual(restored.comic_details,original.comic_details);
 });
+
+
+test('password-manager autofill without input events can sign in; empty native validation sends nothing',async t=>{
+  const context=await browser.newContext();t.after(()=>context.close());
+  const page=await context.newPage();await page.goto(base+'/login');
+  const requests=[];page.on('request',request=>{if(request.method()==='POST' && request.url().endsWith('/api/v1/auth/login'))requests.push(request);});
+  const button=page.getByRole('button',{name:'Sign in',exact:true});
+  assert.ok(await button.isEnabled());
+  assert.equal(await page.getByRole('form',{name:'Owner sign in',exact:true}).getAttribute('method'),'post');
+  await button.click();
+  assert.equal(requests.length,0);
+  assert.ok(await page.locator('#owner-password').evaluate(input=>input.validity.valueMissing));
+  // Password managers may set the DOM value without dispatching React input events.
+  await page.evaluate(password=>{const input=document.querySelector('#owner-password');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,password);},ownerPassword);
+  assert.ok(await button.isEnabled());
+  await button.click();
+  await page.getByRole('heading',{name:'Add a find',exact:true}).waitFor();
+  assert.equal(requests.length,1);
+});
+
+test('autofilled rejected passwords retain input and allow an explicit corrected retry',async t=>{
+  const context=await browser.newContext();t.after(()=>context.close());
+  const page=await context.newPage();await page.goto(base+'/login');
+  await page.evaluate(()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(document.querySelector('#owner-password'),'incorrect-synthetic-password');});
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Password not recognized'}).waitFor();
+  assert.equal(await page.getByLabel('Owner password',{exact:true}).inputValue(),'incorrect-synthetic-password');
+  await page.getByLabel('Owner password',{exact:true}).fill(ownerPassword);
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.getByRole('heading',{name:'Add a find',exact:true}).waitFor();
+});
+
+
+test('sign-in without JavaScript never places the password in the URL',async t=>{
+  const context=await browser.newContext({javaScriptEnabled:false});t.after(()=>context.close());
+  const page=await context.newPage();await page.goto(base+'/login');
+  await page.getByLabel('Owner password',{exact:true}).fill('synthetic-no-javascript-password');
+  const submitted=page.waitForRequest(request=>request.isNavigationRequest() && request.method()==='POST');
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  const request=await submitted;
+  assert.equal(new URL(request.url()).pathname,'/login');
+  assert.equal(new URL(request.url()).search,'');
+});
