@@ -40,3 +40,8 @@ is guessed; legacy custom values are never normalized or replaced automatically.
 Saved artist suggestions query current non-deleted Record observations, group
 case-insensitively and return at most 20 literal prefix matches. They do not come
 from the visible inventory page, browser storage or an external catalog.
+
+
+The music type is presented as **Album/Albums**, covering vinyl, CDs and tapes.
+Its stable stored ID and filename remain `record` / `record.json`; renaming a
+display label does not rewrite existing copies, preferences or audit history.

@@ -62,7 +62,7 @@ export default function CopyDetailsForm({ types, fields, copy, runSave, locked, 
       <label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input id="copy-title" maxLength={types?.[recordType].title.max_length || 500} value={title} onChange={event => { setTitle(event.target.value); setNotice(''); }} />
       {!artistFirst && artistInput}
       {((recordType==='record' && fields.includes('format')) || format || copy.record_details.format) && <><label htmlFor="copy-format">{types?.record.fields.find(field=>field.key==='format')?.label || 'format'} (optional)</label><ObservationInput key={`format-${copy.id}-${copy.details_revision}`} id="copy-format" field={types?.record.fields.find(field=>field.key==='format') || {key:'format',label:'Format',max_length:100,placeholder:'',suggested:true}} value={format} change={value=>{setFormat(value);setNotice('');}} /></>}
-      {recordType==='record' && <p className="hint">Saved record details stay editable even when hidden from new entry forms.</p>}
+      {recordType==='record' && <p className="hint">Saved album details stay editable even when hidden from new entry forms.</p>}
       {(recordType!=='record' || fields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) && <><label htmlFor="copy-edition">Edition</label><input id="copy-edition" maxLength={500} value={edition} onChange={event => { setEdition(event.target.value); setNotice(''); }} aria-describedby="copy-edition-help" />
       <p className="hint" id="copy-edition-help">Optional. For example, Blue vinyl or First printing.</p></>}
       {copy.edition_label !== null && copy.release_id && <p className="hint">Your edition label is used for this copy. Shared catalog information is under Advanced.</p>}
@@ -77,7 +77,7 @@ export default function CopyDetailsForm({ types, fields, copy, runSave, locked, 
       {history.busy ? <p role="status">Loading copy edit history…</p> : history.error ? <p role="alert" className="error">{history.error} Use Reload copy.</p> : history.items.length ? <ol>{history.items.map(edit => <li key={edit.id}>
         <span>{edit.before_title || 'No title'} to {edit.after_title || 'No title'}</span>
         {edit.before_edition_label !== edit.after_edition_label && <small>Edition label: {edit.before_edition_label || 'Not entered'} to {edit.after_edition_label || 'Not entered'}</small>}
-        {edit.before_collection_type!==edit.after_collection_type && <small>Type: {edit.before_collection_type || 'Other'} to {edit.after_collection_type || 'Other'}</small>}
+        {edit.before_collection_type!==edit.after_collection_type && <small>Type: {edit.before_collection_type ? types?.[edit.before_collection_type as 'other'|'record']?.label || edit.before_collection_type : 'Other'} to {edit.after_collection_type ? types?.[edit.after_collection_type as 'other'|'record']?.label || edit.after_collection_type : 'Other'}</small>}
         {(['artist','format'] as const).filter(key=>edit.before_record_details?.[key]!==edit.after_record_details?.[key]).map(key=><small key={key}>{key==='artist' ? 'Artist' : 'Format'}: {edit.before_record_details?.[key] || 'Not entered'} to {edit.after_record_details?.[key] || 'Not entered'}</small>)}
         <small>Revision {edit.after_revision} · {new Date(edit.created_at).toLocaleString()}</small>
       </li>)}</ol> : <p>No copy edits recorded.</p>}

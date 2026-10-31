@@ -859,7 +859,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
 const freshSettings = () => ({status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0});
 async function startRecordSetup(page) {
   await page.getByRole('button',{name:/Set up your collection|Collection settings/,exact:true}).click();
-  await page.getByRole('checkbox',{name:'Records',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Albums',exact:true}).check();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
 }
 
@@ -983,7 +983,7 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
   const {page,state} = await fixture(t,{configureTypes,settings:{status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}});
   await page.goto(base);
   await page.getByRole('button',{name:'Set up your collection',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Records',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Albums',exact:true}).check();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('checkbox',{name:'Performer',exact:true}).waitFor();
   assert.equal(await page.getByRole('checkbox',{name:'Format',exact:true}).isChecked(),false);
@@ -1052,4 +1052,18 @@ test('an obsolete artist suggestion response cannot replace a newer query',async
   await page.waitForTimeout(600);
   assert.deepEqual(await page.locator('#find-artist-suggestions option').evaluateAll(options=>options.map(option=>option.value)),['Mastodon']);
   assert.equal(await input.inputValue(),'Ma');
+});
+
+test('Album labels reach type selection and history while stored identities stay stable',async t=>{
+  const item=copy(1,'Existing music item');
+  const {page,state}=await fixture(t,{copies:[item]});
+  await open(page,item.title);
+  const form=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await form.getByLabel('Collection type',{exact:true}).selectOption({label:'Album'});
+  await form.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  await page.getByText('Copy edit history',{exact:true}).click();
+  await page.getByText('Type: Other to Album',{exact:true}).waitFor();
+  assert.equal(state.copies[0].collection_type,'record');
+  assert.equal(state.edits[item.id][0].after_collection_type,'record');
 });

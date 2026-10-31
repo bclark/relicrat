@@ -35,12 +35,12 @@ export default function CollectionSetup({ types, settings, runSave, locked, save
       {settings.status==='not_started' && <button className="text-button" disabled={locked || review} onClick={() => void commit('skipped')}>Skip for now</button>}</> : <>
       <h2 ref={heading} tabIndex={-1}>Collection setup · Step {step} of 3</h2>
       <form onSubmit={submit} aria-label="Set up collection"><fieldset disabled={locked || review}>
-        {step===1 && <><h3>What do you collect?</h3><p>Records have tailored fields today. Use Other for anything else.</p>
+        {step===1 && <><h3>What do you collect?</h3><p>{types.record.plural_label} have tailored fields today. Use Other for anything else.</p>
           <label><input type="checkbox" checked={enabled} onChange={event => { setEnabled(event.target.checked); setDefaultType(event.target.checked ? 'record' : 'other'); }} /> {types.record.plural_label}</label>
           <p className="hint">Other is always available. Existing finds keep their type and details.</p>
           {enabled && <><label htmlFor="default-type">Start new finds as</label><select id="default-type" value={defaultType} onChange={event => setDefaultType(event.target.value as 'other'|'record')}>{Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
         </>}
-        {step===2 && <><h3>What matters to you about your records?</h3><p>Choose the fields you want to see. All of them are optional when adding a record.</p>
+        {step===2 && <><h3>What matters to you about your {types.record.plural_label.toLowerCase()}?</h3><p>Choose the fields you want to see. All of them are optional when adding an album.</p>
           <p>{types.record.title.label} is always shown.</p>{fields.map(field => <label key={field.key}><input type="checkbox" checked={selected.includes(field.key)} onChange={event => setSelected(before => event.target.checked ? [...before,field.key] : before.filter(key => key!==field.key))} /> {field.label}</label>)}
           <p className="hint">These are suggested fields you can adjust. Hiding a field never deletes saved values. Photos and storage remain available after saving.</p>
         </>}
