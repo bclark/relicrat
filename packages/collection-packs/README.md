@@ -29,3 +29,14 @@ Portable, installable Collection Packs remain future work. Packs may eventually
 describe catalogs and completion rules but must never store or imply private
 ownership. Bundled type definitions are the first bounded configuration step,
 not an installer or a general custom-field engine.
+
+
+Version 1 also supports `entry_order` (every supported field exactly once;
+omitting it keeps the earlier title-first ordering), `input` (`text`, saved-artist
+`autocomplete`, or Format `select`) and bounded unique `options` for Format.
+Records now orders artist before title. Format offers Vinyl/CD/Cassette, an
+explicit unknown choice, and Other for arbitrary bounded text. No default format
+is guessed; legacy custom values are never normalized or replaced automatically.
+Saved artist suggestions query current non-deleted Record observations, group
+case-insensitively and return at most 20 literal prefix matches. They do not come
+from the visible inventory page, browser storage or an external catalog.

@@ -18,5 +18,9 @@
       "placeholder": "Distinctive details, condition, or where you found it",
       "suggested": true
     }
+  ],
+  "entry_order": [
+    "title",
+    "notes"
   ]
 }

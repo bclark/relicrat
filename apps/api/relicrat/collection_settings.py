@@ -1,11 +1,11 @@
 """One owner's durable form preferences, separate from catalog and ownership."""
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from relicrat.database import get_db
-from relicrat.models import CollectionSettings
+from relicrat.models import CollectionSettings, OwnedCopy
 from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
@@ -40,6 +40,18 @@ class SettingsInfo(SettingsValues):
 
 class SaveSettings(SettingsValues):
     expected_revision: int = Field(ge=0, le=2147483646, strict=True)
+
+
+@router.get('/artist-suggestions', response_model=list[str])
+def artist_suggestions(q: str = Query(default='', max_length=500, pattern=r'^[^\x00]*$'),
+                       db: Session = Depends(get_db)):
+    # Only saved, non-deleted Record observations; no catalog or provider lookup.
+    value = func.btrim(OwnedCopy.record_details['artist'].astext)
+    query = select(func.min(value.collate('C'))).where(OwnedCopy.deleted_at.is_(None),
+        OwnedCopy.collection_type == 'record', value.is_not(None), value != '')
+    if term := q.strip():
+        query = query.where(value.istartswith(term, autoescape=True))
+    return list(db.scalars(query.group_by(func.lower(value)).order_by(func.lower(value).collate('C')).limit(20)))
 
 
 @router.get('/types', response_model=dict[str, CollectionType])

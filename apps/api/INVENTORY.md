@@ -317,3 +317,12 @@ optional field order, suggested visibility and bounded input lengths come from
 these validated JSON files. Definitions never change ownership or stored owner
 preferences. The existing collection-settings GET/POST contract is unchanged.
 Unsupported methods are rejected; custom type uploads are not supported.
+
+
+`GET /api/v1/collection-settings/artist-suggestions?q=...` is owner-only and
+read-only. `q` is optional, at most 500 characters, without NUL. It returns up to
+20 artist strings from non-deleted Record copies, grouped case-insensitively,
+with deterministic casing/order and literal case-insensitive prefix matching.
+Unknown/blank values and Other-type copies do not contribute. Suggestions never
+write ownership, settings, audit history or catalog identities. No external
+provider, new table or migration is involved.

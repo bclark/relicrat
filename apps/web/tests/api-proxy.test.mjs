@@ -231,3 +231,14 @@ test('type definitions use a fixed read-only owner endpoint',async()=>{
   assert.equal((await forwardApi(request(path+'/record'),[...path.split('/'),'record'])).status,404);
   assert.equal(observed.length,count);
 });
+
+
+test('artist suggestions use the fixed owner-only read route and preserve literal query',async()=>{
+  const path='collection-settings/artist-suggestions';
+  assert.equal((await forwardApi(request(path+'?q=A%25_'),path.split('/'))).status,200);
+  assert.equal(observed.at(-1).url,'/api/v1/'+path+'?q=A%25_');
+  const count=observed.length;
+  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,405);
+  assert.equal((await forwardApi(request(path+'/unsafe'),[...path.split('/'),'unsafe'])).status,404);
+  assert.equal(observed.length,count);
+});

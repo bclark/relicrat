@@ -37,7 +37,10 @@ async function fixture(t, initial = {}) {
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
     if (method === 'GET') state.reads.push(path);
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
-    if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
+    if (path === 'collection-settings/artist-suggestions') {
+      if(state.failSuggestions) {status=502;result={detail:'Suggestions unavailable'};}
+      else {const q=(url.searchParams.get('q') || '').trim().toLowerCase();if(state.slowSuggestions && q==='ra') await new Promise(resolve=>setTimeout(resolve,500));result=[...new Set(state.copies.filter(copy=>copy.collection_type==='record').map(copy=>copy.record_details?.artist).filter(Boolean))].filter(artist=>artist.toLowerCase().startsWith(q)).slice(0,20);}
+    } else if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
       if(state.failSettings==='read' && method==='GET') {status=502;result={detail:'Collection settings unavailable'};}
       else if(method==='GET') result=state.settings;
       else {
@@ -950,9 +953,12 @@ test('real Records setup and artist search survive browser reload with a title-o
   const context=await browser.newContext();t.after(()=>context.close());await signIn(context);const page=await context.newPage();await page.goto(base);
   await startRecordSetup(page);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Album title',{exact:true}).fill('Synthetic setup album');
-  await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup band');await intake.getByLabel('Format (optional)',{exact:true}).fill('Vinyl');
+  await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup band');await intake.getByLabel('Format (optional)',{exact:true}).selectOption('Vinyl');
   await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
   await page.reload();await intake.getByLabel('Album title',{exact:true}).waitFor();
+  await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup');
+  await page.locator('#find-artist-suggestions option[value="Synthetic setup band"]').waitFor({state:'attached'});
+  await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('');
   await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic setup band');await page.getByRole('button',{name:'Search',exact:true}).click();
   await page.getByRole('button',{name:'Open Synthetic setup band — Synthetic setup album',exact:true}).click();
   await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
@@ -972,6 +978,7 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
     definitions.record.fields.find(field=>field.key==='artist').label='Performer';
     definitions.record.fields.find(field=>field.key==='format').suggested=false;
     definitions.record.fields.reverse();
+    definitions.record.entry_order=['notes','title','edition','artist','format'];
   };
   const {page,state} = await fixture(t,{configureTypes,settings:{status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}});
   await page.goto(base);
@@ -985,8 +992,64 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
   await page.getByLabel('Record title',{exact:true}).fill('Example album');
   await page.getByLabel('Performer (optional)',{exact:true}).fill('Example artist');
   assert.equal(await page.locator('#find-format').count(),0);
-  assert.deepEqual(await page.getByRole('form',{name:'Add a find',exact:true}).locator('label').allTextContents(),['What are you adding?','Record title','Notes (optional)','Edition or pressing (optional)','Performer (optional)']);
+  assert.deepEqual(await page.getByRole('form',{name:'Add a find',exact:true}).locator('label').allTextContents(),['What are you adding?','Notes (optional)','Record title','Edition or pressing (optional)','Performer (optional)']);
   await page.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('button',{name:/Open Example artist/}).waitFor();
   assert.equal(state.copies[0].record_details.artist,'Example artist');
+});
+
+
+test('Record entry suggests saved artists, orders artist before title and accepts a custom format',async t=>{
+  const {page,state}=await fixture(t,{copies:[copy(1,'Example album',{collection_type:'record',record_details:{artist:'Ramones'}})],settings:{...freshSettings(),status:'configured',records_enabled:true,default_type:'record'}});
+  const form=page.getByRole('form',{name:'Add a find',exact:true});
+  await form.getByLabel('Artist or band (optional)',{exact:true}).fill('Ra');
+  await page.locator('#find-artist-suggestions option[value="Ramones"]').waitFor({state:'attached'});
+  assert.deepEqual((await form.locator('label').allTextContents()).slice(1,3),['Artist or band (optional)','Album title']);
+  await form.getByLabel('Artist or band (optional)',{exact:true}).fill('Ramones');
+  await form.getByLabel('Album title',{exact:true}).fill('Another example album');
+  await form.getByLabel('Format (optional)',{exact:true}).selectOption('__other__');
+  await form.getByLabel('Other format',{exact:true}).fill('Reel-to-reel');
+  state.failCreate='validation';await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Synthetic validation error'}).waitFor();
+  assert.equal(await form.getByLabel('Other format',{exact:true}).inputValue(),'Reel-to-reel');
+  state.failCreate='';await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:'Ramones — Another example album',exact:true}).waitFor();
+  assert.equal(state.copies[0].record_details.format,'Reel-to-reel');
+  if(process.env.RELICRAT_SCREENSHOTS) {
+    const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
+    await page.getByRole('form',{name:'Edit copy details',exact:true}).screenshot({path:`${output}/record-controls-desktop.png`});
+    await page.setViewportSize({width:390,height:844});await page.getByRole('form',{name:'Edit copy details',exact:true}).screenshot({path:`${output}/record-controls-mobile.png`});
+  }
+  assert.equal(await form.getByLabel('Format (optional)',{exact:true}).inputValue(),'');
+  const edit=page.getByRole('form',{name:'Edit copy details',exact:true});
+  assert.equal(await edit.getByLabel('Other format',{exact:true}).inputValue(),'Reel-to-reel');
+  await edit.getByLabel('Format (optional)',{exact:true}).selectOption('CD');
+  await edit.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  assert.equal(state.copies[0].record_details.format,'CD');
+});
+
+test('unavailable artist suggestions keep typing and title-only saves available',async t=>{
+  const {page,state}=await fixture(t,{failSuggestions:true,settings:{...freshSettings(),status:'configured',records_enabled:true,default_type:'record'}});
+  const form=page.getByRole('form',{name:'Add a find',exact:true});
+  await form.getByLabel('Artist or band (optional)',{exact:true}).fill('A new artist');
+  await form.getByRole('status').filter({hasText:'Suggestions unavailable'}).waitFor();
+  assert.equal(await form.getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'A new artist');
+  await form.getByLabel('Artist or band (optional)',{exact:true}).fill('');
+  await form.getByLabel('Album title',{exact:true}).fill('Only the album title');
+  await form.getByRole('button',{name:'Save copy',exact:true}).click();
+  await page.getByRole('heading',{name:'Only the album title',exact:true}).waitFor();
+  assert.deepEqual(state.copies[0].record_details,{});
+});
+
+
+test('an obsolete artist suggestion response cannot replace a newer query',async t=>{
+  const {page}=await fixture(t,{slowSuggestions:true,copies:[copy(1,'One album',{collection_type:'record',record_details:{artist:'Ramones'}}),copy(2,'Another album',{collection_type:'record',record_details:{artist:'Mastodon'}})],settings:{...freshSettings(),status:'configured',records_enabled:true,default_type:'record'}});
+  const input=page.locator('#find-artist');
+  const requested=page.waitForRequest(request=>request.url().includes('artist-suggestions?q=Ra'));
+  await input.fill('Ra');await requested;await input.fill('Ma');
+  await page.locator('#find-artist-suggestions option[value="Mastodon"]').waitFor({state:'attached'});
+  await page.waitForTimeout(600);
+  assert.deepEqual(await page.locator('#find-artist-suggestions option').evaluateAll(options=>options.map(option=>option.value)),['Mastodon']);
+  assert.equal(await input.inputValue(),'Ma');
 });

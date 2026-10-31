@@ -1,5 +1,6 @@
 'use client';
 
+import ObservationInput from './observation-input';
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 
@@ -9,6 +10,7 @@ import CopyDetail from './copy-detail';
 
 const PAGE = 20;
 export default function InventoryClient() {
+  const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
   const [settings, setSettings] = useState<CollectionSettings | null>(null);
   const [types, setTypes] = useState<CollectionTypes | null>(null);
@@ -86,7 +88,7 @@ export default function InventoryClient() {
       await runSave(async () => {
         setSaveError(''); setNotice('');
         const copy = await api<InventoryCopy>('inventory', jsonSave({ title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, edition_label: edition.trim() || null }));
-        setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
+        setEntryVersion(value=>value+1); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
         setNotice('Copy saved. You can add more details whenever you like.');
       });
@@ -120,14 +122,16 @@ export default function InventoryClient() {
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as 'other'|'record')}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
-                  <label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
-                  <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e => {setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" />
-                  {(types?.[collectionType].fields || []).filter(field=>showField(field.key, ({artist,format,edition,notes} as Record<string,string>)[field.key] || '')).map(field=>{
+                  {(types?.[collectionType].entry_order || ['title', ...(types?.[collectionType].fields.map(field=>field.key) || [])]).map(key=>{
+                    if(key==='title') return <Fragment key="title"><label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
+                      <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e=>{setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" /></Fragment>;
+                    const field = types?.[collectionType].fields.find(field=>field.key===key);
                     const values: Record<string,string> = {artist,format,edition,notes};
                     const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,edition:setEdition,notes:setNotes};
-                    return <Fragment key={field.key}><label htmlFor={`find-${field.key}`}>{field.label} (optional)</label>
-                      {field.key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
-                        : <input id={`find-${field.key}`} maxLength={field.max_length} placeholder={field.placeholder} value={values[field.key]} onChange={e=>{setters[field.key](e.target.value);draftTouched.current=true;}} />}</Fragment>;
+                    if(!field || !showField(key,values[key])) return null;
+                    return <Fragment key={key}><label htmlFor={`find-${key}`}>{field.label} (optional)</label>
+                      {key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
+                        : <ObservationInput key={`${key}-${entryVersion}`} id={`find-${key}`} field={field} value={values[key]} change={value=>{setters[key](value);draftTouched.current=true;}} />}</Fragment>;
                   })}
                   {!types && <><label htmlFor="find-notes">Notes (optional)</label><textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} /></>}
                   <p className="hint" id="intake-help">You can add an edition, photos or storage whenever you like.</p>
