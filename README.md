@@ -128,9 +128,21 @@ The architecture documentation records intended behavior. It is not a claim that
 
 ## Contributing and project status
 
-This repository is currently a private, early-stage project. Development is organized into small pull requests. Prefer focused changes, tests for domain invariants, and migration review before changing persistent data.
+RelicRat is a public, early-stage open-source project. Development is organized into small pull requests. Prefer focused changes, tests for domain invariants, and migration review before changing persistent data.
 
-No license has been selected. Until one is added, do not assume permission to redistribute or reuse this code outside applicable law.
+## License
+
+Copyright (c) 2026 Bryan Clark.
+
+Except where otherwise noted, RelicRat is licensed under the
+[GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`).
+You may use, modify and redistribute it, including commercially, under that
+license. If you distribute a modified version, or let users interact with a
+modified version over a network, you must provide the corresponding source code
+under the license's terms. See [LICENSE](LICENSE) for the full terms.
+
+Third-party components retain their own licenses. The software license does not
+change ownership of your collection records or uploaded media.
 
 ## Roadmap
 
