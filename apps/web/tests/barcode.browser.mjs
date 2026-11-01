@@ -38,6 +38,7 @@ test('actual decoder reads a synthetic UPC frame, stops camera, retains zeros an
  const {page,scanner,writes,external}=await setup(t);
  const input=page.locator('#find-title');await input.fill('Unsaved synthetic find');
  assert.equal(await page.evaluate(()=>window.__cameraRequests.length),0);
+ if(process.env.RELICRAT_TYPE_FIRST_SCREENSHOTS){await page.locator('#find-type').waitFor();const dir=process.env.RELICRAT_TYPE_FIRST_SCREENSHOTS;await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/type-first-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/type-first-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
  await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor({timeout:35000});
  await stopped(page);assert.equal(await input.inputValue(),'Unsaved synthetic find');

@@ -1704,3 +1704,23 @@ Private evidence is under `.harness-results/movies/`. No live Movie import,
 provider lookup, physical-phone test or deployment occurred. Migration 0013 needs
 a fresh pre-rollout backup and offline restored-copy rehearsal before the live
 schema/API/web release; populated Movie evidence prevents automatic downgrade.
+
+### Type before barcode (2026-11-01)
+
+Intake now presents What are you adding? before Scan barcode, within the existing
+find form. Scanner/review actions retain explicit button types; only Save copy
+submits ownership. No schema, provider selection, theme tokens or API behavior
+changes. Existing type-change draft confirmation and scanner cleanup still apply.
+
+Worker production build/typecheck, 33 Node checks and lint passed. Focused
+Chromium/WebKit checks use `node --test --test-name-pattern='actual decoder|use a
+scan explicitly|a failed copy save|review an album match'
+apps/web/tests/barcode.browser.mjs`: four passed in each browser, zero
+failures/skips. They exercise actual decoding with no writes, explicit copy save,
+failed-save/type-change draft handling and reviewed Album filling. Changed web
+source matched the runtime image; desktop/mobile screenshots were opened and
+the single design detector returned `[]`. The initial browser launch stopped
+before testing because its local Playwright dependency link was missing; the
+completed runs use the existing installation. Private evidence is under
+`.harness-results/type-first/`. API and backup/migration suites were not repeated
+for this change to the form order; physical-phone testing and deployment are separate.
