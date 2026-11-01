@@ -63,3 +63,41 @@ ordinary copy save; config never creates ownership or invokes a provider.
 The stored observation, retained edit history and additive migration 0011 are
 documented in the inventory API contract. No arbitrary identifier/provider
 framework or configurable remote URL is introduced.
+
+## Configured lookup adapters
+
+The owner approved choosing the lookup provider and form mappings through each
+collection type's config (2026-11-01). Optional `lookup` selects an installed
+adapter ID, action label, bounded result count, destination-to-provider field
+mappings, optional value translations and cover previews. Null/omission disables
+lookup. Startup rejects missing adapters, unknown provider fields, unsupported
+form destinations and oversized translations. No URL, credential, code or query
+expression is configurable in this bundled file. Notes are excluded because the
+saved-copy details form does not edit them. New storage fields/types still need
+complete domain support; configuration does not invent writable database fields.
+
+An adapter supplies normalized public candidates and optionally a cover fetcher.
+The registry is a plain mapping in `barcode_providers.py`, without runtime plugin
+loading, a provider class hierarchy or executable config. A different installed
+adapter can be selected without editing the forms. An entirely new API requires
+a small reviewed adapter and registry entry; it cannot be understood from a URL
+alone. Credentials for future authenticated adapters belong in private server
+environment settings and must never be returned with the type definition.
+
+Suggestions remain separate from catalog identities and ownership. Explicit
+lookup sends the barcode to the configured catalog; no camera frame is uploaded.
+The owner reviews candidates and selected fields before filling a page-local
+draft. Existing text starts unchecked; changes after review require another
+review. Ordinary Save copy/Save details persists the chosen personal observations
+through existing validation and history. No catalog/release is silently created
+or linked. Source links accompany review but no new persistent provider-evidence
+record is introduced in this increment. Exact editions remain unconfirmed.
+
+The first adapter uses MusicBrainz public release search and optional Cover Art
+Archive thumbnails. API destinations are fixed in adapter code; response sizes,
+timeouts, redirects and image decoding are bounded. The cover preview is proxied
+through the owner-authenticated API and is not saved as a copy photo. No-match,
+unavailable-service and missing-cover cases preserve manual entry. Existing
+internal-only deployments require an explicitly reviewed API outbound network;
+no published API/database port or incoming public access is needed. See the
+[lookup operator and adapter contract](../barcode-lookup.md).

@@ -1,6 +1,9 @@
 # Barcode intake
 
-Scan a barcode, explicitly choose **Use barcode**, then save the find. Scanning
+Scan a barcode, explicitly choose **Use barcode**, then save the find. Albums
+also offer **Find album details**: review a configured provider’s suggestions,
+choose fields, then **Use these details** to fill the draft before saving. See
+[lookup configuration and adapter contract](barcode-lookup.md). Scanning
 alone never creates inventory, fills a title, matches a catalog entry or calls a
 provider. Camera frames stay on-device; only an explicitly saved barcode
 observation goes to your private inventory API.
@@ -65,6 +68,8 @@ phone security boundary. Choose and verify the phone access path separately.
 Network access, origins and credentials remain part of the separate phone-access
 deployment; this intake increment does not change them.
 
-Each bundled type config declares `barcode_formats`; supported readings are
-reviewable observations only. No provider lookup exists. Next: hands-on phone
-validation, then separately reviewed catalog suggestions (Albums first).
+Each bundled type config declares `barcode_formats` and optional `lookup`.
+Album selects the first installed MusicBrainz adapter. Comics/Other have no lookup
+configured. Suggestions remain unconfirmed personal-copy details, with no automatic
+catalog identity or ownership. Provider availability and physical-phone validation
+remain separate checks.

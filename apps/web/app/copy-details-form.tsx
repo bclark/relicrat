@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type ComicField, type CollectionTypeId, type CollectionTypes, type RunSave } from '../lib/inventory-client';
 import ObservationInput from './observation-input';
 import BarcodeInput from './barcode-input';
@@ -11,6 +11,7 @@ type Props = { types: CollectionTypes | null; fields: RecordField[]; comicFields
 type Edit = { before_barcode?:Partial<BarcodeReading>|null;after_barcode?:Partial<BarcodeReading>|null; id: string; before_title: string | null; after_title: string | null; before_edition_label: string | null; after_edition_label: string | null; before_collection_type: string | null; after_collection_type: string | null; before_comic_details: {issue_number?:string;publisher?:string}|null; after_comic_details: {issue_number?:string;publisher?:string}|null; before_record_details: {artist?:string;format?:string}|null; after_record_details: {artist?:string;format?:string}|null; after_revision: number; created_at: string };
 
 export default function CopyDetailsForm({ types, fields, comicFields, copy, runSave, locked, saved, failed }: Props) {
+  const titleInput=useRef<HTMLInputElement>(null);
   const [recordType, setRecordType] = useState(copy.collection_type);
   const [barcode,setBarcode]=useState<BarcodeReading|null>(copy.barcode?.value ? copy.barcode as BarcodeReading : null);
   const [artist, setArtist] = useState(copy.record_details.artist || '');
@@ -71,13 +72,13 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
       <label htmlFor="copy-type">Collection type</label><select id="copy-type" value={recordType} onChange={event=>{setRecordType(event.target.value as CollectionTypeId);setNotice('');}}>{types ? Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>) : <option value={recordType}>{recordType}</option>}</select>
       {recordType!==copy.collection_type && <p className="hint">Changing type keeps this physical copy and its saved details. Save details to apply it.</p>}
       {[...order,...retained].map(key=>{
-        if(key==='title')return <Fragment key={key}><label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input id="copy-title" maxLength={500} value={title} onChange={event=>{setTitle(event.target.value);setNotice('');}} /></Fragment>;
+        if(key==='title')return <Fragment key={key}><label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input ref={titleInput} id="copy-title" maxLength={500} value={title} onChange={event=>{setTitle(event.target.value);setNotice('');}} /></Fragment>;
         if(key==='edition')return (recordType==='other' || activeFields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) ? <Fragment key={key}><label htmlFor="copy-edition">{recordType==='comic' ? 'Edition or cover' : 'Edition'}</label><input id="copy-edition" maxLength={500} value={edition} onChange={event=>{setEdition(event.target.value);setNotice('');}} aria-describedby="copy-edition-help" /><p className="hint" id="copy-edition-help">Optional. Describe this physical copy’s edition or variant.</p></Fragment> : null;
         if(!activeFields.includes(key as never) && !values[key] && !observed[key])return null;
         const field=types?.[recordType].fields.find(field=>field.key===key) || Object.values(types || {}).flatMap(type=>type.fields).find(field=>field.key===key);
         return field ? <Fragment key={key}><label htmlFor={`copy-${key}`}>{field.label} (optional)</label><ObservationInput key={`${key}-${copy.id}-${copy.details_revision}`} id={`copy-${key}`} field={field} value={values[key]} change={value=>{setters[key](value);setNotice('');}} /></Fragment> : null;
       })}
-      <details onToggle={event=>setBarcodeOpen(event.currentTarget.open)}><summary>Barcode (optional)</summary>{barcodeOpen&&<BarcodeInput saved={!barcodeChanged} key={`${copy.id}-${copy.details_revision}`} value={barcode} change={value=>{setBarcode(value);setNotice('');}} formats={types?.[recordType].barcode_formats || []} locked={locked || !ready}/>}</details>
+      <details onToggle={event=>setBarcodeOpen(event.currentTarget.open)}><summary>Barcode (optional)</summary>{barcodeOpen&&<BarcodeInput saved={!barcodeChanged} key={`${copy.id}-${copy.details_revision}-${recordType}-${JSON.stringify(types?.[recordType].lookup)}`} definition={types?.[recordType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} apply={fields=>{const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);setNotice('');titleInput.current?.focus();}} value={barcode} change={value=>{setBarcode(value);setNotice('');}} formats={types?.[recordType].barcode_formats || []} locked={locked || !ready}/>}</details>
       {recordType!=='other' && <p className="hint">Saved details stay editable even when hidden from new entry forms.</p>}
       {copy.edition_label !== null && copy.release_id && <p className="hint">Your edition label is used for this copy. Shared catalog information is under Advanced.</p>}
       <button className="primary" type="submit" disabled={!dirty}>Save details</button>

@@ -1460,3 +1460,51 @@ existing design-system files and historical metadata drift. Physical-phone focus
 lighting, permissions and supplement capture remain unverified. Full inventory,
 CSV and storage browser suites were not repeated. Evidence is under ignored
 `.harness-results/barcode-intake/`; no owner deployment was performed.
+
+### Configurable album barcode lookup (2026-11-01)
+
+The type-definition config selects an installed provider, bounded mappings/value
+translations, result count and cover previews. Album initially uses MusicBrainz;
+Comics/Other retain manual intake. Suggestions are read-only until the collector
+selects fields into a draft and uses the ordinary final copy/details save.
+
+Validation used disposable synthetic PostgreSQL/media and generated camera/cover
+fixtures, never owner exports, photos or scanned owner barcodes:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: 269 passed, 76 warnings;
+  full Alembic downgrade/upgrade passed. After adding extra redirect, compression
+  and source-URL boundary checks, the focused command
+  `python3 scripts/test-api-remote.py relicrat-worker tests/test_barcode_lookup.py tests/test_collection_types.py`
+  passed 44 checks, one warning, plus the migration round trip.
+- `npm test --prefix apps/web`: 32 passed; `npm run lint --prefix apps/web`
+  passed. Worker `sh scripts/test-web.sh` passed the production build/typecheck,
+  Node checks and existing auth/photo smoke. Final source was rebuilt afterward.
+- `RELICRAT_TEST_WEB_URL=<private synthetic bridge> node --test apps/web/tests/barcode.browser.mjs`:
+  Chromium 15/15 before the final focus guard; final WebKit 15/15, including the
+  focus/stale-draft and rescan guards. The six lookup cases were also confirmed
+  on Chromium after the draft-focus edits. The independent finish reviewer then
+  identified a missing focus handoff in existing-copy editing; intake and
+  existing-copy cases passed 2/2 after that correction, including an explicit
+  active-focus assertion. No skipped/expected-failing cases in these runs.
+
+An earlier concurrent WebKit run failed three cases during temporary bridge
+errors and a draft-focus race. Checks were rerun sequentially after guarding
+deferred focus against ongoing manual edits. Earlier logs remain private.
+Public protocol probes used a synthetic all-zero barcode and an official API
+cover example; both adapter search and cover decoding passed from a disposable
+worker container after transient search timeouts. This is protocol evidence,
+not guaranteed catalog coverage, service availability or physical-phone proof.
+
+No migration or dependency is introduced. The existing backup/recovery suite and
+unrelated inventory/CSV/storage browser suites were not repeated. The optional
+API-only egress overlay has not been applied to the live private trial. Full
+lookup behavior on that deployment remains a separate rollout check after merge.
+Evidence is in ignored `.harness-results/barcode-lookup/`.
+
+All four final intake and two existing-copy full-page desktop/mobile captures
+were opened. The detector returned `[]`; the independent reviewer scored its
+sole keyboard-focus finding **resolved** and returned **ship** in a verdict-only
+recheck. Final runtime hashes matched reviewed API/web sources with no published
+ports. The exact disposable test project, images, volumes, network, remote source
+and temporary bridge were removed; retained restores and the owner trial were
+untouched. Independent surface documentation preserves incumbent design files.

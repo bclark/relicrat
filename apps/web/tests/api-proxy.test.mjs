@@ -305,3 +305,17 @@ test('reviewed import storage exposes only fixed bounded owner JSON routes',asyn
  assert.equal((await forwardApi(request(labels,post()),labels.split('/'))).status,405);
  assert.equal((await forwardApi(request(apply+'/unsafe',post()),[...apply.split('/'),'unsafe'])).status,404);
 });
+
+test('configured barcode lookup permits JSON POST and private cover reads only', async()=>{
+ const headers={Host:new URL(origin).host,Origin:origin,Cookie:`__Host-relicrat_session=${token}`,'Content-Type':'application/json'};
+ const request=new Request(origin+'/api/v1/barcode-lookups/record',{method:'POST',headers,body:JSON.stringify({value:'012345678905',format:'UPC_A'})});
+ const response=await forwardApi(request,['barcode-lookups','record']);assert.equal(response.status,201);
+ const entry=observed.at(-1);assert.equal(entry.method,'POST');assert.equal(entry.url,'/api/v1/barcode-lookups/record');
+ assert.equal(entry.headers.authorization,`Bearer ${token}`);assert.equal(entry.headers.cookie,undefined);
+ const cover=await forwardApi(new Request(origin+'/api/v1/barcode-lookups/record/'+id+'/cover',{headers}),['barcode-lookups','record',id,'cover']);assert.equal(cover.status,200);
+ const before=observed.length;
+ assert.equal((await forwardApi(new Request(origin+'/api/v1/barcode-lookups/record',{headers}),['barcode-lookups','record'])).status,405);
+ assert.equal((await forwardApi(new Request(origin+'/api/v1/barcode-lookups/private',{headers}),['barcode-lookups','private'])).status,404);
+ assert.equal((await forwardApi(new Request(origin+'/api/v1/barcode-lookups/record/../cover',{headers}),['barcode-lookups','record','..','cover'])).status,404);
+ assert.equal(observed.length,before);
+});

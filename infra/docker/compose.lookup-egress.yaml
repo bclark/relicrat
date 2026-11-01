@@ -1,0 +1,10 @@
+# Optional overlay for an otherwise internal-only private deployment.
+# No ports or provider credentials are added; only API gets outbound access.
+services:
+  api:
+    networks:
+      - default
+      - lookup-egress
+networks:
+  lookup-egress:
+    internal: false

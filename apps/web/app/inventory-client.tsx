@@ -137,7 +137,7 @@ export default function InventoryClient() {
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
               <p className="intro">Start with a title. Everything else is optional.</p>
-              <BarcodeInput key={entryVersion} value={barcode} change={value=>{setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
+              <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} apply={fields=>{const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
