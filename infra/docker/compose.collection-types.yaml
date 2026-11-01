@@ -1,0 +1,13 @@
+# Optional operator-owned collection definitions. Never mount uploads here.
+# Supply one or more complete other.json, record.json or comic.json definitions.
+services:
+  api:
+    environment:
+      RELICRAT_COLLECTION_TYPES_DIR: /etc/relicrat/collection-types
+    volumes:
+      - type: bind
+        source: ${RELICRAT_COLLECTION_TYPES_DIR:?Set an existing absolute host config directory}
+        target: /etc/relicrat/collection-types
+        read_only: true
+        bind:
+          create_host_path: false

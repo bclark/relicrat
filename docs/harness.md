@@ -1609,3 +1609,37 @@ later resolved successfully. That does not establish the cause of every earlier
 failure or guarantee provider availability. No owner barcode or collection data
 is included in fixtures. This change requires a web/API rollout after review;
 it needs no migration, credential or network change.
+
+### Mounted provider configuration (2026-11-01)
+
+Observable behavior: an operator can mount complete per-type JSON definitions,
+select an installed adapter and its field mappings, restart API and refresh web,
+without rebuilding an image. Unknown/malformed/oversized configurations fail
+startup instead of silently reverting to another service. Lookup suggestions
+remain read-only and ownership remains an explicit save. Shared adapter failure
+types no longer require routes or artwork saving to import MusicBrainz.
+
+Validation: `python3 scripts/test-api-remote.py relicrat-worker
+tests/test_collection_type_overrides.py tests/test_collection_types.py
+tests/test_barcode_lookup.py tests/test_catalog_covers.py tests/test_media_api.py`
+reported **84 passed, one warning**, followed by a migration downgrade/upgrade
+roundtrip. New checks cover process-startup loading, one-type override/default
+restoration, synthetic second-provider dispatch/mapping and no inventory writes,
+safe failures, and rejected paths, filenames, IDs, credentials, URLs, duplicate
+keys and uninstalled adapters. A task-only private subnet override avoided the
+exhausted Docker address pool; it was restored after the disposable stack cleanup.
+
+The optional Compose overlay's resolved model was checked on the worker with
+synthetic settings: only API receives the read-only bind and config-directory
+variable, host-path creation is disabled, and other services/networks/ports/media
+mounts remain unchanged. The first model assertion expected an explicit false
+value; Compose omits it during normalization. The corrected assertion checks its
+false default. No application containers were started by that model check.
+
+Private evidence: `.harness-results/provider-swapping/`. No provider calls, owner
+fixtures, UI edits, browser reruns, full API suite or backup/restore rehearsals were
+used for this increment. Config activation on the private trial requires a
+reviewed rollout and recovery capture of the mounted definitions. No schema, new
+dependency, credentials, provider selection or live deployment is changed here.
+MusicBrainz remains the only bundled live-service adapter; synthetic swapping
+proves the contract, not a Discogs integration.

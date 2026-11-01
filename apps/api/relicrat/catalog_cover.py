@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from relicrat.collection_types import COLLECTION_TYPES
 from relicrat.barcode_providers import PROVIDERS
-from relicrat.musicbrainz import LookupUnavailable
+from relicrat.barcode_errors import LookupUnavailable
 from relicrat.media import staged_image
 from relicrat.models import MediaAsset
 

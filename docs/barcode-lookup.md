@@ -1,7 +1,8 @@
 # Barcode lookup configuration
 
-Status: implemented for review; not deployed. MusicBrainz is the first installed
-adapter. Lookup reads public suggestions; it never establishes catalog identity
+Status: MusicBrainz lookup is implemented; verify deployment separately. Mounted
+configuration overrides are implemented for review, not deployed. MusicBrainz
+remains the only bundled live-service adapter. Lookup reads public suggestions; it never establishes catalog identity
 or ownership. Physical camera capture and saved barcode observations remain
 separate from external search.
 
@@ -58,8 +59,8 @@ scaling it. Upstream throttling remains possible. No automatic retries or queues
 ## Add or swap an adapter
 
 1. Add a small Python adapter beside `musicbrainz.py`. Its `search(reading, limit)`
-   returns a bounded list of public candidates. Raise `LookupBusy` or
-   `LookupUnavailable` for safe, explicit failure. Keep raw error bodies and
+   returns a bounded list of public candidates. Import `LookupBusy`, `LookupTimeout` and `LookupUnavailable` from
+   `barcode_errors.py` for safe, explicit failure. Keep raw error bodies and
    credentials out of responses/logs.
 2. Register its stable ID in `barcode_providers.py` with `label`, a set of public
    exported `fields`, `source_origin`, `search`, and optional `cover` callable. Cover retention also
@@ -132,3 +133,81 @@ responses remain 503. The browser shows the sanitized API explanation and keeps
 the draft/manual-entry/retry controls available. Transport failures do not say a
 lookup was an unconfirmed inventory save. Diagnostic logs contain only failure
 category/status, never barcode, URL, provider response body or owner data.
+
+## Swap with an operator-owned config mount
+
+Provider choice remains in each collection type's JSON; the browser has no
+provider-specific branches. The installed registry translates provider APIs into
+the common candidate/field/optional-cover contract. A config selects an installed
+adapter; it cannot install arbitrary Python, URLs or credential expressions.
+MusicBrainz remains the only bundled live adapter in this change. Discogs is not
+installed or activated: its integration needs a separate decision about token
+setup, attribution and the provider's data-retention contract. This change tests
+the swap boundary with a synthetic second adapter rather than claiming a second
+production service is available.
+
+For an existing image that includes this override support:
+
+1. Create a private operator directory on the Docker host, outside the repository,
+   uploads and media. Copy the complete bundled `record.json` there. Its stable
+   filename and ID remain `record` even though the displayed label is Album.
+2. Change `lookup.provider` to an installed adapter ID, and adjust
+   `field_mappings`, `value_maps` and `cover_art` to its declared capabilities.
+   Select `musicbrainz` to return to the current provider; set `lookup` to `null`
+   to disable lookup for this type. No other type needs a copied config.
+3. Set the operator shell's `RELICRAT_COLLECTION_TYPES_DIR` to that existing
+   absolute host directory and add `infra/docker/compose.collection-types.yaml`
+   to the deployment's existing Compose files. This mounts the directory
+   read-only at `/etc/relicrat/collection-types` on **API only**. It preserves the
+   database/media mounts and adds no ports or network access. The bind mount
+   refuses to create a missing host directory. Review the resolved Compose model
+   against the current deployment before applying it.
+4. Recreate API using the existing project and all existing deployment overlays,
+   then refresh the app. Config loads at process startup, not on every request;
+   changing an existing mount's files requires an API restart. No image rebuild
+   is needed for later config edits or swaps between installed adapters.
+
+Example for the development Compose model (owner environment must already be
+configured; this is not a command to apply unchanged to a private NAS trial):
+
+```sh
+export RELICRAT_COLLECTION_TYPES_DIR=/absolute/private/collection-types
+docker compose -f compose.yaml -f infra/docker/compose.collection-types.yaml config --quiet
+docker compose -f compose.yaml -f infra/docker/compose.collection-types.yaml up -d --no-deps api
+```
+
+`RELICRAT_COLLECTION_TYPES_DIR` inside API names the mounted container directory,
+while Compose substitution uses the host operator directory. Without the variable
+in API, all bundled definitions apply. With it, one or more known filenames
+(`record.json`, `comic.json`, `other.json`) override their bundled definitions;
+unmentioned types keep their bundled defaults. A missing/empty directory, unknown
+JSON filename, mismatched ID, malformed JSON, duplicate keys, oversized file
+(over 64 KiB), uninstalled adapter or invalid schema prevents startup. A broken
+override never silently falls back to the previous provider.
+
+Keep provider tokens in private environment/secret files injected only into API
+by that adapter's deployment overlay. Tokens never belong in collection JSON,
+Git, browser definitions or a URL. This generic mount contains no credentials.
+An adapter-specific token is not automatically forwarded to other providers.
+No automatic fallback calls a second service: the config selects who receives the
+barcode. Manual retry and final-save rules remain unchanged.
+
+After a provider swap, refresh the app and review any pending match again before
+saving. A staged cover from the previous provider is rejected rather than
+reinterpreted under the new provider; existing saved media and source metadata
+remain intact. Reverting the mounted JSON and restarting API reverses the choice;
+removing the overlay and recreating API restores bundled defaults. Preserve the
+prior private config and deployment receipt for rollback. No migration is needed.
+
+Provider-specific use requirements remain part of each integration's contract.
+See [Discogs API terms](https://support.discogs.com/hc/en-us/articles/360009334593-API-Terms-of-Use)
+for the attribution and retention requirements that prevent treating it as an
+unreviewed drop-in source for durable artwork.
+
+Recovery note: an operator mount is deployment configuration outside the Git
+archive. Before enabling it on a private trial, retain its exact validated files
+and checksums in the private deployment/recovery evidence and update the capsule
+procedure to recover them. The existing Git-source capsule does not automatically
+include arbitrary host-mounted definitions. Never substitute a config directory
+containing provider credentials. No live mount or backup workflow is changed by
+this PR.
