@@ -169,7 +169,9 @@ def restore(args):
         'db': {'image': manifest['db_image'], 'environment': {
             'POSTGRES_DB': 'relicrat', 'POSTGRES_USER': 'relicrat', 'POSTGRES_PASSWORD': password},
             'volumes': ['database:/var/lib/postgresql/data'],
-            'healthcheck': {'test': ['CMD-SHELL', 'pg_isready -U relicrat -d relicrat'],
+            # The image's temporary initialization server listens only on Unix sockets.
+            # Probe the same TCP endpoint used by pg_restore, not that early server.
+            'healthcheck': {'test': ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U relicrat -d relicrat'],
                             'interval': '2s', 'timeout': '5s', 'retries': 30}},
         'api': {'image': manifest['api_image'], 'environment': {
             'DATABASE_URL': f'postgresql+psycopg://relicrat:{password}@db:5432/relicrat',

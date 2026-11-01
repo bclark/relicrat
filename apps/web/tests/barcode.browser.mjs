@@ -93,3 +93,85 @@ test('closing the scanner and hiding the page release active camera tracks',asyn
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('status').filter({hasText:'Hold the barcode'}).waitFor();
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'));});await stopped(page);
 });
+
+test('use a scan explicitly, save one copy, find it by barcode and retain removal history',async t=>{
+ const {page,scanner,writes,external}=await setup(t);
+ const title='Synthetic barcode intake '+Date.now();
+ await page.locator('#find-title').fill(title);
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
+ await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();await stopped(page);
+ assert.deepEqual(writes,[]);
+ await scanner.getByRole('button',{name:'Use barcode',exact:true}).click();
+ await page.getByText('Barcode in this draft',{exact:true}).waitFor();assert.deepEqual(writes,[]);
+ assert.equal(await page.locator('#find-title').inputValue(),title);
+ assert.equal(await page.locator('#find-title').evaluate(e=>e===document.activeElement),true);
+ if(process.env.RELICRAT_INTAKE_SCREENSHOTS){const dir=process.env.RELICRAT_INTAKE_SCREENSHOTS;await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/intake-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/intake-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();
+ await page.getByText('Copy saved. You can add more details whenever you like.',{exact:true}).waitFor();
+ const copies=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();
+ assert.equal(copies.length,1);const copy=copies[0];assert.equal(copy.barcode.value,'012345678905');
+ assert.equal(await page.getByText('Barcode in this draft',{exact:true}).count(),0);
+ await page.selectOption('#collection-browse-view','copies');await page.locator('#query').fill(copy.barcode.value);
+ await page.getByRole('form',{name:'Search inventory'}).getByRole('button',{name:'Search',exact:true}).click();
+ await page.locator('.inventory-list').getByRole('button').filter({hasText:title}).waitFor();
+ await page.reload();
+ await page.selectOption('#collection-browse-view','copies');
+ await page.locator('.inventory-list').getByRole('button').filter({hasText:title}).click();
+ const edit=page.getByRole('form',{name:'Edit copy details'}),disclosure=edit.locator('summary').filter({hasText:'Barcode (optional)'});
+ await disclosure.click();await edit.getByText('Saved barcode',{exact:true}).waitFor();
+ if(process.env.RELICRAT_INTAKE_SCREENSHOTS){const dir=process.env.RELICRAT_INTAKE_SCREENSHOTS;await page.screenshot({path:dir+'/saved-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/saved-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ await page.evaluate(()=>{window.__cameraMode='blank';});
+ const savedScanner=edit.getByRole('region',{name:'Barcode scanning trial',exact:true});
+ await savedScanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
+ await savedScanner.getByRole('status').filter({hasText:'Hold the barcode'}).waitFor();
+ await disclosure.click();await stopped(page);await disclosure.click();
+ await edit.getByText('Saved barcode',{exact:true}).waitFor();
+ await edit.getByRole('button',{name:'Remove barcode from draft',exact:true}).click();
+ assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+copy.id)).json()).barcode.value,'012345678905');
+ await edit.getByRole('button',{name:'Save details',exact:true}).click();
+ await page.getByText('Copy details saved.',{exact:true}).waitFor();
+ const cleared=await (await page.request.get(base+'/api/v1/inventory/'+copy.id)).json();assert.deepEqual(cleared.barcode,{});assert.equal(cleared.id,copy.id);
+ const history=await (await page.request.get(base+'/api/v1/inventory/'+copy.id+'/detail-history')).json();
+ assert.equal(history.at(-1).before_barcode.value,'012345678905');assert.deepEqual(history.at(-1).after_barcode,{});
+ assert.deepEqual(external,[]);assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,1);
+});
+
+test('a failed copy save retains the attached reading and a confirmed type change clears it',async t=>{
+ const {page,scanner,writes}=await setup(t);
+ await page.locator('#find-title').fill('Synthetic failed barcode draft');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();
+ await scanner.getByRole('button',{name:'Use barcode',exact:true}).click();
+ await page.route('**/api/v1/inventory',async route=>{
+  if(route.request().method()==='POST')await route.fulfill({status:503,contentType:'application/json',body:'{"detail":"Synthetic save unavailable"}'});else await route.continue();
+ });
+ await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Synthetic save unavailable'}).waitFor();
+ await page.getByText('Barcode in this draft',{exact:true}).waitFor();assert.equal(await page.locator('#find-title').inputValue(),'Synthetic failed barcode draft');
+ await page.getByRole('button',{name:'Reload inventory',exact:true}).last().click();
+ await page.waitForFunction(()=>!!document.querySelector('#find-type') && !document.querySelector('#find-type').closest('fieldset').disabled);
+ const original=await page.locator('#find-type').inputValue(),next=original==='record'?'comic':'record';
+ page.once('dialog',d=>d.dismiss());await page.selectOption('#find-type',next);
+ assert.equal(await page.locator('#find-type').inputValue(),original);await page.getByText('Barcode in this draft',{exact:true}).waitFor();
+ page.once('dialog',d=>d.accept());await page.selectOption('#find-type',next);
+ assert.equal(await page.getByText('Barcode in this draft',{exact:true}).count(),0);assert.equal(await page.locator('#find-title').inputValue(),'');
+ assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,1);
+});
+
+test('type configuration can disable new scans or reject a format without changing inventory',async t=>{
+ const {page,scanner,writes}=await setup(t);
+ let formats=[];
+ const definitions=await (await page.request.get(base+'/api/v1/collection-settings/types')).json();
+ await page.route('**/api/v1/collection-settings/types',async route=>{
+  const types=structuredClone(definitions);
+  for(const type of Object.values(types))type.barcode_formats=formats;
+  await route.fulfill({json:types});
+ });
+ await page.reload();await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).waitFor();
+ await page.waitForFunction(()=>!!document.querySelector('#find-type') && !document.querySelector('#find-type').closest('fieldset').disabled);
+ assert.equal(await scanner.getByRole('button',{name:'Scan barcode',exact:true}).isDisabled(),true);
+ assert.equal(await page.evaluate(()=>window.__cameraRequests.length),0);
+ formats=['EAN_13'];await page.reload();
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
+ await scanner.getByRole('alert').filter({hasText:'not supported for this collection type'}).waitFor();await stopped(page);
+ assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);assert.deepEqual(writes,[]);
+});

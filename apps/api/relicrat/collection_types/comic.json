@@ -53,5 +53,11 @@
     "plural_label": "Series",
     "unknown_label": "Series not recorded",
     "order": "issue_number"
-  }
+  },
+  "barcode_formats": [
+    "UPC_A",
+    "UPC_E",
+    "EAN_8",
+    "EAN_13"
+  ]
 }

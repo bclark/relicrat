@@ -5,13 +5,13 @@ import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
-import BarcodeScanner from './barcode-scanner';
+import BarcodeInput from './barcode-input';
 import GroupedCollection from './grouped-collection';
 import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { api, ApiError, copyName, errorText, jsonSave, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, copyName, errorText, jsonSave, type BarcodeReading, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
 import CopyDetail from './copy-detail';
 
 const PAGE = 20;
@@ -19,6 +19,7 @@ export default function InventoryClient() {
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
+  const [barcode,setBarcode]=useState<BarcodeReading|null>(null);
   const [settings, setSettings] = useState<CollectionSettings | null>(null);
   const [types, setTypes] = useState<CollectionTypes | null>(null);
   const [settingsError, setSettingsError] = useState('');
@@ -44,8 +45,8 @@ export default function InventoryClient() {
   },[settingsVersion]);
   function changeType(value: CollectionTypeId) {
     if(value===collectionType) return;
-    if((title || notes || artist || format || edition || issueNumber || publisher) && !window.confirm('Changing type will discard this unsaved find. Change type?')) return;
-    setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setEdition('');setSaveError('');draftTouched.current=true;
+    if((title || notes || artist || format || edition || issueNumber || publisher || barcode) && !window.confirm('Changing type will discard this unsaved find. Change type?')) return;
+    setBarcode(null);setEntryVersion(value=>value+1);setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setEdition('');setSaveError('');draftTouched.current=true;
   }
   const [notes, setNotes] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -102,8 +103,8 @@ export default function InventoryClient() {
     try {
       await runSave(async () => {
         setSaveError(''); setNotice('');
-        const copy = await api<InventoryCopy>('inventory', jsonSave({ title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
-        setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
+        const copy = await api<InventoryCopy>('inventory', jsonSave({ barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
+        setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
         setNotice(typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
       });
@@ -127,7 +128,7 @@ export default function InventoryClient() {
       <main>
         <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
         <Appearance applied={setAppearanceStyles} />
-        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
+        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition && !issueNumber && !publisher && !barcode) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={setSelected} />
@@ -136,7 +137,7 @@ export default function InventoryClient() {
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
               <p className="intro">Start with a title. Everything else is optional.</p>
-              <BarcodeScanner />
+              <BarcodeInput key={entryVersion} value={barcode} change={value=>{setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
@@ -173,7 +174,7 @@ export default function InventoryClient() {
             <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>
-              <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Search titles, notes, or identified names" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
+              <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Title, artist or barcode" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
               {query && <button className="text-button" type="button" disabled={busy} onClick={() => { setDraftQuery(''); setQuery(''); setPage(0); }}>Clear search</button>}
             </form>
             {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={id=>{setSelected(id);setNotice('');}} chooseType={value=>{setTypeFilter(value);setPage(0);}}/>:<>

@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from relicrat.barcodes import BARCODE_CHECK
 from relicrat.theme_values import DEFAULT_THEME, THEME_CHECK
 
 
@@ -77,6 +78,7 @@ class OwnedCopy(Timestamps, Base):
         CheckConstraint("collection_type::text IN ('other'::text, 'record'::text, 'comic'::text)", name="collection_type_valid"),
         CheckConstraint("jsonb_typeof(record_details) = 'object' AND record_details - 'artist' - 'format' = '{}'::jsonb AND (NOT record_details ? 'artist' OR (jsonb_typeof(record_details->'artist') = 'string' AND char_length(record_details->>'artist') BETWEEN 1 AND 500)) AND (NOT record_details ? 'format' OR (jsonb_typeof(record_details->'format') = 'string' AND char_length(record_details->>'format') BETWEEN 1 AND 100))", name="record_details_valid"),
         CheckConstraint("jsonb_typeof(comic_details) = 'object' AND comic_details - 'issue_number' - 'publisher' = '{}'::jsonb AND (NOT comic_details ? 'issue_number' OR (jsonb_typeof(comic_details->'issue_number') = 'string' AND char_length(comic_details->>'issue_number') BETWEEN 1 AND 100)) AND (NOT comic_details ? 'publisher' OR (jsonb_typeof(comic_details->'publisher') = 'string' AND char_length(comic_details->>'publisher') BETWEEN 1 AND 250))", name="comic_details_valid"),
+        CheckConstraint(BARCODE_CHECK, name="barcode_valid"),
         CheckConstraint("details_revision >= 0", name="details_revision_nonnegative"),
         CheckConstraint("identification_revision >= 0", name="identification_revision_nonnegative"),
         CheckConstraint("identification_status IN ('unidentified', 'partial', 'identified', 'verified')", name="identification_status_valid"),
@@ -93,6 +95,7 @@ class OwnedCopy(Timestamps, Base):
     collection_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="other")
     record_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     comic_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    barcode: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     edition_label: Mapped[str | None] = mapped_column(String(500))
     details_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     identification_status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="unidentified")
@@ -110,7 +113,7 @@ class CopyDetailEvent(Base):
         UniqueConstraint('owned_copy_id', 'after_revision'),
         CheckConstraint('before_revision >= 0 AND after_revision = before_revision + 1', name='detail_revision_step'),
         CheckConstraint('identification_revision >= 0', name='detail_identification_revision'),
-        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details', name='details_changed'),
+        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode', name='details_changed'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
@@ -122,6 +125,8 @@ class CopyDetailEvent(Base):
     after_collection_type: Mapped[str | None] = mapped_column(String(20))
     before_record_details: Mapped[dict | None] = mapped_column(JSONB)
     after_record_details: Mapped[dict | None] = mapped_column(JSONB)
+    before_barcode: Mapped[dict | None] = mapped_column(JSONB)
+    after_barcode: Mapped[dict | None] = mapped_column(JSONB)
     before_comic_details: Mapped[dict | None] = mapped_column(JSONB)
     after_comic_details: Mapped[dict | None] = mapped_column(JSONB)
     identification_revision: Mapped[int] = mapped_column(Integer, nullable=False)

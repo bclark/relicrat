@@ -22,5 +22,11 @@
   "entry_order": [
     "title",
     "notes"
+  ],
+  "barcode_formats": [
+    "UPC_A",
+    "UPC_E",
+    "EAN_8",
+    "EAN_13"
   ]
 }

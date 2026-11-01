@@ -28,6 +28,7 @@ def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned
         stmt=stmt.outerjoin(CatalogItem,OwnedCopy.catalog_item_id==CatalogItem.id).outerjoin(Release,OwnedCopy.release_id==Release.id).where(or_(
             OwnedCopy.provisional_title.icontains(term,autoescape=True),
             OwnedCopy.description.icontains(term,autoescape=True),
+            OwnedCopy.barcode['value'].astext.icontains(term,autoescape=True),
             OwnedCopy.record_details['artist'].astext.icontains(term,autoescape=True),
             OwnedCopy.record_details['format'].astext.icontains(term,autoescape=True),
             OwnedCopy.comic_details['issue_number'].astext.icontains(term,autoescape=True),

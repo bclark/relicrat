@@ -1391,3 +1391,72 @@ checking and no agent forwarding, and refuses symlinked, foreign-owned,
 world/group-accessible or malformed transport files. The final bridge suite is
 **10 passed**. This generic configuration does not expose operator values through
 HTTP or Git. Public certificate-name disclosure is a separate owner choice.
+
+## Reviewed barcode observations (2026-11-01)
+
+A scanned UPC/EAN remains page-local until **Use barcode**, followed by the
+ordinary **Save copy** or **Save details**. Type configs declare the supported
+formats. Scans do not identify editions, fill titles or create ownership; camera
+frames stay on-device. Saved observations can be replaced/removed, with retained
+before/after value, format and supplement in revision-checked edit history.
+Main digits participate in the existing literal inventory/group search. Unknown
+is empty, leading zeroes survive, and several physical copies may share a code.
+
+Migration `0011_copy_barcodes` is additive. Its database constraint bounds the
+observation independently of API validation; upgrade preserves all older columns
+and initializes unknown barcodes. Downgrade locks both relevant tables before
+checking and refuses current or historical barcode loss, including barcode-only
+edit events. Apply migrations and deploy API/web together after a verified backup;
+never erase history to bypass the guard. Old clients omitting barcode preserve it.
+
+Executed with generated data and isolated disposable projects only:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **258 passed**, 76 existing
+  dependency/configuration warnings, no skips/expected failures; full downgrade
+  to base and upgrade through 0011 passed. Tests cover strict strings/formats,
+  supplements, SQL constraints, private reads/writes, duplicate physical copies,
+  search, unchanged identities, corrections/no-ops/removal, stale revisions and
+  upgrade/downgrade guards. Older migration tests now account for the extra empty
+  column and nullable legacy history fields. Final writer-lock adjustment:
+  `python3 scripts/test-api-remote.py relicrat-worker tests/test_barcodes_migration.py`:
+  **1 passed**, six existing warnings, full migration round trip passed.
+- In `apps/web`, `npm test`: **31 passed** and `npm run lint` passed. The worker
+  `sh scripts/test-web.sh` passed production build/typecheck, Node checks,
+  authenticated HTTP smoke and exact photo persistence after API recreation.
+  Final source was rebuilt after disclosure cleanup and compact spacing changes;
+  runtime file hashes for both test images matched the reviewed files.
+- `node --test apps/web/tests/barcode.browser.mjs`: initial Chromium **8 passed**.
+  After the final small presentation changes, both new intake/edit and failed-save
+  scenarios passed again; the additional config-disable/format-rejection scenario
+  passed separately. The final **9 scenarios passed in WebKit**, zero skips or
+  failures. All use generated camera frames, not a real camera or owner data.
+  Tests verify explicit attachment/save, draft retention, reload persistence,
+  barcode search/removal history, type-change confirmation and camera shutdown
+  when the saved-copy disclosure closes, as well as the existing camera lifecycle.
+- `python3 -m unittest discover -s scripts -p test_backup.py -v`: **6 passed**.
+  Worker `python3 scripts/test-operator-backup.py` passed a genuine synthetic
+  capture, writer restart, source destruction, fresh offline copied restore and
+  independent all-row/schema/history/media comparison, including corrected barcode
+  and supplement values. All **five damage modes** failed at their intended
+  boundaries; exact owned cleanup passed. The restored API/web never started.
+
+Recovery verification exposed two existing issues: an equivalent PostgreSQL
+varchar-array cast spelling for the import-source constraint, and an early Unix
+socket readiness signal from PostgreSQL's initialization server. The fixture now
+recognizes only that exact equivalent import predicate with changed-value/operator
+negative controls; restore probes the TCP endpoint actually used by `pg_restore`.
+The test now releases each receipt-owned disposable restore before starting the
+next to avoid exhausting Docker's network pool alongside retained owner restores.
+Earlier failed logs remain private; no broad cleanup or retained-restore removal
+was used. The first local Node invocation required loopback access outside the
+sandbox; its hung test processes were stopped and the rerun passed. WebKit was
+installed into a task-local test directory before its passing run.
+
+All four final full-page intake/saved-copy captures at desktop1440 and phone390
+were opened and inspected. The mechanical detector returned `[]`; an independent
+finish reviewer returned **ship**, no material findings, at this extension's
+scope. Independent documentation added the barcode surface brief and preserved
+existing design-system files and historical metadata drift. Physical-phone focus,
+lighting, permissions and supplement capture remain unverified. Full inventory,
+CSV and storage browser suites were not repeated. Evidence is under ignored
+`.harness-results/barcode-intake/`; no owner deployment was performed.
