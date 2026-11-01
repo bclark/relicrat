@@ -29,8 +29,10 @@ Malformed configuration fails startup. No migration or new dependency is require
 
 ## Workflow and privacy
 
-1. Scan, then choose Find album details; alternatively keep only the barcode and
-   search later from its attached draft. Neither action saves inventory.
+1. For a type with lookup configured, a successful scan stops the camera, attaches
+   the barcode to the draft and searches immediately, without a separate barcode
+   confirmation. Find album details can retry a lookup from the attached draft.
+   A type without lookup keeps the explicit Use barcode step. Nothing is saved.
 2. Review possible releases, source link and optional cover. Select fields to fill;
    nonempty current fields start unchecked. Changed drafts require another review.
 3. Choose Use these details, review/edit the filled form, then Save copy or Save

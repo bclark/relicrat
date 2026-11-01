@@ -1,21 +1,23 @@
 # Barcode intake
 
-Scan a barcode, explicitly choose **Use barcode**, then save the find. Albums
-also offer **Find album details**: review a configured provider’s suggestions,
-choose fields, then **Use these details** to fill the draft before saving. See
-[lookup configuration and adapter contract](barcode-lookup.md). Scanning
-alone never creates inventory, fills a title, matches a catalog entry or calls a
-provider. Camera frames stay on-device; only an explicitly saved barcode
-observation goes to your private inventory API.
+For a type with a configured catalog, scanning stops the camera and immediately
+looks for possible matches. Review a match and its fields, then **Use these
+details** to fill the draft before saving. No separate barcode confirmation is
+needed. For types without lookup, choose **Use barcode** to attach the reading.
+See [lookup configuration and adapter contract](barcode-lookup.md). Scanning
+never saves inventory, fills a title or confirms catalog identity. Camera frames
+stay on-device; only the barcode is sent to the configured catalog.
 
 ## Try it
 
-After sign-in, choose **Scan barcode** beside Add a find. Allow camera access,
-hold the code steady, and review its digits, format and optional supplement.
-The camera stops after a reading. Choose **Use barcode** to attach it to the
-current draft, enter a meaningful title, and choose **Save copy**. You can scan
-again or close the scanner to discard an unused reading. Replacing an attached
-barcode has a separate **Replace draft barcode** action. Failed saves retain
+After sign-in, choose the collection type, then **Scan barcode** beside Add a
+find. Allow camera access and hold the code steady. The camera stops after a
+reading. With lookup configured, possible matches appear immediately; if none
+are found or the provider is unavailable, the barcode stays in the draft and
+manual entry remains available. Review selected details before **Save copy**.
+Without lookup, review the digits/format/supplement, choose **Use barcode** (or
+**Replace draft barcode**), enter a meaningful title, then **Save copy**. Closing
+a scan before a reading leaves the previous draft untouched. Failed saves retain
 the draft; uncertain saves require reload/review before another save.
 
 Saved copies expose **Barcode (optional)** under Edit this copy. You can scan a
@@ -45,8 +47,9 @@ explicit stop/close, page exit, backgrounding, disconnect, startup/decoder error
 or a one-minute limit. Cancelled runs stop a late camera stream as soon as its
 permission request resolves. Separate video elements prevent an old run from
 clearing a subsequent run's preview. Resuming requires another explicit action.
-The same button remains focused during start/stop; a successful result focuses
-its heading. Barcode text is rendered as text, never as a URL or markup.
+The same button remains focused during start/stop. Without configured lookup,
+a successful result focuses its heading. With lookup, scanning goes directly to
+possible matches; catalog review and the ordinary final save remain explicit. Barcode text is rendered as text, never as a URL or markup.
 
 ## Dependencies and access boundary
 
@@ -55,8 +58,9 @@ lazily loads locally bundled
 `@zxing/browser` 0.1.5 and its `@zxing/library` 0.21.3 peer. These are compatible
 with the existing Node 22 deployment; newer pairs currently require Node 24.
 They replace writing/maintaining a barcode decoder and camera sampling loop.
-There are no CDN scripts, provider credentials or scanner-side network requests.
-Explicit copy saves use the existing authenticated inventory API.
+There are no CDN scripts or provider credentials in the decoder. Configured
+lookup requests use the owner-protected API after a successful scan; camera
+frames stay local. Explicit copy saves use the existing inventory API.
 See the [ZXing browser project](https://github.com/zxing-js/browser) and
 [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 

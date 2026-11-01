@@ -101,3 +101,12 @@ unavailable-service and missing-cover cases preserve manual entry. Existing
 internal-only deployments require an explicitly reviewed API outbound network;
 no published API/database port or incoming public access is needed. See the
 [lookup operator and adapter contract](../barcode-lookup.md).
+
+### Scan-to-lookup refinement (2026-11-01)
+
+The owner requested removal of the redundant barcode confirmation. For types
+with lookup configured, a successful supported scan attaches the reading and
+starts one lookup immediately. Starting the scanner discloses this behavior;
+camera frames stay local. Types without lookup retain Use barcode. Match/field
+review and final copy/details save remain explicit; failures preserve manual
+entry and no automatic retries are added.

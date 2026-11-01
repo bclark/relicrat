@@ -15,7 +15,7 @@ export default function BarcodeInput({value,change,formats,locked,saved=false,de
  const [requested,setRequested]=useState(0),[scannerOpen,setScannerOpen]=useState(false);
  const lookup=definition?.lookup&&apply&&values;
  return <div className="barcode-input">
-  <BarcodeScanner disabled={locked || !formats.length} formats={formats} onUse={reading=>{setRequested(0);change(reading);}} replacing={!!value} onOpenChange={open=>{setScannerOpen(open);if(open)setRequested(0);}} lookupLabel={definition?.lookup?.action_label} onLookup={lookup?reading=>{change(reading);setRequested(n=>n+1);}:undefined}/>
+  <BarcodeScanner disabled={locked || !formats.length} formats={formats} onUse={reading=>{setRequested(0);change(reading);}} replacing={!!value} onOpenChange={open=>{setScannerOpen(open);if(open)setRequested(0);}} onLookup={lookup?reading=>{change(reading);setRequested(n=>n+1);}:undefined}/>
   {value && <div>
    <p><strong>{saved?'Saved barcode':'Barcode in this draft'}</strong></p>
    <dl><dt>Barcode</dt><dd>{value.value}</dd><dt>Format</dt><dd>{value.format.replaceAll('_','-')}</dd><dt>Supplement</dt><dd>{value.supplement || 'Not detected'}</dd></dl>

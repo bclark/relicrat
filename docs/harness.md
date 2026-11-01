@@ -1508,3 +1508,33 @@ recheck. Final runtime hashes matched reviewed API/web sources with no published
 ports. The exact disposable test project, images, volumes, network, remote source
 and temporary bridge were removed; retained restores and the owner trial were
 untouched. Independent surface documentation preserves incumbent design files.
+
+### Direct scan-to-lookup refinement (2026-11-01)
+
+A supported scan for a type with a configured provider now starts lookup without
+a barcode-confirmation click, through the same shared scanner in intake and
+saved-copy editing. No-provider types retain Use barcode. Match/field review,
+manual-text preservation, fallback and final saving remain explicit.
+
+The worker built the production web/API images, ran `npm test` (32 passed) and
+`npm run lint` (passed) inside the synthetic web image. Browser validation uses
+`RELICRAT_TEST_WEB_URL=<disposable-loopback-bridge> node --test apps/web/tests/barcode.browser.mjs`
+with the task's installed Chromium or WebKit executable/cache. Chromium and
+WebKit each passed all 16 cases, with zero failures/skips. The independent
+finish review returned **ship** with no material findings. The suite
+checks automatic lookup in both forms, exactly one request per deliberate
+scan/rescan, unsupported formats, canceled scans, provider failure/manual entry,
+late responses, unchanged barcode-only flow and save/history boundaries.
+
+Only generated synthetic camera/cover fixtures and disposable data were used.
+Eight full-page desktop/mobile captures show automatic results, field review,
+filled intake and filled existing-copy forms. The detector returned `[]`; running
+images matched changed source files and exposed no host ports. API and recovery
+suites were not repeated because API/schema/storage/networking are unchanged.
+Physical-phone validation remains after merge/deployment; this change is not
+deployed. Evidence: ignored `.harness-results/scan-direct/`.
+
+The first disposable-stack attempt stopped before tests when Docker's predefined
+address pool was exhausted. A nonoverlapping explicit private subnet, checked
+against existing Docker networks and worker routes, was assigned only to this
+test stack. No prior network, archive or retained recovery resource was removed.
