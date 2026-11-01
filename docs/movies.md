@@ -27,10 +27,10 @@ Changing type retains all existing Album/Comic/Movie observations. Unknown field
 are absent rather than zero-filled. Title, studio, format, barcode and notes are
 searchable. Title groups summarize physical copies without merging them.
 
-Movie config declares UPC/EAN scanning and UPCitemdb title lookup. A successful
+Movie config declares UPC/EAN scanning and config-selected retail title lookup. A successful
 scan searches for a retail suggestion; the owner reviews the title before filling
 the draft and explicitly saving. Studio, format and edition remain manual; brand
-is not studio and no artwork is fetched. This adapter needs no signup or key, but
+is not studio and no artwork is fetched. The proposed GTINHub trial needs no signup or key, but permits only ten lookups a day and
 has free-plan limits and incomplete coverage. Provider selection/mappings remain
 in movie.json; see the [Movie lookup contract](barcode-lookup.md#movie-title-lookup-with-upcitemdb).
 Scanning and lookup do not prove an edition or establish catalog identity.

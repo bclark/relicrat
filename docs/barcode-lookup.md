@@ -1,6 +1,6 @@
 # Barcode lookup configuration
 
-Status: MusicBrainz Album lookup and UPCitemdb Movie title lookup are implemented;
+Status: MusicBrainz Album lookup, UPCitemdb and a GTINHub Movie trial adapter are implemented;
 verify deployment separately. Mounted configuration overrides remain available.
 The installed registry, not browser code, selects each external service. Lookup reads public suggestions; it never establishes catalog identity
 or ownership. Physical camera capture and saved barcode observations remain
@@ -140,7 +140,7 @@ Provider choice remains in each collection type's JSON; the browser has no
 provider-specific branches. The installed registry translates provider APIs into
 the common candidate/field/optional-cover contract. A config selects an installed
 adapter; it cannot install arbitrary Python, URLs or credential expressions.
-MusicBrainz and UPCitemdb are bundled live adapters; UPCitemdb exports title only and has no cover callable. Discogs is not
+MusicBrainz, UPCitemdb and GTINHub are bundled live adapters; the two retail adapters export title only and have no cover callable. Discogs is not
 installed or activated: its integration needs a separate decision about token
 setup, attribution and the provider's data-retention contract. This change tests
 the swap boundary with a synthetic second adapter rather than claiming a second
@@ -215,7 +215,7 @@ this PR.
 
 ## Movie title lookup with UPCitemdb
 
-Movie's bundled JSON selects `upcitemdb`, maps only `title` to `title`, uses
+The installed `upcitemdb` alternative maps only `title` to `title`, uses
 **Find movie details**, and sets `cover_art` to false. Change provider/mappings in
 that same config to select another installed adapter, or set lookup to null to
 disable it. The existing scan → review → fill draft → explicit save flow applies.
@@ -254,3 +254,44 @@ Checked 2026-11-01 against the provider's [free-plan limits](https://www.upcitem
 [service terms](https://www.upcitemdb.com/terms). Availability, metadata accuracy and
 coverage are not guaranteed. The private deployment needs its existing API-only
 outbound access; this implementation does not change network topology.
+
+
+## GTINHub Movie trial
+
+Status: implemented for review, not deployed. Movie's proposed bundled config
+selects `gtinhub` after UPCitemdb returned no result for a reported UK Movie
+barcode and GTINHub returned an exact identifier match. This is one observed
+coverage improvement, not a claim of complete or more accurate catalog coverage.
+The live deployment remains unchanged until the reviewed release is rolled out.
+
+The no-key API is limited to **10 requests per day**, intended for evaluation.
+This implementation never subscribes, sends a key or activates a paid tier. It
+uses only https://gtinhub.com/api/v1/product/{observed_barcode}; no redirects,
+external image requests or arbitrary returned URLs. Byte/type/encoding/time
+bounds match the existing retail adapter. A conservative ten-second process gate
+and sixty-second provider-429 cooldown prevent rapid repeats. Daily quota is
+provider-enforced, not tracked persistently by RelicRat; it can remain exhausted
+after a cooldown. No automatic retry or fallback contacts a second service.
+
+Only the documented string product.gtin can establish an exact candidate match
+(with the existing UPC-A/zero-prefixed EAN-13 equivalence). Numeric identifiers,
+GTIN-14 packaging codes and nested raw_data are not converted into a match. Only
+product.name maps to title after review. Brand/category can describe the candidate
+but never fill studio, format, edition or quantity. Images, prices, specifications
+and descriptions are not imported. No artwork or catalog identity is created.
+An explicit found:false without a product is no match; malformed or contradictory
+responses and non-JSON proxy errors remain explicit failures.
+
+Change only movie.json lookup.provider to `upcitemdb` to select the previous
+installed provider with the same title mapping, or set lookup to null to disable
+lookup. Existing copies, barcodes, fields and history are untouched. The mounted
+config and recovery rules above apply. No schema, dependency, generic provider
+framework or provider-specific browser code is added. Bundled defaults require
+an API rebuild/restart; no live configuration is changed by this proposal.
+
+Provider [API documentation](https://gtinhub.com/api),
+[trial/pricing](https://gtinhub.com/pricing), and [terms](https://gtinhub.com/terms)
+were checked 2026-11-01. The terms permit internal use and restrict redistribution
+of provider data. Keep reviewed lookups private; generated fixtures and adapter
+code may be published, not downloaded product records or owner collections.
+No service uptime, metadata accuracy or ongoing trial availability is guaranteed.

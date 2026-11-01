@@ -1891,3 +1891,49 @@ Only the exact owned test projects, their resources/source and temporary bridge
 were removed after verification. Live inventory, owner settings, all recovery
 resources and the original design checkout were untouched. No new backup/restore
 or live deployment was performed; API rollout and phone use follow merge.
+
+
+## Config-selected GTINHub Movie trial (2026-11-01)
+
+Adds one installed GTINHub adapter and proposes selecting it in movie.json.
+UPCitemdb remains selectable with the same title mapping, or lookup can be null.
+No automatic fallback, account/key, paid subscription, schema, dependency or
+frontend-runtime change. GTINHub's no-key trial permits only ten requests/day.
+Title review and the existing final save remain separate; no edition, studio,
+format, price, quantity or artwork is inferred/imported.
+
+Verification used generated replies and isolated synthetic databases only:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **378 passed**, zero
+  failures/skips and 89 existing deprecation warnings; full downgrade to base
+  and upgrade through 0013_movies passed. The temporary test Compose snapshot
+  used a checked nonoverlapping internal subnet and was restored byte-for-byte
+  afterward. No production Compose/network edit is included.
+- Twenty-nine new cases cover exact string GTIN and UPC/EAN equivalence, numeric
+  and packaging-code rejection, malformed/contradictory/no-match replies, bounded
+  fields, fixed safe URLs, redirects/content-type/compression/byte/time limits,
+  rate/concurrency/cooldown, config swaps/disabling, private lookup and unchanged
+  inventory/catalog/media/history row counts. Existing UPCitemdb checks explicitly
+  select that retained adapter rather than depending on the proposed default.
+- Correctly sourced worker production build/typecheck, lint and **33 Node tests**
+  passed. Chromium and WebKit each passed **four selected browser scenarios**:
+  GTINHub Movie scan → automatic lookup → title review → one final save, provider
+  quota/no-match preserving manual text without automatic retry, Album reviewed
+  fill and mobile disclosure camera-stop/draft preservation.
+- The reported barcode matched through both an independent documented API probe
+  and the actual new adapter in a disposable no-port worker container. These
+  separate diagnostic lookups retained private evidence only, used no inventory,
+  and fetched no artwork. No owner barcode or downloaded product response is used
+  as a committed fixture. This proves that example, not broad catalog coverage.
+- Runtime hashes matched all changed production API/config files before accepting
+  the browser evidence. No physical-phone or live inventory write test was run.
+
+The first browser launcher accidentally archived the older operator checkout.
+That entire exact owned test stack/source was discarded before accepting any
+verification; it was rebuilt from the current isolated branch. Its earlier logs
+remain private and are not counted above. The accepted logs are stack-retry.log,
+api.log, chromium.log, webkit.log and runtime-and-probe.json under
+`.harness-results/movie-gtinhub/`. Only this run's test resources/source and bridge
+were removed after verification; live app, owner settings, original design work
+and retained recovery resources remained untouched. No live rollout or new
+backup/restore was performed. API deployment follows review/merge.

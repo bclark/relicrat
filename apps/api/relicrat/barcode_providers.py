@@ -5,9 +5,15 @@ then register its bounded field names and public source origin here. Adapters
 must validate input/response, pin HTTPS destinations and keep credentials private.
 """
 from uuid import UUID
-from relicrat import musicbrainz, upcitemdb
+from relicrat import musicbrainz, upcitemdb, gtinhub
 
 PROVIDERS = {
+    'gtinhub': {
+        'label': 'GTINHub',
+        'fields': frozenset({'title'}),
+        'source_origin': 'https://gtinhub.com',
+        'search': gtinhub.search,
+    },
     'upcitemdb': {
         'label': 'UPCitemdb',
         'fields': frozenset({'title'}),

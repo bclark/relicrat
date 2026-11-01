@@ -131,7 +131,8 @@ def test_movie_config_is_swappable_and_lookup_cannot_create_inventory(client,mon
     api,db=client;calls=[]
     def search(reading,limit):calls.append(reading);return upcitemdb.parse_items({'code':'OK','items':[item()]},reading,limit)
     monkeypatch.setitem(PROVIDERS['upcitemdb'],'search',search)
-    definition=COLLECTION_TYPES['movie'].model_dump();assert definition['lookup']['provider']=='upcitemdb'
+    definition=COLLECTION_TYPES['movie'].model_dump();definition['lookup']['provider']='upcitemdb'
+    monkeypatch.setitem(COLLECTION_TYPES,'movie',CollectionType.model_validate(definition))
     assert definition['lookup']['field_mappings']=={'title':'title'} and not definition['lookup']['cover_art']
     disabled={**definition,'lookup':None};assert CollectionType.model_validate(disabled).lookup is None
     swapped={**definition,'lookup':{**definition['lookup'],'provider':'musicbrainz'}}

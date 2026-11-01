@@ -41,7 +41,7 @@ def test_movie_create_edit_history_old_client_omission_search_grouping_and_type_
 
 def test_movie_definition_preferences_and_saved_studio_suggestions(client):
     api,db=client;definition=api.get('/api/v1/collection-settings/types').json()['movie']
-    assert definition['lookup']['provider']=='upcitemdb' and definition['entry_order'][0]=='title'
+    assert definition['lookup']['provider']=='gtinhub' and definition['entry_order'][0]=='title'
     assert definition['fields'][0]['options']==['Blu-ray','4K UHD','DVD','Blu-ray + DVD','VHS','LaserDisc']
     settings=api.get('/api/v1/collection-settings').json();assert not settings['movies_enabled']
     original={k:settings[k] for k in ('records_enabled','record_fields','comics_enabled','comic_fields')}

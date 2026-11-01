@@ -365,7 +365,7 @@ test('Movie config automatically looks up a scan, reviews title only and saves o
  const title='Synthetic barcode movie '+Date.now();
  await page.route('**/api/v1/barcode-lookups/movie',async route=>{
   calls++;assert.equal(route.request().method(),'POST');assert.equal(route.request().postDataJSON().value,'012345678905');
-  await route.fulfill({json:{provider:'upcitemdb',provider_label:'UPCitemdb',candidates:[{id:'0012345678905',title,description:'Retail product match; confirm the movie and edition.',source_url:'https://www.upcitemdb.com/upc/0012345678905',fields:{title},cover_url:null}]}});
+  await route.fulfill({json:{provider:'gtinhub',provider_label:'GTINHub',candidates:[{id:'0012345678905',title,description:'Retail product match; confirm the movie and edition.',source_url:'https://gtinhub.com/product/0012345678905',fields:{title},cover_url:null}]}});
  });
  await page.selectOption('#find-type','movie');
  const form=page.getByRole('form',{name:'Add a find',exact:true});
@@ -373,13 +373,13 @@ test('Movie config automatically looks up a scan, reviews title only and saves o
  await form.getByLabel('Format (optional)',{exact:true}).selectOption('DVD');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
  const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();
- await lookup.getByRole('heading',{name:'Possible matches from UPCitemdb',exact:true}).waitFor();
+ await lookup.getByRole('heading',{name:'Possible matches from GTINHub',exact:true}).waitFor();
  assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);
  assert.equal(await form.getByLabel('Movie or box-set title',{exact:true}).inputValue(),'');
  await lookup.locator('.barcode-matches button').click();
  assert.equal(await lookup.getByRole('checkbox',{name:/Movie or box-set title/}).isChecked(),true);
  assert.equal(await lookup.getByRole('checkbox').count(),1);
- assert.equal(await lookup.getByRole('link',{name:'View release on UPCitemdb',exact:true}).getAttribute('href'),'https://www.upcitemdb.com/upc/0012345678905');
+ assert.equal(await lookup.getByRole('link',{name:'View release on GTINHub',exact:true}).getAttribute('href'),'https://gtinhub.com/product/0012345678905');
  await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
  assert.equal(await form.getByLabel('Movie or box-set title',{exact:true}).inputValue(),title);
  assert.equal(await form.getByLabel('Studio (optional)',{exact:true}).inputValue(),'Keep my manual studio');
@@ -400,7 +400,7 @@ test('Movie provider quota and no-match responses retain manual entry without au
  await page.route('**/api/v1/barcode-lookups/movie',async route=>{
   calls++;
   if(calls===1)await route.fulfill({status:429,headers:{'Retry-After':'60'},json:{detail:'Lookup is busy or its request limit has been reached. Try again later or enter details manually.'}});
-  else await route.fulfill({json:{provider:'upcitemdb',provider_label:'UPCitemdb',candidates:[]}});
+  else await route.fulfill({json:{provider:'gtinhub',provider_label:'GTINHub',candidates:[]}});
  });
  await page.selectOption('#find-type','movie');await page.locator('#find-title').fill('Keep my manual movie title');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);

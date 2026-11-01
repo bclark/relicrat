@@ -29,3 +29,11 @@ Brand, format, pricing and images are not mapped to saved Movie observations.
 Provider/mapping changes retain the existing validated config/adapter boundary.
 See the [Movie barcode lookup contract](../barcode-lookup.md#movie-title-lookup-with-upcitemdb).
 This follow-up needs an API rollout, not a database migration.
+
+
+2026-11-01 provider trial: GTINHub is an installed title-only alternative after
+an exact Movie barcode lookup succeeded where UPCitemdb had no record. The
+proposed Movie JSON selects its no-key 10/day evaluation. UPCitemdb remains
+installed/selectable; no implicit fallback or paid plan is activated. Review,
+identity, ownership and save boundaries remain unchanged. See the
+[trial contract](../barcode-lookup.md#gtinhub-movie-trial) for limits and rollout.
