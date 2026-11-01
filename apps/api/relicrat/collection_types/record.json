@@ -59,5 +59,11 @@
     "plural_label": "Artists",
     "unknown_label": "Artist not recorded",
     "order": "title"
-  }
+  },
+  "barcode_formats": [
+    "UPC_A",
+    "UPC_E",
+    "EAN_8",
+    "EAN_13"
+  ]
 }

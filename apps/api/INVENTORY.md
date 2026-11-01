@@ -445,3 +445,38 @@ and title/issue ordering combinations are accepted; Other remains ungrouped.
 Grouping performs no writes or inference, changes no UUIDs, and never combines
 physical copies. No migration, provider, new index or stored owner preference is
 introduced.
+
+## Observed barcodes (schema 0011)
+
+An optional `barcode` observation belongs to a physical copy, not to a shared
+catalog identity. Create accepts `null`/omission (unknown) or an object such as
+`{"value":"012345678905","format":"UPC_A","supplement":"00001"}`.
+Values stay ASCII digit strings including leading zeroes. Supported formats are
+UPC_A (12 digits), UPC_E (8), EAN_8 (8), EAN_13 (13); supplements are optional two
+or five digits. No identifier conversion, checksum certification or edition
+inference is made. API and PostgreSQL both bound the persisted shape. Unknown
+readings return `{}`; absent supplements are omitted, never filled with zeroes.
+Multiple copies can have the same barcode. A barcode alone does not qualify as
+meaningful provisional intake. Imports do not infer barcodes from source columns.
+
+The revision-checked details endpoint accepts the same `barcode` object, or
+explicit `null` to remove it; omission preserves the saved observation for old
+clients. Corrections/removals share the existing copy lock, details revision and
+transaction with labels, and retain `before_barcode`/`after_barcode` in detail
+history. Search `q` also matches the observed main barcode as literal text;
+supplements are not searched or merged into the main digits. This remains an
+owner-authenticated inventory search, not a provider lookup or unique match.
+
+Type definitions declare a bounded `barcode_formats` list consumed by the scan
+review UI. Omission disables new scans for earlier version-1 definitions without
+hiding saved observations. Settings/optional-field preferences remain unchanged.
+There is no configurable URL, executable rule or external provider.
+
+Apply migration 0011 before deploying the API/web together. Upgrade gives every
+existing copy an empty barcode and leaves all prior columns/history intact.
+Downgrade locks both tables and refuses to drop current or historical barcode
+observations, including edits that only changed a barcode. Retain a verified
+backup and matching source/images before rollout; use the older release against
+an isolated recovery restore when rollback is needed. Do not delete observations
+or history to make a production downgrade succeed. Offline backups already
+capture all columns and bundled source; no new volume or credential is required.

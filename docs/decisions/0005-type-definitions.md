@@ -52,3 +52,14 @@ Custom formats stay editable, including when owner preferences hide the field.
 Selecting Other opens text entry; a failed save keeps that draft. Saving a new
 find resets the dropdown to unknown. No acquisition/catalog/ownership inference
 or migration accompanies these controls.
+
+## Barcode observations
+
+Bundled definitions may declare `barcode_formats` using the four supported
+UPC/EAN decoder names. Duplicate, unknown or overlong lists are rejected. An
+omitted/empty list disables new scans without hiding or discarding existing
+observations. Barcode use remains an explicit draft action, followed by the
+ordinary copy save; config never creates ownership or invokes a provider.
+The stored observation, retained edit history and additive migration 0011 are
+documented in the inventory API contract. No arbitrary identifier/provider
+framework or configurable remote URL is introduced.

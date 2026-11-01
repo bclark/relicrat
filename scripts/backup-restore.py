@@ -35,6 +35,7 @@ def canonical_check(expression):
         ('identification_status', ('unidentified', 'partial', 'identified', 'verified')),
         ('ownership_status', ('owned', 'sold', 'traded', 'lost')),
         ('before_status', ('unidentified', 'partial', 'identified', 'verified')),
+        ('source', ('clz', 'discogs')),
     ):
         elements = ', '.join(f"'{value}'::character varying" for value in values)
         original = f"{column}::text = ANY (ARRAY[{elements}]::text[])"
@@ -60,6 +61,11 @@ def check_canonicalization():
     require(canonical_check(restored_status) == original_status, 'History cast equivalence failed')
     for changed in (restored_status.replace("'verified'", "'invalid'"), restored_status.replace("after_status::text =", "after_status::text <>")):
         require(canonical_check(changed) != original_status, 'Changed history predicate hidden')
+    original_source = "source::text = ANY (ARRAY['clz'::character varying, 'discogs'::character varying]::text[])"
+    restored_source = "source::text = ANY (ARRAY['clz'::character varying::text, 'discogs'::character varying::text])"
+    require(canonical_check(restored_source) == original_source, 'Import cast equivalence failed')
+    for changed in (restored_source.replace("'discogs'", "'other'"), restored_source.replace(' = ANY', ' <> ALL')):
+        require(canonical_check(changed) != original_source, 'Changed import predicate hidden')
     require(canonical_check('byte_size >= 0') == 'byte_size >= 0', 'Unrelated check changed')
 
 
@@ -116,6 +122,7 @@ def seed():
         api.headers['Authorization'] = 'Bearer ' + access.json()['token']
         response = api.post(BASE, json={
             'title': 'Synthetic unidentified comic',
+            'barcode': {'value':'012345678905','format':'UPC_A','supplement':'00001'},
             'description': 'Recovery fixture only; blue cover, issue unknown.',
         })
         require(response.status_code == 201, response.text)
@@ -154,6 +161,7 @@ def seed():
             'title': 'Edited synthetic recovery copy', 'edition_label': 'Blue test edition',
             'collection_type': 'comic', 'record_details': {'artist':'Synthetic recovery artist','format':'Vinyl'},
             'comic_details': {'issue_number':'001½','publisher':'Synthetic recovery press'},
+            'barcode': {'value':'0012345678905','format':'EAN_13','supplement':'02'},
             'expected_details_revision': copy['details_revision'],
             'expected_identification_revision': copy['identification_revision']})
         require(response.status_code == 200, response.text)
@@ -163,6 +171,7 @@ def seed():
         require(configured.status_code == 200, 'Recovery preferences save failed')
         edits = api.get(f"{BASE}/{copy['id']}/detail-history").json()
         require(len(edits) == 1, 'Copy edit history missing')
+        require(edits[0]['before_barcode']['value']=='012345678905' and edits[0]['after_barcode']==copy['barcode'], 'Barcode correction history missing')
         movements = api.get(f"{BASE}/{copy['id']}/locations").json()
         require(len(movements) == 2, 'Movement history missing')
         history = api.get(f"{BASE}/{copy['id']}/reconciliations").json()

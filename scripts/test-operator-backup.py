@@ -95,6 +95,9 @@ def main():
                 '-v', f'{evidence}:/evidence:ro', '-v', f'{ROOT}/scripts/backup-restore.py:/rehearsal/backup-restore.py:ro',
                 'api', 'python', '/rehearsal/backup-restore.py', 'verify'])
             require(not output(restored_compose + ['ps', '-q', '--status', 'running', 'api']), 'Restore exposed app')
+            # Release only this verified disposable restore before the next one;
+            # retained owner restores must not be pruned to make room for tests.
+            run(restored_compose + ['down', '--volumes', '--remove-orphans'])
             # Damage with updated archive checksums must still fail restored-state
             # verification; this is stronger than a checksum-only test.
             for mode in ('checksum', 'missing', 'corrupt', 'unsafe', 'state'):
@@ -138,6 +141,8 @@ def main():
                 else:
                     receipt = json.loads((destination / 'restore.json').read_text())
                     require(receipt['status'] == 'incomplete', 'Failed restore marked verified')
+                    run(DOCKER + ['compose', '-p', receipt['project'], '-f', receipt['compose'],
+                                  'down', '--volumes', '--remove-orphans'])
             print('Operator backup integration passed; 5 damage modes rejected', flush=True)
         finally:
             projects = [project]

@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from typing import Literal
+from relicrat.barcodes import BarcodeFormat
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -45,6 +46,7 @@ class CollectionType(BaseModel):
     id: Literal['other', 'record', 'comic']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
+    barcode_formats: list[BarcodeFormat] = Field(default_factory=list, max_length=4)
     grouping: BrowseGrouping | None = None
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
@@ -59,6 +61,8 @@ class CollectionType(BaseModel):
 
     @model_validator(mode='after')
     def supported_storage(self):
+        if len(self.barcode_formats) != len(set(self.barcode_formats)):
+            raise ValueError('Barcode formats must be unique')
         # These limits describe deployed storage, not an arbitrary custom-field engine.
         limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250}
         allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}}[self.id]

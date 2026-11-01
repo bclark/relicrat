@@ -15,6 +15,7 @@ from relicrat.inventory_queries import copies_query,copy_order
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.intake import CreateProvisionalCopy, stage_copy
+from relicrat.barcodes import BarcodeReading
 from relicrat.record_details import RecordDetails
 from relicrat.comic_details import ComicDetails
 from relicrat.collection_types import COLLECTION_TYPES
@@ -32,6 +33,7 @@ class InventoryCopy(BaseModel):
     title: str | None = Field(validation_alias="provisional_title")
     description: str | None
     collection_type: Literal['other', 'record', 'comic']
+    barcode: dict[str, str]
     record_details: dict[str, str]
     comic_details: dict[str, str]
     edition_label: str | None
@@ -84,6 +86,7 @@ def list_copies(
 
 
 class EditCopyDetails(BaseModel):
+    barcode: BarcodeReading | None = None
     collection_type: Literal['other', 'record', 'comic'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
     comic_details: ComicDetails = Field(default_factory=ComicDetails)
@@ -100,6 +103,8 @@ class DetailEventInfo(BaseModel):
     owned_copy_id: UUID
     before_collection_type: str | None
     after_collection_type: str | None
+    before_barcode: dict | None
+    after_barcode: dict | None
     before_comic_details: dict | None
     after_comic_details: dict | None
     before_record_details: dict | None
@@ -122,7 +127,8 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
                             payload.expected_details_revision, payload.expected_identification_revision,
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
                             record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,
-                            comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None)
+                            comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None,
+                            barcode=(payload.barcode.model_dump(exclude_none=True) if payload.barcode else {}) if 'barcode' in payload.model_fields_set else None)
     except DetailError as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from None
 
