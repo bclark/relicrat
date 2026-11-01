@@ -3,8 +3,8 @@ import {useEffect,useRef,useState} from 'react';
 import type {BarcodeReading} from '../lib/inventory-client';
 import {readBarcode,startBarcodeCamera} from '../lib/barcode-camera.mjs';
 
-type Props={disabled?:boolean;formats?:string[];onUse?:(reading:BarcodeReading)=>void;replacing?:boolean;lookupLabel?:string;onLookup?:(reading:BarcodeReading)=>void;onOpenChange?:(open:boolean)=>void};
-export default function BarcodeScanner({disabled=false,formats,onUse,replacing=false,lookupLabel,onLookup,onOpenChange}:Props){
+type Props={disabled?:boolean;formats?:string[];onUse?:(reading:BarcodeReading)=>void;replacing?:boolean;onLookup?:(reading:BarcodeReading)=>void;onOpenChange?:(open:boolean)=>void};
+export default function BarcodeScanner({disabled=false,formats,onUse,replacing=false,onLookup,onOpenChange}:Props){
  const [open,setOpen]=useState(false),[phase,setPhase]=useState<'off'|'starting'|'scanning'|'read'>('off');
  const [reading,setReading]=useState<ReturnType<typeof readBarcode>>(null),[error,setError]=useState('');
  const container=useRef<HTMLDivElement>(null),session=useRef<ReturnType<typeof startBarcodeCamera>|null>(null),resultHeading=useRef<HTMLHeadingElement>(null),launchButton=useRef<HTMLButtonElement>(null);
@@ -23,7 +23,7 @@ export default function BarcodeScanner({disabled=false,formats,onUse,replacing=f
   setOpen(true);onOpenChange?.(true);setReading(null);setError('');setPhase('starting');
   session.current=startBarcodeCamera(container.current,{
    onReady:()=>setPhase('scanning'),
-   onResult:value=>{session.current=null;if(formats && !formats.includes(value.format)){setError('This barcode format is not supported for this collection type.');setPhase('off');return;}setReading(value);setPhase('read');},
+   onResult:value=>{session.current=null;if(formats && !formats.includes(value.format)){setError('This barcode format is not supported for this collection type.');setPhase('off');return;}if(onLookup){close();onLookup(value);return;}setReading(value);setPhase('read');},
    onError:message=>{session.current=null;setError(message);setPhase('off');},
   });
  }
@@ -31,12 +31,12 @@ export default function BarcodeScanner({disabled=false,formats,onUse,replacing=f
  return <section className="barcode-scanner" aria-label="Barcode scanning trial">
   <button type="button" disabled={disabled} ref={launchButton} onClick={active?stop:start}>{active?'Stop camera':reading?'Scan another barcode':open?'Start camera':'Scan barcode'}</button>
   <div hidden={!open}>
-   <h2>Scan a barcode</h2><p>Read a UPC or EAN barcode. Reading alone does not save inventory or contact a catalog. {onLookup ? `${lookupLabel} searches for possible matches. You can also keep only the barcode.` : onUse ? "Choose Use barcode, then save the copy to keep it." : "This reading stays on this page."}</p>
+   <h2>Scan a barcode</h2><p>Read a UPC or EAN barcode. Nothing is saved by scanning. {onLookup ? "A successful scan searches the configured catalog for possible matches. Review a match before filling the form. Camera frames stay on your device." : onUse ? "Choose Use barcode, then save the copy to keep it. No catalog lookup is configured." : "This reading stays on this page."}</p>
    <div className="barcode-camera" ref={container} hidden={phase!=='starting'&&phase!=='scanning'}/>
    {active&&<p role="status">{phase==='starting'?'Waiting for camera access…':'Hold the barcode steady and keep the bars in view.'}</p>}
    <button type="button" onClick={close}>Close scanner</button>
    {error&&<p className="error" role="alert">{error}</p>}
-   {reading&&<div><h3 tabIndex={-1} ref={resultHeading}>Barcode read</h3><p role="status">Camera stopped. This reading has not been saved.</p><dl><dt>Barcode</dt><dd>{reading.value}</dd><dt>Format</dt><dd>{reading.format.replaceAll('_','-')}</dd><dt>Supplement</dt><dd>{reading.supplement||'Not detected'}</dd></dl><p>A barcode is a clue, not a confirmed edition. Comics may have a separate small supplement identifying an issue or variant; this scanner does not identify the comic.</p>{onLookup&&<button type="button" className="primary" disabled={disabled} onClick={()=>{const value=reading;close();onLookup(value);}}>{lookupLabel}</button>}{onUse&&<button type="button" disabled={disabled} onClick={()=>{const value=reading;close();onUse(value);}}>{replacing?'Replace draft barcode':'Use barcode'}</button>}</div>}
+   {reading&&<div><h3 tabIndex={-1} ref={resultHeading}>Barcode read</h3><p role="status">Camera stopped. This reading has not been saved.</p><dl><dt>Barcode</dt><dd>{reading.value}</dd><dt>Format</dt><dd>{reading.format.replaceAll('_','-')}</dd><dt>Supplement</dt><dd>{reading.supplement||'Not detected'}</dd></dl><p>A barcode is a clue, not a confirmed edition. Comics may have a separate small supplement identifying an issue or variant; this scanner does not identify the comic.</p>{onUse&&<button type="button" disabled={disabled} onClick={()=>{const value=reading;close();onUse(value);}}>{replacing?'Replace draft barcode':'Use barcode'}</button>}</div>}
   </div>
  </section>;
 }

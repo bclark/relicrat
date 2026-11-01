@@ -170,7 +170,7 @@ test('type configuration can disable new scans or reject a format without changi
  await page.waitForFunction(()=>!!document.querySelector('#find-type') && !document.querySelector('#find-type').closest('fieldset').disabled);
  assert.equal(await scanner.getByRole('button',{name:'Scan barcode',exact:true}).isDisabled(),true);
  assert.equal(await page.evaluate(()=>window.__cameraRequests.length),0);
- formats=['EAN_13'];await page.reload();
+ formats=['EAN_13'];await page.reload();await page.selectOption('#find-type','record');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
  await scanner.getByRole('alert').filter({hasText:'not supported for this collection type'}).waitFor();await stopped(page);
  assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);assert.deepEqual(writes,[]);
@@ -189,8 +189,9 @@ async function lookupFixture(page,title='Synthetic Moon Album'){
 }
 async function scanForAlbum(page,scanner){
  await page.selectOption('#find-type','record');
- await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();
- await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ assert.equal(await scanner.getByRole('heading',{name:'Barcode read',exact:true}).count(),0);
+ assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);
  const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();
  await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();return lookup;
 }
@@ -199,6 +200,7 @@ test('review an album match, preserve existing artist, fill a draft and explicit
  const {page,scanner,writes,external}=await setup(t);const title='Synthetic Moon Album '+Date.now();const calls=await lookupFixture(page,title);
  await page.selectOption('#find-type','record');await page.locator('#find-artist').fill('Keep my manual artist');
  const lookup=await scanForAlbum(page,scanner);
+ if(process.env.RELICRAT_LOOKUP_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_SCREENSHOTS;await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/automatic-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/automatic-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
  assert.equal(await page.locator('#find-title').inputValue(),'');assert.equal(await page.locator('#find-artist').inputValue(),'Keep my manual artist');
  assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal(calls(),1);
  await lookup.locator('.barcode-matches button').click();await lookup.getByRole('heading',{name:'Review details to fill'}).waitFor();await page.waitForFunction(()=>Array.from(document.querySelectorAll('.lookup-cover')).every(image=>image.complete&&image.naturalWidth>0));
@@ -219,7 +221,7 @@ test('lookup failure and no matches keep a manually editable draft without owner
  const {page,scanner,writes}=await setup(t);let fail=true;
  await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill(fail?{status:503,json:{detail:'Synthetic unavailable'}}:{json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}}));
  await page.selectOption('#find-type','record');await page.locator('#find-title').fill('Synthetic fallback draft');
- await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
  const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('alert').filter({hasText:'Lookup is unavailable'}).waitFor();assert.equal(await page.locator('#find-title').inputValue(),'Synthetic fallback draft');
  fail=false;await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('status').filter({hasText:'No matching releases'}).waitFor();
  assert.equal(await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).isEnabled(),true);assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
@@ -238,7 +240,7 @@ test('a changed draft requires another review before a suggestion can replace it
 test('late lookup responses cannot populate a changed collection type',async t=>{
  const {page,scanner,writes}=await setup(t);let release;const pending=new Promise(resolve=>{release=resolve;});let started=false;
  await page.route('**/api/v1/barcode-lookups/record',async route=>{started=true;await pending;try{await route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}});}catch{/* The aborted owner request may already be gone. */}});
- await page.selectOption('#find-type','record');await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ await page.selectOption('#find-type','record');await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
  await page.getByRole('status').filter({hasText:'Looking for possible matches'}).waitFor();assert.equal(started,true);
  page.once('dialog',dialog=>dialog.accept());await page.selectOption('#find-type','comic');release();
  await page.locator('#find-title').fill('Synthetic comic draft');assert.equal(await page.getByRole('region',{name:'Barcode lookup',exact:true}).count(),0);assert.equal(await page.locator('#find-title').inputValue(),'Synthetic comic draft');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
@@ -249,7 +251,8 @@ test('existing-copy lookup changes only reviewed details and saves with retained
  const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title,collection_type:'record',barcode:{value:'012345678905',format:'UPC_A'}}});assert.equal(response.status(),201);const original=await response.json();
  await page.reload();await page.selectOption('#collection-browse-view','copies');await page.locator('.inventory-list button').filter({hasText:title}).click();
  const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
- await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.locator('.barcode-matches button').click();
+ await form.getByRole('region',{name:'Barcode scanning trial',exact:true}).getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();await lookup.locator('.barcode-matches button').click();
  assert.equal(await lookup.getByRole('checkbox',{name:/Album title/}).isChecked(),false);
  await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json()).record_details.artist,undefined);
  assert.equal(await form.locator('#copy-title').evaluate(element=>element===document.activeElement),true);
@@ -261,8 +264,19 @@ test('existing-copy lookup changes only reviewed details and saves with retained
 
 test('closing a rescan does not repeat a previous external lookup',async t=>{
  const {page,scanner}=await setup(t);const calls=await lookupFixture(page);await scanForAlbum(page,scanner);assert.equal(calls(),1);
- await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();
- await scanner.getByRole('button',{name:'Close scanner',exact:true}).click();
+ await page.evaluate(()=>{window.__cameraMode='blank';});
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('status').filter({hasText:'Hold the barcode'}).waitFor();
+ await scanner.getByRole('button',{name:'Close scanner',exact:true}).click();await stopped(page);
  const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('button',{name:'Find album details',exact:true}).waitFor();
  assert.equal(await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).count(),0);assert.equal(calls(),1);
+});
+
+
+test('each deliberate album scan starts exactly one lookup without a barcode confirmation',async t=>{
+ const {page,scanner,writes}=await setup(t);const calls=await lookupFixture(page);
+ await scanForAlbum(page,scanner);assert.equal(calls(),1);
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ await page.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();
+ assert.equal(calls(),2);assert.equal(await page.locator('#find-title').inputValue(),'');
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
 });
