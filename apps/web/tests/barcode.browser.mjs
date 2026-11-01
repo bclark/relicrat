@@ -222,7 +222,7 @@ test('lookup failure and no matches keep a manually editable draft without owner
  await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill(fail?{status:503,json:{detail:'Synthetic unavailable'}}:{json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}}));
  await page.selectOption('#find-type','record');await page.locator('#find-title').fill('Synthetic fallback draft');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
- const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('alert').filter({hasText:'Lookup is unavailable'}).waitFor();assert.equal(await page.locator('#find-title').inputValue(),'Synthetic fallback draft');
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('alert').filter({hasText:'Synthetic unavailable'}).waitFor();assert.equal(await page.locator('#find-title').inputValue(),'Synthetic fallback draft');
  fail=false;await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('status').filter({hasText:'No matching releases'}).waitFor();
  assert.equal(await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).isEnabled(),true);assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
 });
@@ -331,4 +331,17 @@ test('missing cover preview leaves field review available without a cover option
  const {page,scanner}=await setup(t);await lookupFixture(page);await page.route('**/api/v1/barcode-lookups/record/*/cover',route=>route.fulfill({status:404}));
  const lookup=await scanForAlbum(page,scanner);await lookup.locator('.barcode-matches button').click();await lookup.getByText('Cover preview unavailable.',{exact:true}).waitFor();
  assert.equal(await lookup.getByRole('checkbox',{name:/Include catalog cover/}).count(),0);assert.equal(await lookup.getByRole('button',{name:'Use these details',exact:true}).isEnabled(),true);
+});
+
+
+test('lookup explains provider busy, timeout and network failures without treating search as a save',async t=>{
+ const {page,scanner,writes}=await setup(t);let mode='busy';
+ await page.route('**/api/v1/barcode-lookups/record',route=>mode==='network'?route.abort('failed'):route.fulfill({status:mode==='busy'?429:504,json:{detail:mode==='busy'?'Lookup is busy. Wait a moment, then try again; manual entry is available.':'The catalog took too long to respond. Try again or enter details manually.'}}));
+ await page.selectOption('#find-type','record');await page.locator('#find-title').fill('Synthetic retained lookup draft');await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true});await lookup.getByRole('alert').filter({hasText:'Lookup is busy'}).waitFor();
+ if(process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS;await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/busy-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/busy-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ mode='timeout';await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('alert').filter({hasText:'catalog took too long'}).waitFor();
+ if(process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS;await page.screenshot({path:dir+'/timeout-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/timeout-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ mode='network';await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('alert').filter({hasText:'Cannot reach the lookup service'}).waitFor();
+ assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained lookup draft');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal((await lookup.innerText()).includes('Save could not be confirmed'),false);
 });

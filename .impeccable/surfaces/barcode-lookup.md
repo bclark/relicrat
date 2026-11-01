@@ -185,3 +185,62 @@ this evidence. Migration 0012 requires a verified complete database/media recove
 path before nondisposable rollout and refuses downgrade while retained artwork
 or source metadata exists. Root PRODUCT.md, DESIGN.md and design.json remain
 unchanged; historical global metadata drift is not repaired by this extension.
+
+
+## Lookup failure recovery (2026-11-01)
+
+Implemented for review, not deployed. This ordinary Operate extension preserves
+existing native controls, layout, navigation and theme. Busy and timeout failures
+now show the sanitized API explanation in the existing alert; network failures
+explain that the lookup service cannot be reached. Each keeps manual entry and
+**Find album details** available and confirms **Your draft is still here**.
+There is no automatic retry. A failed search does not save ownership, replace
+fields or become an uncertain inventory-write warning. Reviewed suggestions
+still require **Use these details** and the ordinary final **Save copy** or
+**Save details** action.
+
+Search distinguishes busy (429), timeout (504) and unavailable (503) responses
+without exposing provider bodies or exception text. The adapter permits an
+eight-second read operation within a twelve-second elapsed budget checked before
+requests, after headers and after body chunks. Remaining budget caps subsequent
+operations; this is not a hard whole-request timer, and an in-flight operation
+may overrun before rejection. Fixed destinations, redirect/response limits and
+throttling remain in place. Diagnostics exclude barcodes, URLs, response bodies
+and owner data. See the [lookup contract](../../docs/barcode-lookup.md) for the
+authoritative transport and rollout boundaries. No schema or dependency change
+is introduced.
+
+The independent [finish review](../../.harness-results/lookup-resilience/finish-review.md)
+returns **ship for review**, with no actionable findings at this scope. This
+documentation pass opened all four full-page synthetic captures:
+[busy desktop](../review/busy-desktop.png), [busy mobile](../review/busy-mobile.png),
+[timeout desktop](../review/timeout-desktop.png) and
+[timeout mobile](../review/timeout-mobile.png). At 1440px desktop and 390px mobile,
+error text wraps inside the existing form; retry, retained synthetic title and
+separate final save remain visible without clipping or overlap. These are
+implementation evidence in the incumbent factory-light theme, not approved
+comps or evidence of assistive-technology behavior.
+
+Inspected supplied evidence under `.harness-results/lookup-resilience/`:
+
+- `api.log`: focused barcode lookup, catalog cover and media API checks report
+  **41 passed, one warning**, followed by full migration downgrade/upgrade through
+  0012. Added coverage includes timeout mapping, slower reads, exhausted redirect
+  budget, late chunks and diagnostics that exclude input/body text.
+- `stack.log`: production build/typecheck, **32 Node checks** and lint passed.
+- `chromium.log` and `webkit.log`: **five passed each**, zero failures,
+  cancellations, skips or todo. Cases cover busy/timeout/network recovery,
+  retained editable drafts, no ownership writes, explicit reviewed final save,
+  changed-draft review and late-response isolation.
+- `design-detector.json`: `[]`. The finish review records matching reviewed
+  API/web runtime source hashes.
+
+This pass read the current diff, shared brief, lookup contract, harness and
+review/log evidence; it ran no runtime tests or provider calls and used no real
+collection data. Full API, unrelated browser and backup/restore suites were not
+repeated for this increment. Physical-phone, manual screen-reader, live-provider
+coverage and deployment remain unverified. The longer read window does not
+guarantee availability or explain every earlier intermittent failure. Web/API
+rollout remains separate; no migration, credential or network change is needed
+for this increment. Root PRODUCT.md, DESIGN.md and design.json and all historical
+surface evidence remain unchanged.

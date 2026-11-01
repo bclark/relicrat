@@ -8,7 +8,7 @@ from pydantic import BaseModel,ConfigDict,Field,ValidationError
 from relicrat.barcodes import BarcodeReading
 from relicrat.barcode_providers import PROVIDERS
 from relicrat.collection_types import COLLECTION_TYPES
-from relicrat.musicbrainz import LookupBusy,LookupUnavailable
+from relicrat.musicbrainz import LookupBusy,LookupUnavailable,LookupTimeout
 
 router=APIRouter(prefix='/api/v1/barcode-lookups',tags=['barcode lookup'])
 
@@ -33,6 +33,7 @@ def lookup(collection_type:Literal['record','comic','other'],reading:BarcodeRead
     if reading.format not in definition.barcode_formats:raise HTTPException(422,'Barcode format is not supported for this collection type.')
     try:raw=provider['search'](reading,config.max_results)
     except LookupBusy:raise HTTPException(429,'Lookup is busy. Wait a moment, then try again; manual entry is available.',headers={'Retry-After':'1'}) from None
+    except LookupTimeout:raise HTTPException(504,'The catalog took too long to respond. Try again or enter details manually.') from None
     except LookupUnavailable:raise HTTPException(503,'Lookup provider is unavailable. Try again later or enter details manually.') from None
     if not isinstance(raw,list):raise HTTPException(502,'Lookup provider returned an invalid response. Manual entry is available.')
     limits={field.key:field.max_length for field in [definition.title,*definition.fields]}

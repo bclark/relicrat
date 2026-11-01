@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect,useRef,useState} from 'react';
-import {api,jsonSave,type BarcodeReading,type CollectionType,type CatalogCover} from '../lib/inventory-client';
+import {api,ApiError,jsonSave,type BarcodeReading,type CollectionType,type CatalogCover} from '../lib/inventory-client';
 
 type Candidate={id:string;title:string;description:string;source_url:string;fields:Record<string,string>;cover_url:string|null};
 type Result={provider:string;provider_label:string;candidates:Candidate[]};
@@ -26,7 +26,7 @@ export default function BarcodeLookup({definition,reading,values,apply,locked,re
   try{
    const value=await api<Result>(`barcode-lookups/${definition.id}`,{...jsonSave(reading),signal:request.signal});
    if(!request.signal.aborted)setResult(value);
-  }catch{if(!request.signal.aborted)setError('Lookup is unavailable. You can try again or enter details manually. Your draft is still here.');}
+  }catch(problem){if(!request.signal.aborted)setError(`${problem instanceof ApiError && problem.status!==0?problem.message:'Cannot reach the lookup service. Try again or enter details manually.'} Your draft is still here.`);}
   finally{if(!request.signal.aborted)setBusy(false);}
  }
  // A deferred effect avoids duplicate requests from development Strict Mode.
