@@ -73,9 +73,10 @@ class StorageLocation(Timestamps, Base):
 class OwnedCopy(Timestamps, Base):
     __tablename__ = "owned_copies"
     __table_args__ = (
+        CheckConstraint("jsonb_typeof(movie_details) = 'object' AND movie_details - 'media_format' - 'studio' = '{}'::jsonb AND (NOT movie_details ? 'media_format' OR (jsonb_typeof(movie_details->'media_format') = 'string' AND char_length(movie_details->>'media_format') BETWEEN 1 AND 100)) AND (NOT movie_details ? 'studio' OR (jsonb_typeof(movie_details->'studio') = 'string' AND char_length(movie_details->>'studio') BETWEEN 1 AND 250))", name="movie_details_valid"),
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         CheckConstraint("storage_revision >= 0", name="storage_revision_nonnegative"),
-        CheckConstraint("collection_type::text IN ('other'::text, 'record'::text, 'comic'::text)", name="collection_type_valid"),
+        CheckConstraint("collection_type::text IN ('other'::text, 'record'::text, 'comic'::text, 'movie'::text)", name="collection_type_valid"),
         CheckConstraint("jsonb_typeof(record_details) = 'object' AND record_details - 'artist' - 'format' = '{}'::jsonb AND (NOT record_details ? 'artist' OR (jsonb_typeof(record_details->'artist') = 'string' AND char_length(record_details->>'artist') BETWEEN 1 AND 500)) AND (NOT record_details ? 'format' OR (jsonb_typeof(record_details->'format') = 'string' AND char_length(record_details->>'format') BETWEEN 1 AND 100))", name="record_details_valid"),
         CheckConstraint("jsonb_typeof(comic_details) = 'object' AND comic_details - 'issue_number' - 'publisher' = '{}'::jsonb AND (NOT comic_details ? 'issue_number' OR (jsonb_typeof(comic_details->'issue_number') = 'string' AND char_length(comic_details->>'issue_number') BETWEEN 1 AND 100)) AND (NOT comic_details ? 'publisher' OR (jsonb_typeof(comic_details->'publisher') = 'string' AND char_length(comic_details->>'publisher') BETWEEN 1 AND 250))", name="comic_details_valid"),
         CheckConstraint(BARCODE_CHECK, name="barcode_valid"),
@@ -94,6 +95,7 @@ class OwnedCopy(Timestamps, Base):
     # NULL follows a linked release; empty text explicitly leaves the edition unknown.
     collection_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="other")
     record_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    movie_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     comic_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     barcode: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     edition_label: Mapped[str | None] = mapped_column(String(500))
@@ -113,7 +115,7 @@ class CopyDetailEvent(Base):
         UniqueConstraint('owned_copy_id', 'after_revision'),
         CheckConstraint('before_revision >= 0 AND after_revision = before_revision + 1', name='detail_revision_step'),
         CheckConstraint('identification_revision >= 0', name='detail_identification_revision'),
-        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode', name='details_changed'),
+        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode OR before_movie_details IS DISTINCT FROM after_movie_details', name='details_changed'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
@@ -127,6 +129,8 @@ class CopyDetailEvent(Base):
     after_record_details: Mapped[dict | None] = mapped_column(JSONB)
     before_barcode: Mapped[dict | None] = mapped_column(JSONB)
     after_barcode: Mapped[dict | None] = mapped_column(JSONB)
+    before_movie_details: Mapped[dict | None] = mapped_column(JSONB)
+    after_movie_details: Mapped[dict | None] = mapped_column(JSONB)
     before_comic_details: Mapped[dict | None] = mapped_column(JSONB)
     after_comic_details: Mapped[dict | None] = mapped_column(JSONB)
     identification_revision: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -232,15 +236,18 @@ class OwnerLoginGuard(Base):
 class CollectionSettings(Timestamps, Base):
     __tablename__ = 'collection_settings'
     __table_args__ = (
+        CheckConstraint('jsonb_typeof(movie_fields) = \'array\' AND jsonb_array_length(movie_fields) <= 4 AND movie_fields <@ \'["media_format","studio","edition","notes"]\'::jsonb', name="collection_settings_movie_fields"),
         CheckConstraint('jsonb_typeof(comic_fields) = \'array\' AND jsonb_array_length(comic_fields) <= 4 AND comic_fields <@ \'["issue_number","publisher","edition","notes"]\'::jsonb', name="collection_settings_comic_fields"),
         CheckConstraint('id = 1', name='collection_settings_singleton'),
         CheckConstraint('revision >= 0', name='collection_settings_revision'),
         CheckConstraint("status::text IN ('not_started'::text, 'skipped'::text, 'configured'::text)", name='collection_settings_status'),
-        CheckConstraint("default_type::text IN ('other'::text, 'record'::text, 'comic'::text) AND (default_type <> 'record' OR records_enabled) AND (default_type <> 'comic' OR comics_enabled)", name='collection_settings_default'),
+        CheckConstraint("default_type::text IN ('other'::text, 'record'::text, 'comic'::text, 'movie'::text) AND (default_type <> 'record' OR records_enabled) AND (default_type <> 'comic' OR comics_enabled) AND (default_type <> 'movie' OR movies_enabled)", name='collection_settings_default'),
         CheckConstraint("jsonb_typeof(record_fields) = 'array' AND jsonb_array_length(record_fields) <= 4 AND record_fields <@ '[\"artist\",\"format\",\"edition\",\"notes\"]'::jsonb", name='collection_settings_fields'),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default='not_started')
+    movies_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
+    movie_fields: Mapped[list] = mapped_column(JSONB, nullable=False, server_default='["media_format","studio","edition","notes"]')
     comics_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
     comic_fields: Mapped[list] = mapped_column(JSONB, nullable=False, server_default='["issue_number","publisher","edition","notes"]')
     records_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
@@ -253,7 +260,7 @@ class ImportBatch(Base):
     __tablename__ = 'import_batches'
     __table_args__ = (
         UniqueConstraint('source', 'sha256', name='import_file_once'),
-        CheckConstraint("source IN ('clz', 'discogs')", name='import_source'),
+        CheckConstraint("source IN ('clz', 'discogs', 'bluray')", name='import_source'),
         CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name='import_sha256'),
         CheckConstraint('row_count BETWEEN 1 AND 5000 AND copy_count BETWEEN 1 AND 10000', name='import_counts'),
         CheckConstraint('parser_version = 1', name='import_parser_version'),

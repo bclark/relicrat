@@ -14,8 +14,8 @@ const importRows = new RegExp(`^imports/${uuid}/rows$`);
 const storageLabels = new RegExp(`^imports/${uuid}/storage-labels$`);
 const storageMapping = new RegExp(`^imports/${uuid}/storage-(preview|apply)$`);
 const importUpload = /^imports\/(preview|commit)$/;
-const barcodeLookup = /^barcode-lookups\/(record|comic|other)$/;
-const barcodeCover = /^barcode-lookups\/(record|comic|other)\/[A-Za-z0-9_-]{1,128}\/cover$/;
+const barcodeLookup = /^barcode-lookups\/(record|comic|movie|other)$/;
+const barcodeCover = /^barcode-lookups\/(record|comic|movie|other)\/[A-Za-z0-9_-]{1,128}\/cover$/;
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
 /** @param {Request} request @param {string[]} segments */
@@ -27,7 +27,7 @@ export async function forwardApi(request, segments) {
   const path = segments.join('/');
   const methods = path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
+    : barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
       ? ['GET'] : barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');

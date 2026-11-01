@@ -3,6 +3,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 import uuid
 from typing import Literal
 from uuid import UUID
@@ -15,15 +16,45 @@ from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.models import ImportBatch, ImportCopy
+from relicrat.barcodes import BarcodeReading
 
 router=APIRouter(prefix='/api/v1/imports',tags=['imports'])
 MAX_BYTES=4*1024*1024
-Source=Literal['clz','discogs']
+Source=Literal['clz','discogs','bluray']
 MAPPINGS={
+ 'bluray':{'Title':'Movie or box-set title (one owned item per row)','Studio':'Studio','Blu-ray discs / DVD discs':'Format when known; disc counts never expand ownership','Casing':'Edition or packaging','Comment':'Notes','UPC / EAN':'Barcode only when valid and consistent; originals always retained'},
  'clz':{'Series':'Title','Issue':'Issue number','Publisher':'Publisher','Variant Description':'Edition (falls back to Variant)','Notes':'Notes','Quantity':'Physical copies'},
  'discogs':{'Title':'Title','Artist':'Artist','Format':'Format (full description)','Collection Notes':'Notes'},
 }
-REQUIRED={'clz':{'Series','Issue','Publisher','Quantity','Collection Status'},'discogs':{'Title','Artist','Format','release_id'}}
+REQUIRED={'bluray':{'Title','Studio','UPC','EAN','Product ID','Blu-ray discs','DVD discs'},'clz':{'Series','Issue','Publisher','Quantity','Collection Status'},'discogs':{'Title','Artist','Format','release_id'}}
+
+
+def movie_row(value):
+    counts=[]
+    for key in ('Blu-ray discs','DVD discs'):
+        text=value(key)
+        if text in ('','-1'):counts.append(None)
+        elif text.isascii() and text.isdecimal() and 0<=int(text)<=10000:counts.append(int(text))
+        else:raise ValueError('Disc counts must be known whole values or unknown')
+    bluray,dvd=counts
+    format='Blu-ray + DVD' if bluray and dvd else 'Blu-ray' if bluray else 'DVD' if dvd else None
+    warnings=[];codes=[]
+    for key,kind in [('UPC','UPC_A'),('EAN','EAN_13')]:
+        text=re.sub(r'[\s-]','',value(key))
+        if not text:continue
+        try:
+            reading=BarcodeReading(value=text,format=kind)
+            if (sum(int(d)*(3 if i%2==0 else 1) for i,d in enumerate(reversed(text[:-1])))+int(text[-1]))%10:raise ValueError('Invalid checksum')
+            codes.append(reading)
+        except ValueError:warnings.append('Invalid '+key+' retained in source information; not used as a barcode.')
+    barcode=None
+    if len(codes)==2 and '0'+codes[0].value!=codes[1].value:
+        warnings.append('UPC and EAN differ. Both are retained in source information; no barcode is selected.')
+    elif codes:barcode=codes[0]
+    if any(count is None for count in counts):warnings.append('Unknown disc counts remain unknown in source information; format uses only known positive counts.')
+    details={k:v for k,v in {'media_format':format,'studio':value('Studio')}.items() if v}
+    return CreateProvisionalCopy(title=value('Title'),collection_type='movie',movie_details=details,
+        edition_label=value('Casing') or None,description=value('Comment') or None,barcode=barcode),warnings
 
 
 def parse_csv(source: Source, raw: bytes):
@@ -41,8 +72,8 @@ def parse_csv(source: Source, raw: bytes):
         if not headers or len(headers)>100 or len(set(headers))!=len(headers) or any(not h.strip() or len(h)>120 for h in headers):
             raise HTTPException(422,'Use unique nonempty column headers (at most 100 columns)')
         if not REQUIRED[source].issubset(headers):
-            raise HTTPException(422,'Required columns are missing. Choose the matching CLZ or Discogs export format.')
-        rows=[];errors=[];copies=0;ids=set();repeated=0;retained_bytes=0
+            raise HTTPException(422,'Required columns are missing. Choose the matching CLZ, Discogs or Blu-ray.com export format.')
+        rows=[];errors=[];warnings=[];copies=0;ids=set();repeated=0;retained_bytes=0
         for number,values in enumerate(reader,2):
             if number>5001:
                 raise HTTPException(422,'Import at most 5,000 rows per file')
@@ -60,12 +91,17 @@ def parse_csv(source: Source, raw: bytes):
                     quantity=int(q)
                     payload=CreateProvisionalCopy(title=value('Series'),collection_type='comic',comic_details={k:v for k,v in {'issue_number':value('Issue'),'publisher':value('Publisher')}.items() if v},edition_label=value('Variant Description') or value('Variant') or None,description=value('Notes') or None)
                     external=value('Core ComicID')
+                elif source=='bluray':
+                    quantity=1
+                    payload,messages=movie_row(value)
+                    warnings.extend({'row':number,'message':message} for message in messages if len(warnings)<50)
+                    external=value('Product ID')
                 else:
                     quantity=1
                     payload=CreateProvisionalCopy(title=value('Title'),collection_type='record',record_details={k:v for k,v in {'artist':value('Artist'),'format':value('Format')}.items() if v},description=value('Collection Notes') or None)
                     external=value('release_id')
                 if not payload.title:
-                    raise ValueError('A series or album title is required')
+                    raise ValueError('A title is required')
             except (ValueError,ValidationError):
                 if len(errors)<50: errors.append({'row':number,'message':'Check title, field lengths, ownership status and positive whole quantity.'})
                 continue
@@ -79,7 +115,7 @@ def parse_csv(source: Source, raw: bytes):
     except (csv.Error,StopIteration):
         raise HTTPException(422,'CSV is empty, malformed or contains an oversized field') from None
     if not rows and not errors: raise HTTPException(422,'CSV has no inventory rows')
-    return {'sha256':hashlib.sha256(raw).hexdigest(),'rows':rows,'copy_count':copies,'errors':errors,'repeated_external_ids':repeated,'headers':headers}
+    return {'sha256':hashlib.sha256(raw).hexdigest(),'rows':rows,'copy_count':copies,'errors':errors,'warnings':warnings,'repeated_external_ids':repeated,'headers':headers}
 
 
 def batch_info(batch):
@@ -89,7 +125,7 @@ def batch_info(batch):
 def preview_import(source,raw,db):
     parsed=parse_csv(source,raw)
     existing=db.scalar(select(ImportBatch).where(ImportBatch.source==source,ImportBatch.sha256==parsed['sha256']))
-    return {'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':MAPPINGS[source],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump()} for n,_,p,q in parsed['rows'][:10]]}
+    return {'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'warnings':parsed['warnings'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':MAPPINGS[source],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump()} for n,_,p,q in parsed['rows'][:10]]}
 
 
 def commit_import(source,raw,reviewed_sha256,db):

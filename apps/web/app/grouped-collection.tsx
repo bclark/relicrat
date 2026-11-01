@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import {api,errorText,type CollectionTypeId,type InventoryCopy} from '../lib/inventory-client';
 import CollectionRows from './collection-rows';
 type Group={collection_type:CollectionTypeId;value:string|null;label:string;copy_count:number};
-export default function GroupedCollection({type,noun,filters,refresh,busy,selected,open,chooseType}:{type:''|'comic'|'record';noun:string;filters:string;refresh:number;busy:boolean;selected:string|null;open:(id:string)=>void;chooseType:(type:CollectionTypeId)=>void}){
+export default function GroupedCollection({type,noun,filters,refresh,busy,selected,open,chooseType}:{type:''|'comic'|'record'|'movie';noun:string;filters:string;refresh:number;busy:boolean;selected:string|null;open:(id:string)=>void;chooseType:(type:CollectionTypeId)=>void}){
  const [groups,setGroups]=useState<Group[]>([]),[groupPage,setGroupPage]=useState(0),[active,setActive]=useState<Group|null>(null),[page,setPage]=useState(0);
  const [items,setItems]=useState<InventoryCopy[]>([]),[more,setMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[reading,setReading]=useState(false),[readError,setReadError]=useState('');
  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');

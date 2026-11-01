@@ -14,7 +14,7 @@ class DetailError(Exception):
 
 def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
                  expected_details_revision: int, expected_identification_revision: int, *,
-                 collection_type: str | None = None, record_details: dict | None = None, comic_details: dict | None = None,
+                 collection_type: str | None = None, record_details: dict | None = None, comic_details: dict | None = None, movie_details: dict | None = None,
                  barcode: dict | None = None, catalog_cover=None) -> OwnedCopy:
     try:
         copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
@@ -28,8 +28,9 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         next_type = copy.collection_type if collection_type is None else collection_type
         next_record = copy.record_details if record_details is None else record_details
         next_comic = copy.comic_details if comic_details is None else comic_details
+        next_movie = copy.movie_details if movie_details is None else movie_details
         next_barcode = copy.barcode if barcode is None else barcode
-        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.barcode) == (title, edition_label, next_type, next_record, next_comic, next_barcode):
+        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.movie_details, copy.barcode) == (title, edition_label, next_type, next_record, next_comic, next_movie, next_barcode):
             with stage_cover(db,copy,next_type,catalog_cover):
                 db.commit()
             return copy
@@ -39,6 +40,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
             before_collection_type=copy.collection_type, after_collection_type=next_type,
             before_record_details=copy.record_details, after_record_details=next_record,
             before_comic_details=copy.comic_details, after_comic_details=next_comic,
+            before_movie_details=copy.movie_details, after_movie_details=next_movie,
             before_edition_label=copy.edition_label, after_edition_label=edition_label,
             identification_revision=copy.identification_revision,
             before_revision=copy.details_revision, after_revision=copy.details_revision + 1))
@@ -46,6 +48,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         copy.collection_type = next_type
         copy.record_details = next_record
         copy.comic_details = next_comic
+        copy.movie_details = next_movie
         copy.provisional_title = title
         copy.edition_label = edition_label
         copy.details_revision += 1

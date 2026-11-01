@@ -10,6 +10,7 @@ from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
 RecordField = Literal['artist', 'format', 'edition', 'notes']
+MovieField = Literal['media_format','studio','edition','notes']
 ComicField = Literal['issue_number', 'publisher', 'edition', 'notes']
 
 
@@ -17,12 +18,15 @@ class SettingsValues(BaseModel):
     model_config = ConfigDict(extra='forbid')
     status: Literal['not_started', 'skipped', 'configured']
     records_enabled: bool = Field(strict=True)
-    default_type: Literal['other', 'record', 'comic']
+    default_type: Literal['other', 'record', 'comic', 'movie']
     record_fields: list[RecordField] = Field(max_length=4)
     comics_enabled: bool = Field(default=False, strict=True)
     comic_fields: list[ComicField] = Field(default_factory=lambda: ['issue_number','publisher','edition','notes'], max_length=4)
 
-    @field_validator('record_fields', 'comic_fields')
+    movies_enabled: bool = Field(default=False, strict=True)
+    movie_fields: list[MovieField] = Field(default_factory=lambda: ['media_format','studio','edition','notes'], max_length=4)
+
+    @field_validator('record_fields', 'comic_fields', 'movie_fields')
     @classmethod
     def unique_fields(cls, value):
         if len(set(value)) != len(value):
@@ -35,6 +39,8 @@ class SettingsValues(BaseModel):
             raise ValueError(f"Enable {COLLECTION_TYPES['record'].plural_label} before making it the default")
         if self.default_type == 'comic' and 'comics_enabled' in self.model_fields_set and not self.comics_enabled:
             raise ValueError('Enable Comics before making it the default')
+        if self.default_type == 'movie' and 'movies_enabled' in self.model_fields_set and not self.movies_enabled:
+            raise ValueError('Enable Movies before making it the default')
         return self
 
 
@@ -51,6 +57,11 @@ class SaveSettings(SettingsValues):
 def artist_suggestions(q: str = Query(default='', max_length=500, pattern=r'^[^\x00]*$'),
                        db: Session = Depends(get_db)):
     return saved_suggestions(db, OwnedCopy.record_details['artist'].astext, 'record', q)
+
+
+@router.get('/studio-suggestions', response_model=list[str])
+def studio_suggestions(q: str = Query(default='',max_length=250,pattern=r'^[^\x00]*$'),db: Session=Depends(get_db)):
+    return saved_suggestions(db,OwnedCopy.movie_details['studio'].astext,'movie',q)
 
 
 @router.get('/publisher-suggestions', response_model=list[str])
@@ -95,6 +106,8 @@ def save_settings(payload: SaveSettings, db: Session = Depends(get_db)):
         effective_default = values.get('default_type', settings.default_type)
         if effective_default == 'comic' and not values.get('comics_enabled', settings.comics_enabled):
             raise HTTPException(422, 'Enable Comics before making it the default')
+        if effective_default == 'movie' and not values.get('movies_enabled', settings.movies_enabled):
+            raise HTTPException(422, 'Enable Movies before making it the default')
         if any(getattr(settings, key) != value for key, value in values.items()):
             for key, value in values.items():
                 setattr(settings, key, value)

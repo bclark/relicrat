@@ -17,7 +17,7 @@ export default function ObservationInput({ id, field, value, change }: Props) {
     const controller = new AbortController();
     setSuggestions([]); setUnavailable(false);
     const timer = setTimeout(() => {
-      api<string[]>(`collection-settings/${field.key==='publisher' ? 'publisher' : 'artist'}-suggestions?q=${encodeURIComponent(value)}`, {signal:controller.signal})
+      api<string[]>(`collection-settings/${field.key==='studio' ? 'studio' : field.key==='publisher' ? 'publisher' : 'artist'}-suggestions?q=${encodeURIComponent(value)}`, {signal:controller.signal})
         .then(values => { if (!controller.signal.aborted) setSuggestions(values); })
         .catch(() => { if (!controller.signal.aborted) setUnavailable(true); });
     }, 200);

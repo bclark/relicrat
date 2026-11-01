@@ -14,7 +14,7 @@ router=APIRouter(prefix='/api/v1/collection-groups',tags=['inventory'])
 
 @router.get('')
 def groups(q: str|None=Query(default=None,max_length=200,pattern=r'^[^\x00]*$'),
-           collection_type: Literal['record','comic']|None=Query(default=None),
+           collection_type: Literal['record','comic','movie']|None=Query(default=None),
            storage_location_id: UUID|None=Query(default=None),unassigned: bool=Query(default=False),
            limit: int=Query(default=20,ge=1,le=100),offset: int=Query(default=0,ge=0),
            db: Session=Depends(get_db)):

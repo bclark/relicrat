@@ -28,7 +28,7 @@ def configured(collection_type):
 
 
 @router.post('/{collection_type}')
-def lookup(collection_type:Literal['record','comic','other'],reading:BarcodeReading):
+def lookup(collection_type:Literal['record','comic','movie','movie','other'],reading:BarcodeReading):
     definition,config,provider=configured(collection_type)
     if reading.format not in definition.barcode_formats:raise HTTPException(422,'Barcode format is not supported for this collection type.')
     try:raw=provider['search'](reading,config.max_results)
@@ -60,7 +60,7 @@ def lookup(collection_type:Literal['record','comic','other'],reading:BarcodeRead
 
 
 @router.get('/{collection_type}/{candidate_id}/cover')
-def cover(collection_type:Literal['record','comic','other'],candidate_id:str):
+def cover(collection_type:Literal['record','comic','movie','movie','other'],candidate_id:str):
     _,config,provider=configured(collection_type)
     if not config.cover_art or not provider.get('cover') or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',candidate_id):raise HTTPException(404,'Cover preview unavailable.')
     try:content=provider['cover'](candidate_id)

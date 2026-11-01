@@ -135,7 +135,7 @@ def test_type_definitions_are_owner_only_read_only_and_do_not_change_preferences
     response=api.get(SETTINGS+'/types')
     assert response.status_code==200
     definitions=response.json()
-    assert set(definitions)=={'other','record','comic'}
+    assert set(definitions)=={'other','record','comic','movie'}
     assert definitions['record']['title']['label']=='Album title'
     assert api.post(SETTINGS+'/types',json=definitions).status_code==405
     assert api.get(SETTINGS).json()==before

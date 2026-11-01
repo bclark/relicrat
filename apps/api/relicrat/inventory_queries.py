@@ -15,8 +15,8 @@ def group_value(collection_type):
 def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned=False,group=None):
     if storage_location_id is not None and unassigned:
         raise HTTPException(422,'Choose a storage location or unassigned copies, not both')
-    if group is not None and collection_type not in ('comic','record'):
-        raise HTTPException(422,'Choose Albums or Comics before filtering a group')
+    if group is not None and collection_type not in ('comic','record','movie'):
+        raise HTTPException(422,'Choose Albums, Comics or Movies before filtering a group')
     stmt=select(OwnedCopy).where(OwnedCopy.deleted_at.is_(None))
     if collection_type is not None:stmt=stmt.where(OwnedCopy.collection_type==collection_type)
     if storage_location_id is not None:stmt=stmt.where(OwnedCopy.storage_location_id==storage_location_id)
@@ -33,6 +33,8 @@ def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned
             OwnedCopy.record_details['format'].astext.icontains(term,autoescape=True),
             OwnedCopy.comic_details['issue_number'].astext.icontains(term,autoescape=True),
             OwnedCopy.comic_details['publisher'].astext.icontains(term,autoescape=True),
+            OwnedCopy.movie_details['media_format'].astext.icontains(term,autoescape=True),
+            OwnedCopy.movie_details['studio'].astext.icontains(term,autoescape=True),
             OwnedCopy.edition_label.icontains(term,autoescape=True),
             CatalogItem.canonical_name.icontains(term,autoescape=True),
             Release.name.icontains(term,autoescape=True)))

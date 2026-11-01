@@ -219,6 +219,9 @@ def test_body_deadline_is_checked_after_each_chunk(monkeypatch):
 
 
 def test_upstream_throttle_is_busy_and_timeout_diagnostics_never_log_inputs(monkeypatch,caplog):
+    # Alembic migration tests can disable existing loggers in this shared process.
+    monkeypatch.setattr(musicbrainz.logger,'disabled',False)
+    caplog.set_level('WARNING',logger=musicbrainz.__name__)
     real=httpx.Client;mode='busy'
     def handle(request):
         if mode=='busy':return httpx.Response(429,content=b'untrusted provider body')
