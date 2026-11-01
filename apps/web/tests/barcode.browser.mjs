@@ -29,7 +29,7 @@ async function setup(t,mode='read'){
   };
   Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:fakeGetUserMedia}});window.__fakeGetUserMedia=fakeGetUserMedia;
  },{mode,fixture});
- await page.goto(base);assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
+ await page.goto(base);await page.getByRole('button',{name:'Add a find',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
  return {page,scanner,writes,external};
 }
 async function stopped(page){await page.waitForFunction(()=>window.__cameraStreams.length>0&&window.__cameraStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')));}
@@ -345,4 +345,17 @@ test('lookup explains provider busy, timeout and network failures without treati
  if(process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_FAILURE_SCREENSHOTS;await page.screenshot({path:dir+'/timeout-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/timeout-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
  mode='network';await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('alert').filter({hasText:'Cannot reach the lookup service'}).waitFor();
  assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained lookup draft');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal((await lookup.innerText()).includes('Save could not be confirmed'),false);
+});
+
+test('collapsing mobile intake stops its camera while preserving the unsaved draft',async t=>{
+ const {page,scanner,writes}=await setup(t,'blank');
+ await page.locator('#find-title').fill('Synthetic retained mobile draft');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
+ await scanner.getByRole('status').filter({hasText:'Hold the barcode steady'}).waitFor();
+ await page.getByRole('button',{name:'Add a find',exact:true}).click();
+ await stopped(page);
+ assert.equal(await page.locator('#find-title').isVisible(),false);
+ await page.getByRole('button',{name:'Add a find',exact:true}).click();
+ assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained mobile draft');
+ assert.deepEqual(writes,[]);
 });

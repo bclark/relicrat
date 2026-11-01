@@ -24,7 +24,13 @@ colors:
 typography:
   headline:
     fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-    fontSize: "1.75rem"
+    fontSize: "clamp(2rem,4vw,3rem)"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "-.035em"
+  intake:
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+    fontSize: "1.5rem"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "-.025em"
@@ -46,7 +52,6 @@ typography:
 rounded:
   input: "6px"
   button: "6px"
-  empty: "12px"
   panel: "12px"
 spacing:
   small: "12px"
@@ -82,7 +87,7 @@ components:
   inventory-row-selected:
     backgroundColor: "{colors.soft}"
     textColor: "{colors.ink}"
-    padding: "18px 16px"
+    padding: "18px 12px"
 ---
 
 # Design System: RelicRat inventory application
@@ -129,47 +134,47 @@ After hours uses forest page/paper/soft surfaces with ivory primary text, pale s
 
 ## Typography
 
-The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Headline and title values are in frontmatter; heading weights are browser-default bold. The brand uses 1.5rem, weight 750 and -.025em tracking. Labels and row titles use weight 650; buttons use 600. Row descriptions are .875rem; status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace. Intro and notes cap at 65ch. Pagination and copy metadata use tabular numerals.
+The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Headline and title values are in frontmatter; heading weights are browser-default bold. The collection-opening headline scales from 2rem to 3rem; intake uses the subordinate h2 role. The brand uses 1.75rem, weight 750 and -.025em tracking. Labels and row titles use weight 650; row titles are 1.125rem with 1.4 line-height; buttons use 600. Row descriptions are .875rem; status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace. Intro and notes cap at 65ch. Pagination and copy metadata use tabular numerals.
 
 ## Layout
 
-A centered 1320px maximum shell uses 36px desktop gutters. The workspace begins with a 32px top margin after the appearance and collection setup controls, with minmax columns in a 1:1.1 ratio and a 48px gap at balanced spacing. Intake occupies a bordered paper panel with 28px padding; its selected working record follows below a rule. Search and the collection register occupy the other column. These are the current first surface's composition, not a required template for every future page.
+A centered 1320px maximum shell uses 36px desktop gutters. Appearance, collection settings and Sign out sit at the right of the brand header. The collection-opening heading precedes inline settings editors in main. The workspace begins with a 32px top margin, using minmax(320px,.9fr) and minmax(0,1.35fr) columns with a 48px gap at balanced spacing. The left workbench holds intake in a bordered paper panel with 28px padding, followed by the selected working record below a rule. Search and the broader collection register sit at right. The synthetic-trial notice follows the workspace. These are the current first surface's composition, not a required template for every future page.
 
-At 850px and below, columns become equal, the gap is 28px, gutters are 24px, panel padding is 24px 20px, section headings may wrap, and the development notice stacks. At 650px and below, content stacks in DOM order: intake, selected record, collection. Gutters become 20px, the workspace gap is 36px, and the header tagline hides. Photo grids change from three columns to two. Long titles, identifiers and errors wrap; row descriptions clamp to two lines. Collection pagination shows 20 copies per page with explicit Previous/Next controls.
+At 850px and below, columns use minmax(280px,1fr) and minmax(0,1fr), the gap is 28px, gutters are 24px, panel padding is 24px 20px, section headings may wrap, the header tagline hides, and the development notice stacks. At 650px and below, content stacks in DOM order: intake, selected record, collection. Intake starts collapsed behind an Add a find Show/Hide button; its fields remain mounted, preserving the unsaved entry draft across collapse and re-expansion. Desktop always shows intake fields. The unused record placeholder hides on mobile. Header utilities collapse into one Menu button with a dropdown. Gutters become 20px and the workspace gap is 36px. Photo grids change from three columns to two. Long titles, identifiers and errors wrap; row descriptions clamp to two lines. Collection pagination shows 20 copies per page with explicit Previous/Next controls.
 
 ## Elevation & Depth
 
-The surface is flat. Paper fills and one-pixel rules group content. The selected inventory row alone uses an inset one-pixel accent shadow; there are no ambient card shadows or overlays. Reduced-motion preferences remove the 150ms button color transitions and the 180ms record opacity entrance (from .7 to 1).
+The surface is flat. Paper fills and one-pixel rules group content. The selected inventory row alone uses an inset one-pixel accent shadow; there are no ambient card shadows. The mobile utility dropdown sits above content as a paper surface with a one-pixel rule and panel corners. Reduced-motion preferences remove the 150ms button color transitions and the 180ms record opacity entrance (from .7 to 1).
 
 ## Shapes
 
-The approved soft setting gives panels and empty-state blocks a gentle 12px radius; fields, buttons, error boxes and photos use 6px. These values follow the owner-selected corner setting when applied. Inventory rows are square and full-width. Buttons and editable controls have a minimum 44px height. Textareas resize vertically with a 100px minimum. Photos preserve the whole image inside square frames using object-fit:contain.
+The approved soft setting gives panels a gentle 12px radius; fields, buttons, error boxes and photos use 6px. These values follow the owner-selected corner setting when applied. Inventory rows are square and full-width. Buttons and editable controls have a minimum 44px height. Textareas resize vertically with a 100px minimum. Photos preserve the whole image inside square frames using object-fit:contain.
 
 ## Components
 
 ### Forms and saves
 
-Persistent labels precede fields; helper text explains required information and photo constraints. The burgundy primary button saves the copy. White secondary buttons distinguish supporting actions. Authenticated comfortable-density controls use 10px vertical padding, with 24px horizontal padding on primary actions and 16px on secondary actions; the 44px minimum remains in force. Disabled controls use .55 opacity. The quiet variant reduces text to .875rem with 7px 12px padding; underlined text actions retain a 44px minimum height. Native file controls, selects and details/summary remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
+Persistent labels precede fields; helper text explains required information and photo constraints. Save copy is the sole action that creates a physical copy; the burgundy primary button submits intake. Showing or hiding entry creates nothing. White secondary buttons distinguish supporting actions. Authenticated comfortable-density controls use 10px vertical padding, with 24px horizontal padding on primary actions and 16px on secondary actions; the 44px minimum remains in force. Disabled controls use .55 opacity. The quiet variant reduces text to .875rem with 7px 12px padding; underlined text actions retain a 44px minimum height. Native file controls, selects and details/summary remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
 
 Saving locks conflicting actions and changes the primary label to Saving…. Drafts remain page-local and can be lost on reload. A new location becomes available after creation without moving the copy. Choosing it saves the move immediately; a nearby status announces progress and the confirmed destination. No POST is retried automatically. Unconfirmed writes and revision conflicts display explicit review/reload guidance and block subsequent saves until review.
 
 ### Register and selected record
 
-Each ruled list row is a real button with aria-pressed. It carries a title, short description and identification/location text; the selected wash indicates the open copy. Opening a record focuses its heading. Native disclosures reveal location creation, movement history and copy details. Movement/location lists load additional bounded pages explicitly. Photos link to the stored image; their content is collection data, not decorative artwork.
+Each ruled list row is a real button with aria-pressed. It carries a title, short description and identification/location text; the selected wash indicates the open copy. Rows use 12px horizontal padding; identification and location metadata wrap as separate items. Opening a record focuses its heading. Native disclosures reveal location creation, movement history and copy details. Movement/location lists load additional bounded pages explicitly. Photos link to the stored image; their content is collection data, not decorative artwork.
 
 ### Focus, feedback and loading
 
-Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link leads to intake. Confirmation text uses the theme ink and role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Read failures offer reload; no fabricated records appear as placeholders.
+Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link expands mobile intake and targets its focusable heading. There is no separate Add a find jump link. Confirmation text uses the theme ink and role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Empty collection/search messages sit openly on the workspace with generous vertical space and no filled card. Read failures offer reload; no fabricated records appear as placeholders.
 
 **The Separate Save Rule.** Make confirmed copy, photo and location saves distinguishable; choosing a location immediately saves a revision-checked move and confirms its destination beside the selector. Creating a location remains a separate save.
 
 ### Appearance and login
 
-Appearance expands inline. Desktop keeps controls beside a labeled isolated preview; at 800px and below the sample follows the controls. Manual or imported edits invalidate the preview; explicit Apply persists appearance with its own revision. The theme changes supported presentation values, leaving inventory, layout and navigation intact. Error styling stays fixed. The login uses the factory light palette and existing centered form; it does not load the saved owner theme.
+Header controls select one inline settings editor below the collection heading. The Appearance and collection setup components remain mounted when their editors close; entry drafts remain intact. Collection setup initializes its choices when opened, and Skip for now appears inside setup. Closing settings restores focus to the desktop trigger or mobile Menu button. Appearance expands inline. Desktop keeps controls beside a labeled isolated preview; at 800px and below the sample follows the controls. Manual or imported edits invalidate the preview; explicit Apply persists appearance with its own revision. The theme changes supported presentation values, leaving inventory, layout and navigation intact. Error styling stays fixed. The login uses the factory light palette and existing centered form; it does not load the saved owner theme.
 
 ### Navigation
 
-The brand links home; the screen has no tab or sidebar navigation. Search has a visible label, explicit submit and conditional clear action. Pagination is a named navigation region with disabled end controls. Mobile keeps the same semantic order.
+The brand links home; the screen has no tab or sidebar navigation. Desktop exposes Appearance, collection settings and Sign out in the header. At 650px and below, Menu reveals those same controls in a right-aligned dropdown with an expanded state. Escape dismisses it and returns focus to Menu; outside pointer interaction and focus leaving the utility group also dismiss it. Choosing settings closes the dropdown and focuses the editor heading. Search has a visible label, explicit submit and conditional clear action. Pagination is a named navigation region with disabled end controls. Mobile keeps the same semantic order.
 
 ## Do's and Don'ts
 

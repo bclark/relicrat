@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 
 const base = process.env.RELICRAT_TEST_WEB_URL || 'http://127.0.0.1:63112';
 assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:', 'Use an isolated loopback test server');
@@ -15,7 +15,7 @@ async function signIn(context) {
   const response = await context.request.post(base + '/api/v1/auth/login', { data: { password: ownerPassword }, headers: { Origin: new URL(base).origin } });
   assert.equal(response.status(), 200, await response.text());
 }
-before(async () => { browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined }); });
+before(async () => { browser = await (process.env.RELICRAT_BROWSER==='webkit'?webkit:chromium).launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined }); });
 after(async () => { await browser?.close(); });
 async function fixture(t, initial = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
@@ -188,6 +188,81 @@ async function catalog(page) {
   if (!(await summary.evaluate(node => node.parentElement.open))) await summary.click();
   await page.getByRole('heading', { name: 'Shared catalog match', exact: true }).waitFor();
 }
+
+test('collection opening preserves drafts and ownership across responsive navigation', async t => {
+  const { page, state } = await fixture(t);
+  assert.equal(await page.locator('h1').textContent(), 'Your collection');
+  assert.equal(await page.getByRole('link', { name: 'Add a find', exact: true }).count(), 0);
+  assert.ok(await page.getByRole('button', { name: 'Appearance', exact: true }).isVisible());
+  const intakeBox = await page.locator('.intake').boundingBox();
+  const collectionBox = await page.locator('.collection').boundingBox();
+  assert.ok(intakeBox.x < collectionBox.x, 'Desktop intake belongs on the left');
+  const output = process.env.RELICRAT_SCREENSHOTS && resolve(process.env.RELICRAT_SCREENSHOTS);
+  if (output) await mkdir(output, { recursive: true });
+  for (const populated of [false, true]) {
+    if (populated) {
+      state.copies = [copy(1, 'Synthetic blue-cover comic'), copy(2, 'Synthetic green vinyl', { edition_label: 'Second pressing' }), copy(3, 'Synthetic painted figure')];
+      await page.getByRole('button', { name: 'Reload inventory', exact: true }).click();
+      await page.getByRole('button', { name: 'Open Synthetic blue-cover comic', exact: true }).waitFor();
+    }
+    for (const [name, width, height] of [['desktop', 1440, 1050], ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 780]]) {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      if (output) await page.screenshot({ path: `${output}/${populated ? '' : 'empty-'}${name}.png`, fullPage: true, animations: 'disabled' });
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const toggle = page.getByRole('button', { name: 'Add a find', exact: true });
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.locator('#find-title').isVisible(), false);
+  await toggle.click();
+  await page.locator('#find-title').fill('Keep my unsaved draft');
+  await toggle.click();
+  await toggle.click();
+  assert.equal(await page.locator('#find-title').inputValue(), 'Keep my unsaved draft');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  if (output) await page.screenshot({ path: `${output}/mobile-expanded.png`, fullPage: true, animations: 'disabled' });
+  await toggle.click();
+  await page.locator('.skip-link').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#find-title').isVisible(), true);
+  assert.equal(await page.locator('#add-find').evaluate(node => node === document.activeElement), true);
+  await page.keyboard.press(process.env.RELICRAT_BROWSER==='webkit' ? 'Alt+Tab' : 'Tab');
+  assert.equal(await toggle.evaluate(node => node === document.activeElement), true);
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  assert.equal(await page.getByRole('button', { name: 'Sign out', exact: true }).isVisible(), false);
+  await menu.click();
+  assert.equal(await menu.getAttribute('aria-expanded'), 'true');
+  await page.keyboard.press(process.env.RELICRAT_BROWSER==='webkit' ? 'Alt+Tab' : 'Tab');
+  assert.equal(await page.getByRole('button', { name: 'Appearance', exact: true }).evaluate(node => node === document.activeElement), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+  assert.equal(await menu.evaluate(node => node === document.activeElement), true);
+  await menu.click();
+  if (output) await page.screenshot({ path: `${output}/mobile-menu.png`, fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.getByRole('heading', { name: 'Make RelicRat yours' }).evaluate(node => node === document.activeElement), true);
+  await page.getByLabel('Theme name', { exact: true }).fill('Unsaved appearance draft');
+  await menu.click();
+  await page.getByRole('button', { name: 'Close appearance', exact: true }).click();
+  await menu.click();
+  await page.getByRole('button', { name: 'Collection settings', exact: true }).click();
+  await page.getByRole('heading', { name: 'Collection setup · Step 1 of 3', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Cancel setup', exact: true }).click();
+  assert.equal(await menu.evaluate(node => node === document.activeElement), true);
+  await menu.click();
+  await page.locator('h1').click();
+  assert.equal(await menu.getAttribute('aria-expanded'), 'false', 'Outside click dismisses mobile menu');
+  await menu.click();
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
+  assert.equal(await page.getByLabel('Theme name', { exact: true }).inputValue(), 'Unsaved appearance draft');
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  assert.equal(await page.locator('#find-title').inputValue(), 'Keep my unsaved draft');
+  assert.ok(await page.getByRole('button', { name: 'Sign out', exact: true }).isVisible());
+  assert.equal(state.writes.length, 0, 'Navigation must not create ownership or save settings');
+});
 
 test('add-first workflow keeps one copy across photo, immediate nested storage, and search', async t => {
   const { page, state } = await fixture(t);
@@ -401,6 +476,7 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   assert.equal(await page.locator('.inventory-list img').count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.getByRole('button', { name: 'Add a find', exact: true }).click();
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
   assert.ok(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => input === document.activeElement));
   assert.notEqual(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
@@ -890,9 +966,9 @@ test('Records setup previews without ownership writes and saves durable choices;
   await page.getByRole('checkbox',{name:'Notes',exact:true}).uncheck();
   if(process.env.RELICRAT_SCREENSHOTS) {
     const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
-    await page.locator('.collection-setup').screenshot({path:`${output}/fields-desktop.png`});
+    await page.getByRole('region', { name: 'Collection setup', exact: true }).screenshot({path:`${output}/fields-desktop.png`});
     await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    await page.locator('.collection-setup').screenshot({path:`${output}/fields-mobile.png`});
+    await page.getByRole('region', { name: 'Collection setup', exact: true }).screenshot({path:`${output}/fields-mobile.png`});
     await page.setViewportSize({width:1440,height:1050});
   }
   await page.getByRole('button',{name:'Continue',exact:true}).click();
@@ -903,8 +979,8 @@ test('Records setup previews without ownership writes and saves durable choices;
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   if(process.env.RELICRAT_SCREENSHOTS) {
     const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
-    await page.locator('.collection-setup').screenshot({path:`${output}/setup-desktop.png`});
-    await page.setViewportSize({width:390,height:844});await page.locator('.collection-setup').screenshot({path:`${output}/setup-mobile.png`});
+    await page.getByRole('region', { name: 'Collection setup', exact: true }).screenshot({path:`${output}/setup-desktop.png`});
+    await page.setViewportSize({width:390,height:844});await page.getByRole('region', { name: 'Collection setup', exact: true }).screenshot({path:`${output}/setup-mobile.png`});
     await page.setViewportSize({width:1440,height:1050});
   }
   await page.getByRole('button',{name:'Save setup',exact:true}).click();
@@ -924,6 +1000,7 @@ test('skip and cancel preserve generic entry; changing a nonempty draft requires
   const {page,state}=await fixture(t,{settings:freshSettings()});
   await startRecordSetup(page);await page.getByRole('button',{name:'Cancel setup',exact:true}).click();
   assert.equal(state.writes.length,0);
+  await page.getByRole('button',{name:'Set up your collection',exact:true}).click();
   await page.getByRole('button',{name:'Skip for now',exact:true}).click();
   await page.getByRole('button',{name:'Collection settings',exact:true}).waitFor();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});
@@ -1103,7 +1180,7 @@ test('Comics setup previews without writes; series-only and issue/publisher entr
   await form.getByLabel('Issue number (optional)',{exact:true}).fill('001½');
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('Example Press');
   await form.getByLabel('Edition or cover (optional)',{exact:true}).fill('Copper cover');
-  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await form.screenshot({path:`${output}/comic-desktop.png`});await page.setViewportSize({width:390,height:844});await form.screenshot({path:`${output}/comic-mobile.png`});}
+  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await form.screenshot({path:`${output}/comic-desktop.png`});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Add a find',exact:true}).click();await form.screenshot({path:`${output}/comic-mobile.png`});}
   await form.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Example heroes #001½',exact:true}).waitFor();
   assert.equal(state.copies.length,1);assert.equal(state.items.length,0);
