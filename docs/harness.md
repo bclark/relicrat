@@ -1846,3 +1846,48 @@ was run for this frontend-only integration. A subsequent deployment must verify
 source/image identity, preserve the existing API/database containers and complete
 row/media fingerprints, check Mac/private HTTPS access, and retain prior recovery
 resources. This section records verification, not an implicit rollout claim.
+
+
+## Configured Movie barcode lookup (2026-11-01)
+
+Movie's config selects UPCitemdb through the existing registry and reviewed-fill
+UI. Only title is exported/mapped; provider brand is not studio, format/edition
+are not inferred, and external images/offers/prices are ignored. Review fills a
+draft; only the existing final save creates or edits a physical copy. No schema,
+dependency, frontend-runtime or live-network change is included.
+
+Verification:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **349 passed**, zero
+  failures/skips; 89 existing Starlette/httpx and Alembic deprecation warnings.
+  Full downgrade to base and upgrade through 0013_movies passed. The disposable
+  Compose snapshot used a checked nonoverlapping internal subnet because the
+  worker's automatic address pools are exhausted; that temporary test-only edit
+  was restored byte-for-byte and is not part of the change.
+- Twenty-seven generated-provider cases cover exact UPC/EAN matching, conflicting
+  identifiers, leading zeros, canonical deduplication, malformed/bounded fields,
+  safe source links, pinned HTTPS transport, redirect/compression/type/size limits,
+  timeouts, no-match versus invalid 404s, concurrency/rate/cooldown, swappable type
+  configuration, owner-only access, safe errors and unchanged database row counts.
+- The independent worker web-test build/typecheck, lint and all **33 Node tests**
+  passed. Each of Chromium and WebKit passed **four selected browser scenarios**:
+  Movie scan → automatic lookup → reviewed title → one explicit save, provider
+  quota/no-match recovery preserving manual text, the existing Album reviewed-fill
+  flow, and mobile collapse stopping the camera while preserving the draft.
+- These browser scenarios intercept provider replies with generated fixtures;
+  neither tests nor fixtures use owner exports or call a live provider. A separate
+  one-request protocol probe from a disposable no-port container matched a publicly
+  listed Movie barcode. It retained only a sanitized success/count receipt and
+  did not create inventory or fetch artwork. This is not a coverage/availability
+  guarantee or a physical-phone test.
+- Hashes of every changed API runtime/config file matched the reviewed local
+  source. `git diff --check` passed. No production UI styles/components changed.
+
+Private evidence is under `.harness-results/movie-barcodes/`. The first browser
+stack launcher stopped before transfer because its local evidence path was
+relative to the wrong worktree; it resumed with the exact owned directory and
+correct absolute evidence path. The API snapshot log is also retained there.
+Only the exact owned test projects, their resources/source and temporary bridge
+were removed after verification. Live inventory, owner settings, all recovery
+resources and the original design checkout were untouched. No new backup/restore
+or live deployment was performed; API rollout and phone use follow merge.

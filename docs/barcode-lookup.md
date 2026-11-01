@@ -1,8 +1,8 @@
 # Barcode lookup configuration
 
-Status: MusicBrainz lookup is implemented; verify deployment separately. Mounted
-configuration overrides are implemented for review, not deployed. MusicBrainz
-remains the only bundled live-service adapter. Lookup reads public suggestions; it never establishes catalog identity
+Status: MusicBrainz Album lookup and UPCitemdb Movie title lookup are implemented;
+verify deployment separately. Mounted configuration overrides remain available.
+The installed registry, not browser code, selects each external service. Lookup reads public suggestions; it never establishes catalog identity
 or ownership. Physical camera capture and saved barcode observations remain
 separate from external search.
 
@@ -140,7 +140,7 @@ Provider choice remains in each collection type's JSON; the browser has no
 provider-specific branches. The installed registry translates provider APIs into
 the common candidate/field/optional-cover contract. A config selects an installed
 adapter; it cannot install arbitrary Python, URLs or credential expressions.
-MusicBrainz remains the only bundled live adapter in this change. Discogs is not
+MusicBrainz and UPCitemdb are bundled live adapters; UPCitemdb exports title only and has no cover callable. Discogs is not
 installed or activated: its integration needs a separate decision about token
 setup, attribution and the provider's data-retention contract. This change tests
 the swap boundary with a synthetic second adapter rather than claiming a second
@@ -179,7 +179,7 @@ docker compose -f compose.yaml -f infra/docker/compose.collection-types.yaml up 
 `RELICRAT_COLLECTION_TYPES_DIR` inside API names the mounted container directory,
 while Compose substitution uses the host operator directory. Without the variable
 in API, all bundled definitions apply. With it, one or more known filenames
-(`record.json`, `comic.json`, `other.json`) override their bundled definitions;
+(`record.json`, `comic.json`, `movie.json`, `other.json`) override their bundled definitions;
 unmentioned types keep their bundled defaults. A missing/empty directory, unknown
 JSON filename, mismatched ID, malformed JSON, duplicate keys, oversized file
 (over 64 KiB), uninstalled adapter or invalid schema prevents startup. A broken
@@ -211,3 +211,46 @@ procedure to recover them. The existing Git-source capsule does not automaticall
 include arbitrary host-mounted definitions. Never substitute a config directory
 containing provider credentials. No live mount or backup workflow is changed by
 this PR.
+
+
+## Movie title lookup with UPCitemdb
+
+Movie's bundled JSON selects `upcitemdb`, maps only `title` to `title`, uses
+**Find movie details**, and sets `cover_art` to false. Change provider/mappings in
+that same config to select another installed adapter, or set lookup to null to
+disable it. The existing scan → review → fill draft → explicit save flow applies.
+No provider-specific browser branch, new dependency, migration, account or key is
+needed. Rebuild/restart API for bundled changes; an existing read-only operator
+mount can override movie.json using the established recovery/config contract.
+
+UPCitemdb is a general retail database, not an authoritative movie-edition catalog.
+Results identify themselves as retail suggestions and display bounded brand and
+category text when supplied. Brand is not treated as studio. Titles are not parsed
+to invent format, edition, disc count, studio, catalog identity or quantity. Only
+a reviewed title can fill the form; all other observations remain manual. Returned
+UPC/EAN must agree exactly with the scan or its UPC-A/zero-prefixed EAN-13 equivalent.
+Conflicting codes are rejected. GTIN-14 packaging codes are ignored; there is no
+UPC-E expansion, fuzzy search, automatic retry or fallback provider.
+
+The fixed HTTPS destination is api.upcitemdb.com/prod/trial/lookup. Only the observed
+barcode is sent, never photos, credentials or collection records. Response bytes
+are bounded to 1 MiB, redirects and compressed/non-JSON bodies are rejected, and
+timeouts use eight-second reads plus a checked twelve-second elapsed budget (not
+a hard whole-request timer). Provider image URLs, offers and pricing are ignored;
+no third-party artwork is downloaded, previewed or retained by this adapter. The
+existing Album cover feature remains available through its own provider.
+
+The no-signup free plan currently allows 100 combined requests/day, one connection
+and a sustained lookup every ten seconds. A per-process gate enforces the latter;
+coordinate across processes before scaling the one-process deployment. Provider
+429 responses impose a sixty-second local cooldown and return a sanitized 429 with
+Retry-After; a daily quota may require waiting until the provider resets it. There
+is no paid-plan activation, automatic retry or claim of persistent local quota
+accounting across restarts. A documented 404 NOT_FOUND is an empty result; other
+404/error bodies remain explicit failures. Lookup never creates ownership or media.
+
+Checked 2026-11-01 against the provider's [free-plan limits](https://www.upcitemdb.com/wp/docs/main/development/plan/),
+[response schema](https://www.upcitemdb.com/wp/docs/main/development/responses/) and
+[service terms](https://www.upcitemdb.com/terms). Availability, metadata accuracy and
+coverage are not guaranteed. The private deployment needs its existing API-only
+outbound access; this implementation does not change network topology.
