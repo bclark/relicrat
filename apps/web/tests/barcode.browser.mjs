@@ -359,3 +359,56 @@ test('collapsing mobile intake stops its camera while preserving the unsaved dra
  assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained mobile draft');
  assert.deepEqual(writes,[]);
 });
+
+test('Movie config automatically looks up a scan, reviews title only and saves one copy',async t=>{
+ const {page,scanner,writes,external}=await setup(t);let calls=0;
+ const title='Synthetic barcode movie '+Date.now();
+ await page.route('**/api/v1/barcode-lookups/movie',async route=>{
+  calls++;assert.equal(route.request().method(),'POST');assert.equal(route.request().postDataJSON().value,'012345678905');
+  await route.fulfill({json:{provider:'upcitemdb',provider_label:'UPCitemdb',candidates:[{id:'0012345678905',title,description:'Retail product match; confirm the movie and edition.',source_url:'https://www.upcitemdb.com/upc/0012345678905',fields:{title},cover_url:null}]}});
+ });
+ await page.selectOption('#find-type','movie');
+ const form=page.getByRole('form',{name:'Add a find',exact:true});
+ await form.getByLabel('Studio (optional)',{exact:true}).fill('Keep my manual studio');
+ await form.getByLabel('Format (optional)',{exact:true}).selectOption('DVD');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();
+ await lookup.getByRole('heading',{name:'Possible matches from UPCitemdb',exact:true}).waitFor();
+ assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);
+ assert.equal(await form.getByLabel('Movie or box-set title',{exact:true}).inputValue(),'');
+ await lookup.locator('.barcode-matches button').click();
+ assert.equal(await lookup.getByRole('checkbox',{name:/Movie or box-set title/}).isChecked(),true);
+ assert.equal(await lookup.getByRole('checkbox').count(),1);
+ assert.equal(await lookup.getByRole('link',{name:'View release on UPCitemdb',exact:true}).getAttribute('href'),'https://www.upcitemdb.com/upc/0012345678905');
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
+ assert.equal(await form.getByLabel('Movie or box-set title',{exact:true}).inputValue(),title);
+ assert.equal(await form.getByLabel('Studio (optional)',{exact:true}).inputValue(),'Keep my manual studio');
+ assert.equal(await form.getByLabel('Format (optional)',{exact:true}).inputValue(),'DVD');
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal(calls,1);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await form.getByRole('button',{name:'Save copy',exact:true}).click();
+ await page.getByRole('heading',{name:title,exact:true}).waitFor();
+ const rows=await(await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();
+ assert.equal(rows.length,1);assert.equal(rows[0].collection_type,'movie');
+ assert.deepEqual(rows[0].movie_details,{media_format:'DVD',studio:'Keep my manual studio'});
+ assert.equal(rows[0].barcode.value,'012345678905');assert.equal(rows[0].catalog_item_id,null);
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,1);assert.deepEqual(external,[]);
+});
+
+test('Movie provider quota and no-match responses retain manual entry without automatic retries',async t=>{
+ const {page,scanner,writes,external}=await setup(t);let calls=0;
+ await page.route('**/api/v1/barcode-lookups/movie',async route=>{
+  calls++;
+  if(calls===1)await route.fulfill({status:429,headers:{'Retry-After':'60'},json:{detail:'Lookup is busy or its request limit has been reached. Try again later or enter details manually.'}});
+  else await route.fulfill({json:{provider:'upcitemdb',provider_label:'UPCitemdb',candidates:[]}});
+ });
+ await page.selectOption('#find-type','movie');await page.locator('#find-title').fill('Keep my manual movie title');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();
+ await lookup.getByRole('alert').filter({hasText:'request limit'}).waitFor();
+ assert.equal(calls,1);assert.equal(await page.locator('#find-title').inputValue(),'Keep my manual movie title');
+ await lookup.getByRole('button',{name:'Find movie details',exact:true}).click();
+ await lookup.getByRole('status').filter({hasText:'No matching releases found'}).waitFor();
+ assert.equal(calls,2);assert.equal(await page.locator('#find-title').inputValue(),'Keep my manual movie title');
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.deepEqual(external,[]);
+});

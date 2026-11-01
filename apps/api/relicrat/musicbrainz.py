@@ -9,6 +9,7 @@ from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 import httpx
 from PIL import Image, UnidentifiedImageError
+from relicrat.barcodes import barcode_variants
 from relicrat.barcode_errors import LookupUnavailable, LookupTimeout, LookupBusy
 
 USER_AGENT = 'RelicRat/0.1 (https://github.com/bclark/relicrat)'
@@ -49,13 +50,6 @@ def fetch_bytes(url, maximum, *, cover=False):
                     if time.monotonic()>deadline:raise LookupTimeout()
                 return bytes(content)
     raise LookupUnavailable()
-
-
-def barcode_variants(reading):
-    values = {reading.value}
-    if reading.format == 'UPC_A': values.add('0'+reading.value)
-    if reading.format == 'EAN_13' and reading.value.startswith('0'): values.add(reading.value[1:])
-    return values
 
 
 def clean(value,maximum=500):

@@ -19,6 +19,14 @@ class BarcodeReading(BaseModel):
         return self
 
 
+def barcode_variants(reading):
+    """Only UPC-A and its zero-prefixed EAN-13 are equivalent."""
+    values = {reading.value}
+    if reading.format == 'UPC_A': values.add('0'+reading.value)
+    if reading.format == 'EAN_13' and reading.value.startswith('0'): values.add(reading.value[1:])
+    return values
+
+
 # The same bounded shape is enforced for direct SQL writers. Unknown is {}, not
 # a zero-filled identifier. Null supplements are omitted in persisted readings.
 BARCODE_CHECK = """jsonb_typeof(barcode) = 'object' AND (barcode = '{}'::jsonb OR (

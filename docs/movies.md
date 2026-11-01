@@ -27,10 +27,13 @@ Changing type retains all existing Album/Comic/Movie observations. Unknown field
 are absent rather than zero-filled. Title, studio, format, barcode and notes are
 searchable. Title groups summarize physical copies without merging them.
 
-Movie config declares supported UPC/EAN scanning formats but has `lookup: null`.
-Scanning records an observation; it does not identify a film or fetch artwork.
-The installed-adapter/config contract still applies if a suitable Movie provider
-is added later. No new provider, account, network access or credentials are added.
+Movie config declares UPC/EAN scanning and UPCitemdb title lookup. A successful
+scan searches for a retail suggestion; the owner reviews the title before filling
+the draft and explicitly saving. Studio, format and edition remain manual; brand
+is not studio and no artwork is fetched. This adapter needs no signup or key, but
+has free-plan limits and incomplete coverage. Provider selection/mappings remain
+in movie.json; see the [Movie lookup contract](barcode-lookup.md#movie-title-lookup-with-upcitemdb).
+Scanning and lookup do not prove an edition or establish catalog identity.
 
 ## Reviewed Blu-ray.com collection CSV
 

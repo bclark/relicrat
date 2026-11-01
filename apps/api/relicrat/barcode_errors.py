@@ -8,4 +8,6 @@ class LookupTimeout(LookupUnavailable):
 
 
 class LookupBusy(Exception):
-    pass
+    def __init__(self, *args, retry_after=1):
+        super().__init__(*args)
+        self.retry_after = max(1, min(86400, int(retry_after)))

@@ -28,11 +28,11 @@ def configured(collection_type):
 
 
 @router.post('/{collection_type}')
-def lookup(collection_type:Literal['record','comic','movie','movie','other'],reading:BarcodeReading):
+def lookup(collection_type:Literal['record','comic','movie','other'],reading:BarcodeReading):
     definition,config,provider=configured(collection_type)
     if reading.format not in definition.barcode_formats:raise HTTPException(422,'Barcode format is not supported for this collection type.')
     try:raw=provider['search'](reading,config.max_results)
-    except LookupBusy:raise HTTPException(429,'Lookup is busy. Wait a moment, then try again; manual entry is available.',headers={'Retry-After':'1'}) from None
+    except LookupBusy as error:raise HTTPException(429,'Lookup is busy or its request limit has been reached. Try again later or enter details manually.',headers={'Retry-After':str(error.retry_after)}) from None
     except LookupTimeout:raise HTTPException(504,'The catalog took too long to respond. Try again or enter details manually.') from None
     except LookupUnavailable:raise HTTPException(503,'Lookup provider is unavailable. Try again later or enter details manually.') from None
     if not isinstance(raw,list):raise HTTPException(502,'Lookup provider returned an invalid response. Manual entry is available.')
@@ -60,7 +60,7 @@ def lookup(collection_type:Literal['record','comic','movie','movie','other'],rea
 
 
 @router.get('/{collection_type}/{candidate_id}/cover')
-def cover(collection_type:Literal['record','comic','movie','movie','other'],candidate_id:str):
+def cover(collection_type:Literal['record','comic','movie','other'],candidate_id:str):
     _,config,provider=configured(collection_type)
     if not config.cover_art or not provider.get('cover') or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',candidate_id):raise HTTPException(404,'Cover preview unavailable.')
     try:content=provider['cover'](candidate_id)
