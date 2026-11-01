@@ -110,3 +110,13 @@ starts one lookup immediately. Starting the scanner discloses this behavior;
 camera frames stay local. Types without lookup retain Use barcode. Match/field
 review and final copy/details save remain explicit; failures preserve manual
 entry and no automatic retries are added.
+
+### Optional catalog artwork (2026-11-01)
+
+The owner requested retaining a matched cover as an option. The unchecked Include
+catalog cover selection stages only a provider/candidate reference, saved atomically
+with the ordinary final form. Keep source metadata and display Catalog artwork
+separately from physical-copy photos. No catalog/release link or ownership is
+inferred. `lookup.cover_art` controls availability; installed adapters supply
+trusted cover bytes and a source URL. See [cover contract](../catalog-covers.md)
+for migration, idempotency, failure and recovery boundaries.

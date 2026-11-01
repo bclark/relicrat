@@ -11,7 +11,7 @@ import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { api, ApiError, copyName, errorText, jsonSave, type BarcodeReading, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, copyName, errorText, jsonSave, type BarcodeReading, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy,type CatalogCover, type RunSave } from '../lib/inventory-client';
 import CopyDetail from './copy-detail';
 
 const PAGE = 20;
@@ -19,6 +19,7 @@ export default function InventoryClient() {
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
+  const [catalogCover,setCatalogCover]=useState<CatalogCover|null>(null);
   const [barcode,setBarcode]=useState<BarcodeReading|null>(null);
   const [settings, setSettings] = useState<CollectionSettings | null>(null);
   const [types, setTypes] = useState<CollectionTypes | null>(null);
@@ -46,7 +47,7 @@ export default function InventoryClient() {
   function changeType(value: CollectionTypeId) {
     if(value===collectionType) return;
     if((title || notes || artist || format || edition || issueNumber || publisher || barcode) && !window.confirm('Changing type will discard this unsaved find. Change type?')) return;
-    setBarcode(null);setEntryVersion(value=>value+1);setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setEdition('');setSaveError('');draftTouched.current=true;
+    setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setEdition('');setSaveError('');draftTouched.current=true;
   }
   const [notes, setNotes] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -103,8 +104,8 @@ export default function InventoryClient() {
     try {
       await runSave(async () => {
         setSaveError(''); setNotice('');
-        const copy = await api<InventoryCopy>('inventory', jsonSave({ barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
-        setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
+        const copy = await api<InventoryCopy>('inventory', jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
+        setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
         setNotice(typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
       });
@@ -137,7 +138,7 @@ export default function InventoryClient() {
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
               <p className="intro">Start with a title. Everything else is optional.</p>
-              <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} apply={fields=>{const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
+              <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}

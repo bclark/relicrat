@@ -2,7 +2,7 @@
 version: 1
 slug: barcode-lookup
 primary_target: apps/web/app/barcode-lookup.tsx
-related_targets: [apps/web/app/barcode-input.tsx, apps/web/app/barcode-scanner.tsx, apps/web/app/inventory-client.tsx, apps/web/app/copy-details-form.tsx, apps/web/app/globals.css]
+related_targets: [apps/web/app/barcode-input.tsx, apps/web/app/barcode-scanner.tsx, apps/web/app/inventory-client.tsx, apps/web/app/copy-details-form.tsx, apps/web/app/copy-detail.tsx, apps/web/app/globals.css]
 ---
 
 # Reviewed barcode lookup
@@ -35,8 +35,10 @@ Reading, searching, reviewing and filling
 do not save ownership or link a catalog item/release. Existing-copy changes use
 the ordinary revision-checked details save and retained edit history; physical-copy
 identity is preserved. Missing data remains unknown and a shared barcode does not
-confirm an edition. Provider references are visible during review but are not
-persisted as separate provenance evidence in this increment.
+confirm an edition. Provider references remain visible during review. If the collector explicitly
+includes a catalog cover and completes the final form save, its provider, candidate
+ID, trusted source URL and creation time are retained with the private media asset.
+Text-only filling does not create that artwork provenance record.
 
 ## Interaction and fallback
 
@@ -60,11 +62,43 @@ Scanner lifecycle and observed-digit behavior remain in the
 [barcode intake brief](barcode-intake.md); its older barcode-only scope predates
 this optional lookup extension.
 
-Cover images are contained previews with descriptive alternative text and a text
-fallback when unavailable. They are separate from owned-copy photos. The source
+Cover images start as contained source previews with descriptive alternative text
+and a text fallback when unavailable. Previewing does not import an image. The
+optional retention path below keeps catalog artwork separate from physical-copy
+photos. The source
 link opens the provider release with no referrer. Camera frames stay on-device;
 the API sends the barcode and cover identifier to the configured public services,
 not collection records or owner credentials.
+
+## Optional catalog cover (2026-11-01)
+
+Implemented for review, not deployed. This narrow Operate extension preserves the
+current theme, native controls, layout and navigation. The authoritative media,
+source, migration and recovery contract is [catalog covers](../../docs/catalog-covers.md).
+
+Review offers **Include catalog cover**, initially unchecked for every candidate.
+It remains disabled while the preview loads; a failed preview removes the option
+and clears its selection. The collector can choose fields, the cover, or both.
+**Use these details** stages the selected cover alongside chosen draft fields;
+it does not retain media. Focus returns to the stable title input and the status
+states that the form still needs saving. The staged notice names the cover,
+links its source and offers **Remove selected cover**. Changing the barcode or
+collection type clears the pending choice. Drafts remain local until **Save copy**
+or **Save details**; removing a pending cover does not delete saved artwork.
+
+The final save sends provider/candidate references, never a client-supplied source
+URL. The server validates and stores artwork with the ordinary copy/details save.
+Unavailable artwork fails the save without partial copy/details/history changes;
+the draft remains available for correction. Uncertain writes still require reload
+and review. A cover-only attachment preserves text, catalog identity and existing
+photos; existing artwork is retained rather than replaced.
+
+Saved images appear in **Catalog artwork**, with a source link and explicit wording
+that they are not photographs of the physical copy. **Photos** remains a separate
+section and upload/save flow. Both reuse existing contained media frames and theme
+styles. Catalog artwork does not prove ownership, an exact edition, pressing or
+condition. The provider source records where the illustration came from, not a
+verified identification of this object.
 
 ## Accessibility and responsive treatment
 
@@ -122,3 +156,32 @@ and an explicitly reviewed outbound API path remain rollout considerations.
 Root PRODUCT.md, DESIGN.md and design.json are preserved. Their dated historical
 status/scope metadata is not proof of current deployment or a standing build-path
 preference; no global design refresh is implied by this ordinary extension.
+
+
+## Optional-cover finish evidence (2026-11-01)
+
+The independent [finish review](../../.harness-results/optional-cover/finish-review.md)
+reports **ship for review**, with no blocking findings. It opened all six current
+full-page captures: [review desktop](../review/cover-review-desktop.png) and
+[mobile](../review/cover-review-mobile.png), [pending desktop](../review/cover-pending-desktop.png)
+and [mobile](../review/cover-pending-mobile.png), and [saved desktop](../review/cover-saved-desktop.png)
+and [mobile](../review/cover-saved-mobile.png). Review captures intentionally show
+the selected option; the browser assertion verifies its initial unchecked state.
+Saved captures render generated synthetic artwork above the separate Photos
+section. These are implementation evidence, not approved comps or brand assets.
+
+The optional-cover detector reports `[]`. The API evidence records 288 passes and
+81 warnings, followed by a full migration downgrade/upgrade. The final Chromium
+rerun records six passes and zero failures/skips after an exact accessible-name
+selector correction in the earlier 19-pass/one-failure run. The implementation
+handoff reports 32 Node checks, typecheck and production build passed. The completed WebKit log also records six passes and zero failures/skips. At this
+documentation snapshot the copied-backup cover recovery rehearsal remains
+pending; do not infer their completion from the ship verdict. This pass
+read UI source/callers and the contract/review evidence, and ran no runtime checks.
+
+The review is limited to the existing factory-light surface. Physical-phone,
+manual screen-reader, live-provider and deployment verification remain outside
+this evidence. Migration 0012 requires a verified complete database/media recovery
+path before nondisposable rollout and refuses downgrade while retained artwork
+or source metadata exists. Root PRODUCT.md, DESIGN.md and design.json remain
+unchanged; historical global metadata drift is not repaired by this extension.

@@ -2,6 +2,7 @@
 
 Files live under MEDIA_ROOT; storage keys are generated UUIDs, never user paths.
 """
+from contextlib import contextmanager
 import hashlib
 import io
 import os
@@ -13,6 +14,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from relicrat.database import get_db
@@ -39,6 +41,9 @@ class PhotoInfo(BaseModel):
     byte_size: int
     sha256: str | None
     role: str
+    source_provider: str | None
+    source_id: str | None
+    source_url: str | None
 
 
 def existing_copy(db: Session, copy_id: UUID) -> OwnedCopy:
@@ -51,8 +56,16 @@ def existing_copy(db: Session, copy_id: UUID) -> OwnedCopy:
 @router.post("/{copy_id}/photos", response_model=PhotoInfo, status_code=201)
 def upload_photo(copy_id: UUID, file: UploadFile = File(...), db: Session = Depends(get_db)) -> MediaAsset:
     existing_copy(db, copy_id)
-    # Limit bytes read, not just the untrusted Content-Length header.
     data = file.file.read(MAX_PHOTO_BYTES + 1)
+    with staged_image(db, copy_id, data) as asset:
+        db.commit()
+    db.refresh(asset)
+    return asset
+
+
+@contextmanager
+def staged_image(db, copy_id, data, *, source_provider=None, source_id=None, source_url=None):
+    """Join the caller's transaction; preserve files if commit outcome is unknown."""
     if not data or len(data) > MAX_PHOTO_BYTES:
         raise HTTPException(status_code=413, detail="Photo must be between 1 byte and 15 MiB")
 
@@ -70,28 +83,27 @@ def upload_photo(copy_id: UUID, file: UploadFile = File(...), db: Session = Depe
     key = f"{asset_id.hex[:2]}/{asset_id.hex}{extension}"
     destination = media_root() / key
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # Exclusive creation avoids overwriting another asset.
     try:
         with destination.open("xb") as output:
             output.write(data)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Photo storage collision") from None
-
-    asset = MediaAsset(
-        id=asset_id, owned_copy_id=copy_id, storage_key=key,
-        content_type=content_type, byte_size=len(data),
-        sha256=hashlib.sha256(data).hexdigest(), role="photo",
-    )
+    asset = MediaAsset(id=asset_id, owned_copy_id=copy_id, storage_key=key,
+        content_type=content_type, byte_size=len(data), sha256=hashlib.sha256(data).hexdigest(),
+        role='catalog_cover' if source_provider else 'photo', source_provider=source_provider,
+        source_id=source_id, source_url=source_url)
     try:
         db.add(asset)
-        db.commit()
+        yield asset
     except Exception:
+        # Pending means this asset has never been flushed to PostgreSQL. Once
+        # flushed, a lost commit acknowledgement can race a confirming read;
+        # retain the file rather than risk removing committed media.
+        never_flushed = inspect(asset).pending
         db.rollback()
-        destination.unlink(missing_ok=True)
+        if never_flushed:
+            destination.unlink(missing_ok=True)
         raise
-    # Once committed, a read failure must not remove the stored photo.
-    db.refresh(asset)
-    return asset
 
 
 @router.get("/{copy_id}/photos", response_model=list[PhotoInfo])

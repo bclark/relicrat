@@ -4,6 +4,7 @@ To add an API, implement search(reading, limit) and optionally cover(candidate_i
 then register its bounded field names and public source origin here. Adapters
 must validate input/response, pin HTTPS destinations and keep credentials private.
 """
+from uuid import UUID
 from relicrat import musicbrainz
 
 PROVIDERS = {
@@ -13,5 +14,7 @@ PROVIDERS = {
         'source_origin': 'https://musicbrainz.org',
         'search': musicbrainz.search,
         'cover': musicbrainz.cover,
+        'canonical_id': lambda ident: str(UUID(ident)),
+        'source_url': lambda ident: 'https://musicbrainz.org/release/'+str(UUID(ident)),
     },
 }

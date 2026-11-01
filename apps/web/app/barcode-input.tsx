@@ -3,15 +3,15 @@
 import {useState} from 'react';
 import BarcodeLookup from './barcode-lookup';
 import BarcodeScanner from './barcode-scanner';
-import type { BarcodeReading,CollectionType } from '../lib/inventory-client';
+import type { BarcodeReading,CollectionType,CatalogCover } from '../lib/inventory-client';
 
 type Props = {
  value: BarcodeReading | null; change: (value: BarcodeReading | null) => void;
- formats: string[]; locked: boolean; saved?:boolean; definition?:CollectionType; values?:Record<string,string>; apply?:(fields:Record<string,string>)=>void;
+ formats: string[]; locked: boolean; saved?:boolean; definition?:CollectionType; values?:Record<string,string>; apply?:(fields:Record<string,string>,cover?:CatalogCover)=>void; cover?:CatalogCover|null; removeCover?:()=>void;
 };
 
 /** A page-local observation. Only the enclosing copy form persists it. */
-export default function BarcodeInput({value,change,formats,locked,saved=false,definition,values,apply}:Props){
+export default function BarcodeInput({value,change,formats,locked,saved=false,definition,values,apply,cover,removeCover}:Props){
  const [requested,setRequested]=useState(0),[scannerOpen,setScannerOpen]=useState(false);
  const lookup=definition?.lookup&&apply&&values;
  return <div className="barcode-input">
@@ -22,6 +22,7 @@ export default function BarcodeInput({value,change,formats,locked,saved=false,de
    <p className="hint">{saved?'A barcode is an observation, not a confirmed edition.':'Use the form’s save button to keep this change. A barcode does not confirm the edition.'}</p>
    <button type="button" disabled={locked} onClick={()=>{setRequested(0);change(null);}}>Remove barcode from draft</button>
    {lookup&&!scannerOpen&&<BarcodeLookup key={`${definition.id}-${value.value}-${value.format}-${value.supplement||''}`} definition={definition} reading={value} values={values} apply={apply} requested={requested} locked={locked}/>}
+   {cover&&<div aria-label="Selected catalog cover"><p><strong>{cover.title}</strong></p><p>Catalog cover selected. Save the form to keep it.</p><p><a href={cover.source_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Source: {cover.provider_label}</a></p><button type="button" disabled={locked} onClick={removeCover}>Remove selected cover</button></div>}
   </div>}
  </div>;
 }

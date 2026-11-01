@@ -41,8 +41,9 @@ Malformed configuration fails startup. No migration or new dependency is require
 Only the barcode and release-cover identifier go to the configured provider and
 cover host through the API. Camera frames, owner credentials and collection
 records are not sent. The barcode is posted in a bounded body rather than an
-inventory URL query. A failed/empty lookup leaves manual entry available. Covers
-are previews, not owned-copy media. Suggestions do not create/link catalog items
+inventory URL query. A failed/empty lookup leaves manual entry available. Covers are previews unless the owner explicitly selects Include catalog cover
+and saves the form. Saved artwork retains its source and is separate from
+physical-copy photos; see [optional catalog artwork](catalog-covers.md). Suggestions do not create/link catalog items
 or releases; provider references are shown during review, not yet persisted as a
 separate evidence record. Confirmed field changes use existing copy history.
 
@@ -61,7 +62,8 @@ scaling it. Upstream throttling remains possible. No automatic retries or queues
    `LookupUnavailable` for safe, explicit failure. Keep raw error bodies and
    credentials out of responses/logs.
 2. Register its stable ID in `barcode_providers.py` with `label`, a set of public
-   exported `fields`, `source_origin`, `search`, and optional `cover` callable.
+   exported `fields`, `source_origin`, `search`, and optional `cover` callable. Cover retention also
+   needs a trusted `source_url` callable; optional `canonical_id` normalizes IDs.
 3. Select that ID in the type JSON and change the mappings/translations to match
    its exported fields. Forms and inventory services require no provider branches.
 4. Test config validation, exact identifier handling, malformed/oversized data,
@@ -104,9 +106,14 @@ an existing private deployment implicitly during tests or a routine backup.
 
 Owner sign-in, exact origins, CSRF and secure cookies remain in effect. The new
 API should be deployed before/with web; an old API returns an explicit lookup
-failure and manual intake still works. This feature does not require a schema
-migration and does not alter backup contents, keys or recovery procedures.
+failure and manual intake still works. Read-only lookup itself requires no schema migration. Optional saved artwork
+requires migration 0012 and is included in ordinary database/media backups; see
+the [cover migration and recovery contract](catalog-covers.md). Recovery keys and
+the archive format are unchanged.
 
 Sources: [MusicBrainz release search](https://musicbrainz.org/doc/MusicBrainz_API/Search#Release),
 [rate-limit and User-Agent guidance](https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting),
 [Cover Art Archive endpoints](https://musicbrainz.org/doc/Cover_Art_Archive/API).
+
+Optional cover retention uses the [catalog artwork contract](catalog-covers.md);
+the default remains an unchecked selection and no media is saved during lookup.
