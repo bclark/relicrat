@@ -24,7 +24,8 @@ export type RecordField = 'artist' | 'format' | 'edition' | 'notes';
 export type CollectionSettings = { status: 'not_started'|'skipped'|'configured'; records_enabled: boolean; default_type: CollectionTypeId; record_fields: RecordField[]; comics_enabled?: boolean; comic_fields?: ComicField[]; revision: number };
 export type TypeField = { key: EntryField; label: string; max_length: number; placeholder: string; suggested: boolean; input?: 'text'|'autocomplete'|'select'; options?: string[] };
 export type BrowseGrouping = {field:'artist'|'title';plural_label:string;unknown_label:string;order:'title'|'issue_number'};
-export type CollectionType = { barcode_formats?: string[]; grouping: BrowseGrouping|null; schema_version: 1; id: CollectionTypeId; label: string; plural_label: string; title: TypeField; fields: TypeField[]; entry_order: EntryField[] };
+export type BarcodeLookupConfig={provider:string;action_label:string;max_results:number;field_mappings:Record<string,string>;value_maps:Record<string,Record<string,string>>;cover_art:boolean};
+export type CollectionType = { lookup?:BarcodeLookupConfig|null; barcode_formats?: string[]; grouping: BrowseGrouping|null; schema_version: 1; id: CollectionTypeId; label: string; plural_label: string; title: TypeField; fields: TypeField[]; entry_order: EntryField[] };
 export type CollectionTypes = Record<CollectionTypeId, CollectionType>;
 
 export class ApiError extends Error {

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Literal
 from relicrat.barcodes import BarcodeFormat
+from relicrat.barcode_providers import PROVIDERS
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -40,6 +41,16 @@ class BrowseGrouping(BaseModel):
     order: Literal['title','issue_number']
 
 
+class BarcodeLookup(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
+    provider: str = Field(pattern=r'^[a-z][a-z0-9_-]{0,39}$')
+    action_label: str = Field(min_length=1,max_length=80,pattern=r'^[^\x00]*$')
+    max_results: int = Field(default=5,ge=1,le=10)
+    field_mappings: dict[str,str] = Field(min_length=1,max_length=8)
+    value_maps: dict[str,dict[str,str]] = Field(default_factory=dict,max_length=8)
+    cover_art: bool = False
+
+
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
@@ -47,6 +58,7 @@ class CollectionType(BaseModel):
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     barcode_formats: list[BarcodeFormat] = Field(default_factory=list, max_length=4)
+    lookup: BarcodeLookup | None = None
     grouping: BrowseGrouping | None = None
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
@@ -66,6 +78,22 @@ class CollectionType(BaseModel):
         # These limits describe deployed storage, not an arbitrary custom-field engine.
         limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250}
         allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}}[self.id]
+        if self.lookup:
+            lookup=self.lookup
+            if lookup.provider not in PROVIDERS:
+                raise ValueError('Lookup provider must be an installed adapter')
+            provider=PROVIDERS[lookup.provider]
+            if not self.barcode_formats or 'title' not in lookup.field_mappings or not set(lookup.field_mappings)<=(allowed|{'title'})-{'notes'}:
+                raise ValueError('Lookup mappings must target supported fields and include title')
+            if not set(lookup.field_mappings.values())<=provider['fields']:
+                raise ValueError('Lookup mappings reference unavailable provider fields')
+            if lookup.cover_art and not provider.get('cover'):
+                raise ValueError('This provider has no cover adapter')
+            for key,values in lookup.value_maps.items():
+                if key not in lookup.field_mappings or len(values)>20:
+                    raise ValueError('Value maps require a mapped target field and at most20 translations')
+                if any(not source or len(source)>500 or '\x00' in source or not value or len(value)>limits[key] or '\x00' in value for source,value in values.items()):
+                    raise ValueError('Value translations must fit stored fields')
         if self.grouping and (self.grouping.field,self.grouping.order) != {'record':('artist','title'),'comic':('title','issue_number')}.get(self.id):
             raise ValueError('Grouping must use supported storage fields and order')
         keys = [field.key for field in self.fields]

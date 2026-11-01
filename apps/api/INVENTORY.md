@@ -480,3 +480,23 @@ backup and matching source/images before rollout; use the older release against
 an isolated recovery restore when rollback is needed. Do not delete observations
 or history to make a production downgrade succeed. Offline backups already
 capture all columns and bundled source; no new volume or credential is required.
+
+## Configured barcode suggestions
+
+Owner-only `POST /api/v1/barcode-lookups/{collection_type}` accepts the same
+validated barcode reading used for copy observations and returns bounded
+provider candidates. The type definition selects an installed adapter, fields,
+value translations and optional cover previews. Album initially uses MusicBrainz;
+Comics and Other have lookup disabled. Unsupported formats return 422; a missing
+configuration returns 404; busy/unavailable providers return 429/503.
+
+`GET /api/v1/barcode-lookups/{collection_type}/{candidate_id}/cover` proxies only
+the configured adapter's validated image destination, behind owner access. No
+client URL is accepted. Source links and field values are validated; browser
+review fills selected draft fields only. Neither endpoint creates a catalog
+identity, release, physical copy, photo or audit event. The ordinary final save
+retains existing copy history and revision checks. See the complete
+[configuration and adapter contract](../../docs/barcode-lookup.md).
+
+No migration or dependency is added. Private internal-only deployments require
+an explicitly reviewed API outbound network before live lookup works.

@@ -175,3 +175,94 @@ test('type configuration can disable new scans or reject a format without changi
  await scanner.getByRole('alert').filter({hasText:'not supported for this collection type'}).waitFor();await stopped(page);
  assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);assert.deepEqual(writes,[]);
 });
+
+const lookupId='11111111-1111-4111-8111-111111111111';
+async function lookupFixture(page,title='Synthetic Moon Album'){
+ let calls=0;
+ await page.route('**/api/v1/barcode-lookups/record',async route=>{
+  calls++;assert.equal(route.request().method(),'POST');assert.equal(route.request().postDataJSON().value,'012345678905');
+  await route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[{id:lookupId,title,description:'Synthetic artist · Vinyl · 2020 · GB · Synthetic label',source_url:'https://musicbrainz.org/release/'+lookupId,fields:{title,artist:'Synthetic artist',format:'Vinyl'},cover_url:'/api/v1/barcode-lookups/record/'+lookupId+'/cover'}]}});
+ });
+ const cover=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=250;canvas.height=250;const c=canvas.getContext('2d');c.fillStyle='#203a4a';c.fillRect(0,0,250,250);c.fillStyle='#ffffff';c.font='bold 24px sans-serif';c.fillText('SYNTHETIC',25,90);c.fillText('ALBUM COVER',25,125);c.font='16px sans-serif';c.fillText('Generated test fixture',25,170);return canvas.toDataURL('image/png').split(',')[1];});
+ await page.route('**/api/v1/barcode-lookups/record/*/cover',route=>route.fulfill({contentType:'image/png',body:Buffer.from(cover,'base64')}));
+ return ()=>calls;
+}
+async function scanForAlbum(page,scanner){
+ await page.selectOption('#find-type','record');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();
+ await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();
+ await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();return lookup;
+}
+
+test('review an album match, preserve existing artist, fill a draft and explicitly save one copy',async t=>{
+ const {page,scanner,writes,external}=await setup(t);const title='Synthetic Moon Album '+Date.now();const calls=await lookupFixture(page,title);
+ await page.selectOption('#find-type','record');await page.locator('#find-artist').fill('Keep my manual artist');
+ const lookup=await scanForAlbum(page,scanner);
+ assert.equal(await page.locator('#find-title').inputValue(),'');assert.equal(await page.locator('#find-artist').inputValue(),'Keep my manual artist');
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal(calls(),1);
+ await lookup.locator('.barcode-matches button').click();await lookup.getByRole('heading',{name:'Review details to fill'}).waitFor();await page.waitForFunction(()=>Array.from(document.querySelectorAll('.lookup-cover')).every(image=>image.complete&&image.naturalWidth>0));
+ assert.equal(await lookup.getByRole('checkbox',{name:/Artist or band/}).isChecked(),false);
+ assert.equal(await lookup.getByRole('checkbox',{name:/Album title/}).isChecked(),true);
+ if(process.env.RELICRAT_LOOKUP_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_SCREENSHOTS;await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/review-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/review-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
+ assert.equal(await page.locator('#find-title').inputValue(),title);assert.equal(await page.locator('#find-artist').inputValue(),'Keep my manual artist');assert.equal(await page.locator('#find-format').inputValue(),'Vinyl');
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
+ if(process.env.RELICRAT_LOOKUP_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_SCREENSHOTS;await page.screenshot({path:dir+'/filled-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/filled-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();await page.getByText('Copy saved. You can add more details whenever you like.',{exact:true}).waitFor();
+ const rows=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();assert.equal(rows.length,1);assert.equal(rows[0].record_details.artist,'Keep my manual artist');assert.equal(rows[0].barcode.value,'012345678905');assert.equal(rows[0].catalog_item_id,null);
+ assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,1);assert.deepEqual(external,[]);
+});
+
+test('lookup failure and no matches keep a manually editable draft without ownership writes',async t=>{
+ const {page,scanner,writes}=await setup(t);let fail=true;
+ await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill(fail?{status:503,json:{detail:'Synthetic unavailable'}}:{json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}}));
+ await page.selectOption('#find-type','record');await page.locator('#find-title').fill('Synthetic fallback draft');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('alert').filter({hasText:'Lookup is unavailable'}).waitFor();assert.equal(await page.locator('#find-title').inputValue(),'Synthetic fallback draft');
+ fail=false;await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.getByRole('status').filter({hasText:'No matching releases'}).waitFor();
+ assert.equal(await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).isEnabled(),true);assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
+});
+
+test('a changed draft requires another review before a suggestion can replace it',async t=>{
+ const {page,scanner,writes}=await setup(t);await lookupFixture(page);
+ const lookup=await scanForAlbum(page,scanner);await lookup.locator('.barcode-matches button').click();
+ await page.locator('#find-title').fill('New manual title after review');
+ await lookup.getByRole('button',{name:'Review this match again',exact:true}).waitFor();assert.equal(await lookup.getByRole('button',{name:'Use these details',exact:true}).isDisabled(),true);
+ await lookup.getByRole('button',{name:'Review this match again',exact:true}).click();
+ assert.equal(await lookup.getByRole('checkbox',{name:/Album title/}).isChecked(),false);
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'New manual title after review');assert.equal(await page.locator('#find-artist').inputValue(),'Synthetic artist');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
+});
+
+test('late lookup responses cannot populate a changed collection type',async t=>{
+ const {page,scanner,writes}=await setup(t);let release;const pending=new Promise(resolve=>{release=resolve;});let started=false;
+ await page.route('**/api/v1/barcode-lookups/record',async route=>{started=true;await pending;try{await route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}});}catch{/* The aborted owner request may already be gone. */}});
+ await page.selectOption('#find-type','record');await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();await scanner.getByRole('button',{name:'Find album details',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Looking for possible matches'}).waitFor();assert.equal(started,true);
+ page.once('dialog',dialog=>dialog.accept());await page.selectOption('#find-type','comic');release();
+ await page.locator('#find-title').fill('Synthetic comic draft');assert.equal(await page.getByRole('region',{name:'Barcode lookup',exact:true}).count(),0);assert.equal(await page.locator('#find-title').inputValue(),'Synthetic comic draft');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
+});
+
+test('existing-copy lookup changes only reviewed details and saves with retained history',async t=>{
+ const {page,writes}=await setup(t);const title='Original lookup copy '+Date.now();await lookupFixture(page);
+ const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title,collection_type:'record',barcode:{value:'012345678905',format:'UPC_A'}}});assert.equal(response.status(),201);const original=await response.json();
+ await page.reload();await page.selectOption('#collection-browse-view','copies');await page.locator('.inventory-list button').filter({hasText:title}).click();
+ const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
+ await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.locator('.barcode-matches button').click();
+ assert.equal(await lookup.getByRole('checkbox',{name:/Album title/}).isChecked(),false);
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json()).record_details.artist,undefined);
+ assert.equal(await form.locator('#copy-title').evaluate(element=>element===document.activeElement),true);
+ if(process.env.RELICRAT_LOOKUP_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_SCREENSHOTS;await page.screenshot({path:dir+'/existing-filled-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/existing-filled-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
+ await form.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();
+ const saved=await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json();assert.equal(saved.id,original.id);assert.equal(saved.title,title);assert.equal(saved.record_details.artist,'Synthetic artist');assert.equal(saved.catalog_item_id,null);
+ const history=await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/detail-history')).json();assert.equal(history.length,1);assert.equal(history[0].after_record_details.artist,'Synthetic artist');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
+});
+
+test('closing a rescan does not repeat a previous external lookup',async t=>{
+ const {page,scanner}=await setup(t);const calls=await lookupFixture(page);await scanForAlbum(page,scanner);assert.equal(calls(),1);
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByRole('heading',{name:'Barcode read',exact:true}).waitFor();
+ await scanner.getByRole('button',{name:'Close scanner',exact:true}).click();
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true}).first();await lookup.getByRole('button',{name:'Find album details',exact:true}).waitFor();
+ assert.equal(await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).count(),0);assert.equal(calls(),1);
+});

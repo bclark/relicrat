@@ -65,5 +65,23 @@
     "UPC_E",
     "EAN_8",
     "EAN_13"
-  ]
+  ],
+  "lookup": {
+    "provider": "musicbrainz",
+    "action_label": "Find album details",
+    "max_results": 5,
+    "field_mappings": {
+      "title": "title",
+      "artist": "artist",
+      "format": "format"
+    },
+    "value_maps": {
+      "format": {
+        "7\" Vinyl": "Vinyl",
+        "10\" Vinyl": "Vinyl",
+        "12\" Vinyl": "Vinyl"
+      }
+    },
+    "cover_art": true
+  }
 }

@@ -650,3 +650,15 @@ footer {
 .barcode-scanner dd { margin-left: 0; }
 .barcode-input { margin-bottom: 24px; overflow-wrap: anywhere; }
 .barcode-input dd { margin-left: 0; }
+.barcode-lookup { margin-top:24px; border-top:1px solid var(--rule); padding-top:16px; }
+.barcode-matches { list-style:none; padding:0; }
+.barcode-matches li { border-bottom:1px solid var(--rule); padding:12px 0; }
+.barcode-matches button { width:100%; text-align:left; }
+.barcode-matches button span, .lookup-field span span, .lookup-field small { display:block; }
+.lookup-cover { display:block; object-fit:contain; margin:16px 0; }
+.lookup-field { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--rule); }
+.lookup-field input { width:20px; min-height:20px; flex:0 0 20px; margin:4px 0; }
+.barcode-match-review button { margin:12px 8px 0 0; }
+.lookup-field { margin:0; font-weight:400; }
+.lookup-field input { accent-color:var(--accent); }
+.barcode-matches button span { font-weight:400; }

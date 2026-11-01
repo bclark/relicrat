@@ -88,7 +88,7 @@ def test_browse_grouping_is_bounded_and_uses_supported_fields():
 def test_barcode_formats_are_declared_bounded_unique_and_optional():
     for definition in COLLECTION_TYPES.values():
         assert definition.barcode_formats==['UPC_A','UPC_E','EAN_8','EAN_13']
-    earlier=COLLECTION_TYPES['record'].model_dump(exclude={'barcode_formats'})
+    earlier=COLLECTION_TYPES['record'].model_dump(exclude={'barcode_formats','lookup'})
     assert CollectionType.model_validate(earlier).barcode_formats==[]
     for formats in (['QR_CODE'],['UPC_A','UPC_A'],['EAN_13']*5,'UPC_A'):
         value=copy.deepcopy(earlier);value['barcode_formats']=formats
