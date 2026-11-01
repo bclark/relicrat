@@ -9,23 +9,12 @@ from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 import httpx
 from PIL import Image, UnidentifiedImageError
+from relicrat.barcode_errors import LookupUnavailable, LookupTimeout, LookupBusy
 
 USER_AGENT = 'RelicRat/0.1 (https://github.com/bclark/relicrat)'
 logger = logging.getLogger(__name__)
 _gate = threading.Lock()
 _last_request = float('-inf')
-
-
-class LookupUnavailable(Exception):
-    pass
-
-
-class LookupTimeout(LookupUnavailable):
-    pass
-
-
-class LookupBusy(Exception):
-    pass
 
 
 def fetch_bytes(url, maximum, *, cover=False):

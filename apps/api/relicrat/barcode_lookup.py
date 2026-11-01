@@ -8,7 +8,7 @@ from pydantic import BaseModel,ConfigDict,Field,ValidationError
 from relicrat.barcodes import BarcodeReading
 from relicrat.barcode_providers import PROVIDERS
 from relicrat.collection_types import COLLECTION_TYPES
-from relicrat.musicbrainz import LookupBusy,LookupUnavailable,LookupTimeout
+from relicrat.barcode_errors import LookupBusy,LookupUnavailable,LookupTimeout
 
 router=APIRouter(prefix='/api/v1/barcode-lookups',tags=['barcode lookup'])
 

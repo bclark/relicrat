@@ -1,5 +1,6 @@
-"""Validated, bundled form definitions. No user-selected paths or executable rules."""
+"""Validated definitions with optional operator-owned, read-only overrides."""
 import json
+import os
 from pathlib import Path
 from typing import Literal
 from relicrat.barcodes import BarcodeFormat
@@ -108,13 +109,40 @@ class CollectionType(BaseModel):
         return self
 
 
+def _unique_keys(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError('Collection definition contains duplicate keys')
+        value[key] = item
+    return value
+
+
 def load_types() -> dict[str, CollectionType]:
+    identifiers = ('other', 'record', 'comic')
+    bundled = Path(__file__).with_suffix('')
+    overrides = {}
+    directory = os.environ.get('RELICRAT_COLLECTION_TYPES_DIR')
+    if directory is not None:
+        # Operator-owned, read-only mount; never a browser/upload-selected path.
+        root = Path(directory)
+        if not directory or not root.is_absolute() or not root.is_dir():
+            raise ValueError('Collection definition override directory is unavailable')
+        overrides = {path.stem: path for path in root.iterdir() if path.suffix == '.json'}
+        if not overrides or not set(overrides) <= set(identifiers):
+            raise ValueError('Overrides must contain known collection-type JSON filenames')
     definitions = {}
-    for ident in ('other', 'record', 'comic'):
-        path = Path(__file__).with_suffix('') / f'{ident}.json'
-        definition = CollectionType.model_validate(json.loads(path.read_text()))
+    for ident in identifiers:
+        path = overrides.get(ident, bundled / f'{ident}.json')
+        if not path.is_file():
+            raise ValueError('Collection definition must be a regular file')
+        with path.open('rb') as source:
+            content = source.read(65537)
+        if len(content) > 65536:
+            raise ValueError('Collection definition exceeds 64 KiB')
+        definition = CollectionType.model_validate(json.loads(content, object_pairs_hook=_unique_keys))
         if definition.id != ident:
-            raise ValueError('Definition identity must match its bundled filename')
+            raise ValueError('Definition identity must match its filename')
         definitions[ident] = definition
     return definitions
 
