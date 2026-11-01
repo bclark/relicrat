@@ -16,6 +16,39 @@ import CopyDetail from './copy-detail';
 
 const PAGE = 20;
 export default function InventoryClient() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<'appearance' | 'collection' | null>(null);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width:650px)');
+    const update = () => setMobile(query.matches);
+    update(); query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const accountNav = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    function dismiss(event: PointerEvent) {
+      if (!accountNav.current?.contains(event.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [menuOpen]);
+  useEffect(() => {
+    if (settingsPanel === 'appearance') document.querySelector<HTMLElement>('#appearance-editor h2')?.focus();
+  }, [settingsPanel]);
+  function closeSettings() {
+    setSettingsPanel(null);
+    const control = window.matchMedia('(max-width:650px)').matches ? menuButton.current : document.getElementById(`${settingsPanel}-control`);
+    control?.focus();
+  }
+  function toggleSettings(panel: 'appearance' | 'collection') {
+    if (settingsPanel === panel) closeSettings();
+    else setSettingsPanel(panel);
+    setMenuOpen(false);
+  }
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
@@ -126,40 +159,58 @@ export default function InventoryClient() {
   }
   return (
     <div className="themed-app" style={appearanceStyles}>
-      <a className="skip-link" href="#add-find">Skip to adding a find</a>
-      <header className="masthead"><a className="brand" href="/">RelicRat</a><span>Your collection, one copy at a time.</span><SignOut /></header>
+      <a className="skip-link" href="#add-find" onClick={() => setEntryOpen(true)}>Skip to adding a find</a>
+      <header className="masthead">
+        <a className="brand" href="/">RelicRat</a><span className="brand-tagline">Your collection, one copy at a time.</span>
+        <div className="account-nav" ref={accountNav} onKeyDown={event => {
+          if (event.key === 'Escape' && menuOpen) { setMenuOpen(false); menuButton.current?.focus(); }
+        }} onBlur={event => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false);
+        }}>
+          <button className="menu-toggle quiet" ref={menuButton} type="button" aria-expanded={menuOpen} aria-controls="account-actions" onClick={() => setMenuOpen(value => !value)}>Menu</button>
+          <div id="account-actions" className="account-actions" data-open={menuOpen}>
+            <button id="appearance-control" className="quiet" type="button" aria-expanded={settingsPanel === 'appearance'} aria-controls="appearance-editor" onClick={() => toggleSettings('appearance')}>{settingsPanel === 'appearance' ? 'Close appearance' : 'Appearance'}</button>
+            {settings && types && <button id="collection-control" className="quiet" type="button" disabled={busy || uncertain} aria-expanded={settingsPanel === 'collection'} aria-controls="collection-editor" onClick={() => toggleSettings('collection')}>{settings.status === 'not_started' ? 'Set up your collection' : 'Collection settings'}</button>}
+            <SignOut />
+          </div>
+        </div>
+      </header>
       <main>
-        <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
-        <Appearance applied={setAppearanceStyles} />
-        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !mediaFormat && !studio && !edition && !issueNumber && !publisher && !barcode) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
+        <div className="collection-opening">
+          <div><h1>Your collection</h1><p>Find a saved copy, or add your next find.</p></div>
+        </div>
+        <Appearance applied={setAppearanceStyles} open={settingsPanel === 'appearance'} />
+        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} open={settingsPanel === 'collection'} close={closeSettings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !mediaFormat && !studio && !barcode && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={setSelected} />
         <div className="workspace">
           <div className="workbench">
             <section className="intake" aria-labelledby="add-find">
-              <h1 id="add-find">Add a find</h1>
-              <p className="intro">Start with a title. Everything else is optional.</p>
-              <form onSubmit={create} aria-label="Add a find">
-                <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
-                  {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
-                  <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
-                  {(types?.[collectionType].entry_order || ['title', ...(types?.[collectionType].fields.map(field=>field.key) || [])]).map(key=>{
-                    if(key==='title') return <Fragment key="title"><label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
-                      <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e=>{setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" /></Fragment>;
-                    const field = types?.[collectionType].fields.find(field=>field.key===key);
-                    const values: Record<string,string> = {artist,format,media_format:mediaFormat,studio,edition,notes,issue_number:issueNumber,publisher};
-                    const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,notes:setNotes,issue_number:setIssueNumber,publisher:setPublisher};
-                    if(!field || !showField(key,values[key])) return null;
-                    return <Fragment key={key}><label htmlFor={`find-${key}`}>{field.label} (optional)</label>
-                      {key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
-                        : <ObservationInput key={`${key}-${entryVersion}`} id={`find-${key}`} field={field} value={values[key]} change={value=>{setters[key](value);draftTouched.current=true;}} />}</Fragment>;
-                  })}
-                  {!types && <><label htmlFor="find-notes">Notes (optional)</label><textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} /></>}
-                  <p className="hint" id="intake-help">You can add an edition, photos or storage whenever you like.</p>
-                  <button className="primary" type="submit">{busy ? 'Saving…' : 'Save copy'}</button>
-                </fieldset>
-              </form>
+              <h2 id="add-find" tabIndex={-1}><span className="intake-title">Add a find</span><button className="intake-toggle" type="button" aria-expanded={entryOpen} aria-controls="intake-fields" onClick={() => setEntryOpen(value => !value)}>Add a find<span aria-hidden="true">{entryOpen ? 'Hide' : 'Show'}</span></button></h2>
+              <div id="intake-fields" className="intake-fields" data-open={entryOpen}>
+                <p className="intro">Start with a title. Everything else is optional.</p>
+                <form onSubmit={create} aria-label="Add a find">
+                  <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
+                    {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
+                    <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings || (mobile && !entryOpen)} />
+                    {(types?.[collectionType].entry_order || ['title', ...(types?.[collectionType].fields.map(field=>field.key) || [])]).map(key=>{
+                      if(key==='title') return <Fragment key="title"><label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
+                        <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e=>{setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" /></Fragment>;
+                      const field = types?.[collectionType].fields.find(field=>field.key===key);
+                      const values: Record<string,string> = {artist,format,media_format:mediaFormat,studio,edition,notes,issue_number:issueNumber,publisher};
+                      const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,notes:setNotes,issue_number:setIssueNumber,publisher:setPublisher};
+                      if(!field || !showField(key,values[key])) return null;
+                      return <Fragment key={key}><label htmlFor={`find-${key}`}>{field.label} (optional)</label>
+                        {key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
+                          : <ObservationInput key={`${key}-${entryVersion}`} id={`find-${key}`} field={field} value={values[key]} change={value=>{setters[key](value);draftTouched.current=true;}} />}</Fragment>;
+                    })}
+                    {!types && <><label htmlFor="find-notes">Notes (optional)</label><textarea id="find-notes" maxLength={10000} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} /></>}
+                    <p className="hint" id="intake-help">You can add an edition, photos or storage whenever you like.</p>
+                    <button className="primary" type="submit">{busy ? 'Saving…' : 'Save copy'}</button>
+                  </fieldset>
+                </form>
+              </div>
               {saveError && <p className="error" role="alert">{saveError}</p>}
               {uncertain && <p className="hint">Check for this copy before saving again. <button className="text-button" onClick={reloadInventory} disabled={busy || loading}>Reload inventory</button></p>}
               <p className="notice" role="status">{notice}</p>
@@ -168,7 +219,7 @@ export default function InventoryClient() {
               : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </div>
           <section className="collection" aria-labelledby="collection-title">
-            <div className="section-heading"><h2 id="collection-title">Your collection</h2><button className="quiet" disabled={busy || loading} onClick={reloadInventory}>Reload inventory</button></div>
+            <div className="section-heading"><h2 id="collection-title">Saved copies</h2><button className="quiet" disabled={busy || loading} onClick={reloadInventory}>Reload inventory</button></div>
             <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={browseView} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups">Grouped collection</option><option value="copies">Individual copies</option></select>
             <label htmlFor="collection-type-filter">Show collection type</label>
             <select id="collection-type-filter" value={typeFilter} disabled={busy || !types} onChange={event=>{setTypeFilter(event.target.value as CollectionTypeId | '');setPage(0);}}>
@@ -191,6 +242,7 @@ export default function InventoryClient() {
             </>}
           </section>
         </div>
+        <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
       </main>
       <footer>Provisional intake, photos, manual identification, storage, and search. Production recovery and broader deployment hardening remain unfinished.</footer>
     </div>

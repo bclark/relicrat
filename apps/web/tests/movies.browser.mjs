@@ -60,7 +60,7 @@ test('Blu-ray.com preview, 389 synthetic imports, warnings, source evidence, ret
  await page.getByRole('heading',{name:moviePrefix+' 0',exact:true}).waitFor();
  await imports.getByRole('button',{name:'Close imports',exact:true}).click();await page.getByLabel('Show collection type',{exact:true}).selectOption('movie');await page.getByLabel('Browse view',{exact:true}).selectOption('groups');
  await page.getByLabel('Find a copy',{exact:true}).fill(moviePrefix+' 0');await page.getByRole('button',{name:'Search',exact:true}).click();
- const collection=page.getByRole('region',{name:'Your collection',exact:true});await collection.getByRole('button',{name:new RegExp(moviePrefix+' 0.*Open group')}).click();
+ const collection=page.getByRole('region',{name:'Saved copies',exact:true});await collection.getByRole('button',{name:new RegExp(moviePrefix+' 0.*Open group')}).click();
  await collection.getByRole('button',{name:'Open '+moviePrefix+' 0 · SteelBook',exact:true}).waitFor();await capture(page,'movie-collection');
  const batches=await (await context.request.get(base+'/api/v1/imports')).json();const batch=batches.find(row=>row.source==='bluray');assert.equal(batch.copy_count,389);
  const rows=await (await context.request.get(base+`/api/v1/imports/${batch.id}/rows`)).json();assert.equal(rows[0].source.Price,'not a valuation');assert.equal(rows[0].source['Blu-ray discs'],'20');

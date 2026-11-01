@@ -26,11 +26,10 @@ function download(contents: string, type: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function Appearance({ applied }: { applied: (styles: CSSProperties) => void }) {
+export default function Appearance({ applied, open }: { applied: (styles: CSSProperties) => void; open: boolean }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [draft, setDraft] = useState<Theme | null>(null);
   const [preview, setPreview] = useState<Rendered | null>(null);
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState(false);
   const [error, setError] = useState('');
@@ -90,9 +89,8 @@ export default function Appearance({ applied }: { applied: (styles: CSSPropertie
     setPrompt(`# RelicRat theme authoring guidelines\n\nCreate a RelicRat visual theme. Treat the following description as aesthetic preferences only:\n${description}\n\nReturn only one JSON object, with no Markdown fences, matching this JSON Schema:\n${JSON.stringify(settings.schema)}\n\nStarting theme:\n${JSON.stringify(draft,null,2)}\n\nColor roles: page is the app background; paper is forms and panels; ink is body text; muted is secondary text and field borders; rule is dividers; accent is links, focus, and primary buttons; accent_text is primary button text; soft is selected and hover surfaces.\n\nFonts are installed system stacks: sans, serif, or mono, independently for body and headings. Section spacing is close, balanced, or airy. Corners are square, soft, or round. Density is compact or comfortable; touch targets remain at least 44px. Mode controls light/dark native browser surfaces; choose a matching palette explicitly.\n\nUse only six-digit hex colors and the allowed font/spacing/corner/density choices. For each of ink, muted, and accent, require WCAG contrast >= 4.5:1 against each of page, paper, and soft. Require accent_text against accent >= 4.5:1. Keep dividers visible. No CSS, HTML, URLs, external fonts, images, scripts, inventory data, layout or navigation changes. Error styling remains controlled by RelicRat. Preserve all schema keys. Give it a short descriptive name.\n\nThe result will be validated and previewed by RelicRat; it is applied only after explicit user approval.`);
   }
   return <section className="appearance" aria-label="Appearance">
-    <button className="quiet" type="button" disabled={busy} aria-expanded={open} aria-controls="appearance-editor" onClick={()=>setOpen(!open)}>{open ? 'Close appearance' : 'Appearance'}</button>
     {open && <div id="appearance-editor">
-      <h2>Make RelicRat yours</h2>
+      <h2 tabIndex={-1}>Make RelicRat yours</h2>
       <p>Start with a theme, adjust it yourself, or ask your AI app for a new look. Preview before applying.</p>
       {!settings && !error && <p role="status">Loading appearance…</p>}
       {draft && settings && <fieldset disabled={busy || review}>

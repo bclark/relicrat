@@ -1724,3 +1724,125 @@ before testing because its local Playwright dependency link was missing; the
 completed runs use the existing installation. Private evidence is under
 `.harness-results/type-first/`. API and backup/migration suites were not repeated
 for this change to the form order; physical-phone testing and deployment are separate.
+
+## Collection opening refinement (2026-11-01)
+
+The signed-in initial workspace now leads with saved copies/search and keeps
+intake beside it on desktop and after it on mobile. Add a find and the skip link
+focus the intake heading. This frontend-only change preserves API/save behavior,
+owner theme tokens and ownership semantics; no migration or dependency is added.
+
+Commands actually run from `apps/web`:
+
+- `npm test`: 26 passed, zero failures/skips after rerunning outside the sandbox
+  so disposable loopback servers could bind. The first sandbox run stalled and
+  was interrupted; it is not passing evidence.
+- `npm run lint`: passed TypeScript checking.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build`: passed. Next warned about the existing
+  untracked root lockfile; it was left untouched. Generated `next-env.d.ts` churn
+  was reverted.
+- `node --test --test-name-pattern='collection opening|add-first workflow|unreadable/network errors|aborted detail|a saved copy edits' tests/inventory.browser.mjs`:
+  five passed, zero failures/skips with the installed Chromium path supplied via
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. The first browser attempt could not find its
+  expected browser revision; using installed Chromium resolved that setup issue.
+
+Browser checks used the production web build on loopback port 63112, a temporary
+synthetic-only upstream on loopback port 63113, and existing intercepted domain
+fixtures. The new check covers desktop/mobile intake-jump focus, visible keyboard
+focus, horizontal overflow and zero ownership writes from navigation. Existing
+checks covered intake/photo/storage/search, stale reads/pagination, untrusted long
+text and copy editing. These are frontend fixture checks, **not** real owner
+session/database integration. No API, remote worker, backup/restore or full browser
+suite was rerun. No expected failures apply to the five selected cases.
+
+Full-page empty/populated desktop/mobile captures are local ignored evidence under
+`.impeccable/review/collection-opening/`. All four were opened and reviewed. The
+independent finish review returned **ship** at visual/code scope, with no required
+UI fixes, and requested updating the stale design descriptions. Existing design
+hooks reported no deterministic findings. No shipping raster assets were added.
+This records local implementation evidence, not deployment or production recovery.
+
+## Workspace navigation correction (2026-11-01)
+
+Supersedes the previous collection-opening composition at the owner's request.
+Desktop intake is left, collection right; utilities are in the header. Mobile
+uses Menu and a collapsed entry disclosure. The redundant intake jump button is
+removed. Expanding/collapsing preserves the mounted draft; only Save copy creates
+ownership. Settings visibility is lifted to the workspace while persistence,
+preview, conflict and authentication paths remain unchanged. Skip for now is
+available inside collection setup. No dependency, migration or API change.
+
+Validation from `apps/web`:
+
+- `npm run lint`: passed.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build`: passed, including TypeScript. The
+  existing untracked root lockfile still triggers the workspace-root warning;
+  it remains untouched. Generated `next-env.d.ts` churn was reverted.
+- `npm test`: 26 passed, zero failures/skips (outside the sandbox for loopback).
+- With the installed Chromium executable in `PLAYWRIGHT_CHROMIUM_EXECUTABLE`,
+  `RELICRAT_SCREENSHOTS` set to the local evidence directory, and the same
+  temporary loopback synthetic upstream/web preview described above:
+  `node --test --test-name-pattern='collection opening|add-first workflow|unreadable/network errors|aborted detail|a saved copy edits|Records setup previews|skip and cancel|Comics setup previews|setup conflict|setup uncertain|unavailable settings' tests/inventory.browser.mjs`
+  passed **11 tests, zero failures/skips**. The earlier eight-case run was
+  interrupted after seven passes because its existing Comics screenshot helper
+  tried capturing the now-collapsed mobile form; the helper now expands it first.
+  An initial lint invocation from the repository root failed because package.json
+  lives in apps/web; the correctly scoped command passed.
+
+The focused opening scenario checks the left-hand desktop form, mobile disclosure,
+unchanged intake and Appearance drafts across closing/reopening, menu Escape,
+outside-click and focus behavior, setup cancellation, the skip link, zero writes
+from navigation and overflow at 1440, 768, 390 and 320px. Other selected scenarios
+exercise saves, photos/storage/search, copy editing, Records/Comics setup and
+settings conflict/uncertain recovery. Synthetic fixture checks do not verify real
+owner sessions, PostgreSQL or recovery. No API suite, remote worker checks,
+backup/restore or full browser suite ran for this frontend-only correction.
+
+Evidence is `.impeccable/review/workspace-navigation/`: empty/populated captures
+at all four sizes, plus mobile expanded-entry and open-menu captures. All ten
+were opened and independently reviewed. Reviewer `/root/workspace_finish_reviewer`
+returned **ship**, with no material UI findings, and confirmed the two additional
+empty tablet/narrow captures. The design record is merged to reflect this current
+layout; earlier evidence above remains historical. No deployment is implied.
+
+
+## Workspace layout on the current feature baseline (2026-11-01)
+
+The original local design checkout preceded CSV imports, grouping, Movies and
+barcode lookup. Its layout changes were integrated onto the merged PR59 tree
+in an isolated worktree rather than deploying that older checkout. API, schema,
+dependencies, owner settings and save payloads are unchanged. Mobile intake stays
+mounted when collapsed; the existing scanner disabled path stops its camera.
+
+Validation uses only a disposable worker database/media/network and synthetic
+records, never the owner's exports or live inventory:
+
+- `npm test`: 33 passed; `npm run lint`: passed. The worker production build also
+  passed compilation/typechecking. Initial lint invocations from the repository
+  root failed because package.json is under apps/web; scoped invocations passed.
+- Selected `inventory.browser.mjs` navigation, save/error, copy-edit, Album/Comic
+  setup and Appearance scenarios: 13 passed after correcting the setup screenshot
+  locator to target its named region rather than the class shared with CSV import.
+- Selected `barcode.browser.mjs`: five passed, including decoding, explicit save,
+  failed-save/type-change draft preservation, reviewed Album lookup and the new
+  mobile-collapse camera-stop/draft-preservation check. Its mobile setup now
+  explicitly expands intake.
+- Both `movies.browser.mjs` scenarios passed, including the 389-row synthetic
+  import; its collection locator now follows the approved Saved copies heading.
+- All three `groups.browser.mjs` scenarios passed with Movie as the default find
+  type, using 1,450 synthetic Comics and 465 Albums. The title-field assertion now
+  includes Movie's label. Its earlier run timed out on the older three-type regex.
+- WebKit responsive navigation passed using its native all-controls Option-Tab
+  traversal. The original ordinary-Tab assertion skipped buttons under this
+  runner's WebKit keyboard preference; the Chromium checks keep ordinary Tab.
+- Three selected WebKit barcode scenarios also passed: actual decoding, reviewed
+  Album lookup/final save, and camera stop with draft preservation on collapse.
+- The manual design detector returned `[]`; desktop/mobile captures were inspected.
+  Navigation also checked overflow at 1440, 768, 390 and 320px.
+
+Commands and initial/retry logs are retained privately under
+`.harness-results/workspace-layout-deployment/`. No API suite or new backup/restore
+was run for this frontend-only integration. A subsequent deployment must verify
+source/image identity, preserve the existing API/database containers and complete
+row/media fingerprints, check Mac/private HTTPS access, and retain prior recovery
+resources. This section records verification, not an implicit rollout claim.

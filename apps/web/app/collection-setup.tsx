@@ -1,13 +1,12 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, errorText, jsonSave, type CollectionSettings, type CollectionTypes, type RecordField, type ComicField, type MovieField, type CollectionTypeId, type RunSave } from '../lib/inventory-client';
 
-type Props = { types: CollectionTypes; settings: CollectionSettings; runSave: RunSave; locked: boolean; saved: (value: CollectionSettings) => void; reload: () => void };
+type Props = { open: boolean; close: () => void; types: CollectionTypes; settings: CollectionSettings; runSave: RunSave; locked: boolean; saved: (value: CollectionSettings) => void; reload: () => void };
 
-export default function CollectionSetup({ types, settings, runSave, locked, saved, reload }: Props) {
+export default function CollectionSetup({ types, settings, runSave, locked, saved, reload, open, close }: Props) {
   const fields = types.record.fields as (typeof types.record.fields[number] & {key: RecordField})[];
-  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [moviesEnabled,setMoviesEnabled] = useState(!!settings.movies_enabled);
   const [movieSelected,setMovieSelected] = useState<MovieField[]>(settings.movie_fields || ['media_format','studio','edition','notes']);
@@ -20,7 +19,10 @@ export default function CollectionSetup({ types, settings, runSave, locked, save
   const [review, setReview] = useState(false);
   const [notice, setNotice] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
-  function start() { setStep(1);setMoviesEnabled(!!settings.movies_enabled);setMovieSelected(settings.movie_fields || ['media_format','studio','edition','notes']); setComicsEnabled(!!settings.comics_enabled); setComicSelected(settings.comic_fields || types.comic.fields.filter(field=>field.suggested).map(field=>field.key as ComicField)); setEnabled(settings.records_enabled); setDefaultType(settings.default_type); setSelected(settings.status==='not_started' && settings.revision===0 ? fields.filter(field=>field.suggested).map(field=>field.key) : settings.record_fields); setError(''); setReview(false); setNotice(''); setOpen(true); }
+  function start() { setStep(1);setMoviesEnabled(!!settings.movies_enabled);setMovieSelected(settings.movie_fields || ['media_format','studio','edition','notes']); setComicsEnabled(!!settings.comics_enabled); setComicSelected(settings.comic_fields || types.comic.fields.filter(field=>field.suggested).map(field=>field.key as ComicField)); setEnabled(settings.records_enabled); setDefaultType(settings.default_type); setSelected(settings.status==='not_started' && settings.revision===0 ? fields.filter(field=>field.suggested).map(field=>field.key) : settings.record_fields); setError(''); setReview(false); setNotice(''); }
+  useEffect(() => {
+    if (open) { start(); heading.current?.focus(); }
+  }, [open]);
   function next(value: number) { setStep(value); requestAnimationFrame(() => heading.current?.focus()); }
   async function commit(status: 'configured' | 'skipped') {
     if (locked || review) return;
@@ -29,14 +31,13 @@ export default function CollectionSetup({ types, settings, runSave, locked, save
         setError(''); setNotice('Saving collection setup…');
         const result = await api<CollectionSettings>('collection-settings', jsonSave({status, records_enabled:status==='skipped' ? settings.records_enabled : enabled,
           default_type:status==='skipped' ? settings.default_type : defaultType==='record' && !enabled || defaultType==='comic' && !comicsEnabled || defaultType==='movie' && !moviesEnabled ? 'other' : defaultType, movies_enabled:status==='skipped' ? !!settings.movies_enabled : moviesEnabled, movie_fields:status==='skipped' ? settings.movie_fields || ['media_format','studio','edition','notes'] : movieSelected, comics_enabled:status==='skipped' ? !!settings.comics_enabled : comicsEnabled, comic_fields:status==='skipped' ? settings.comic_fields || ['issue_number','publisher','edition','notes'] : comicSelected, record_fields:status==='skipped' ? settings.record_fields : selected, expected_revision:settings.revision}));
-        saved(result); setOpen(false); setNotice(status==='skipped' ? 'Setup skipped. You can set it up anytime.' : 'Collection setup saved. Only a title is required when adding a find.');
+        saved(result); close(); setNotice(status==='skipped' ? 'Setup skipped. You can set it up anytime.' : 'Collection setup saved. Only a title is required when adding a find.');
       });
     } catch (problem) { setNotice(''); setError(errorText(problem)); setReview(problem instanceof ApiError && (problem.uncertain || problem.status===409)); }
   }
   function submit(event: FormEvent) { event.preventDefault(); if(step===1) next(enabled || comicsEnabled || moviesEnabled ? 2 : 3); else if(step===2) next(3); else void commit('configured'); }
   return <section className="collection-setup" aria-label="Collection setup">
-    {!open ? <><button className="quiet" disabled={locked} onClick={start}>{settings.status==='not_started' ? 'Set up your collection' : 'Collection settings'}</button>
-      {settings.status==='not_started' && <button className="text-button" disabled={locked || review} onClick={() => void commit('skipped')}>Skip for now</button>}</> : <>
+    {open && <div id="collection-editor">
       <h2 ref={heading} tabIndex={-1}>Collection setup · Step {step} of 3</h2>
       <form onSubmit={submit} aria-label="Set up collection"><fieldset disabled={locked || review}>
         {step===1 && <><h3>What do you collect?</h3><p>Albums, Comics and Movies have tailored fields. Use Other for anything else.</p>
@@ -65,10 +66,11 @@ export default function CollectionSetup({ types, settings, runSave, locked, save
             return field && (type.id==='other' || chosen.includes(key as never)) ? <p key={key}>{field.label} (optional)</p> : null;
           })}</section>)}
           </div><p>New finds start as {types[defaultType].label}. You can change these choices later in Collection settings.</p></>}
-        <div className="setup-actions">{step>1 && <button type="button" onClick={()=>next(step===3 && !enabled && !comicsEnabled && !moviesEnabled ? 1 : step-1)}>Back</button>}<button className="primary" type="submit">{step===3 ? 'Save setup' : 'Continue'}</button><button type="button" className="quiet" onClick={()=>setOpen(false)}>Cancel setup</button></div>
+        <div className="setup-actions">{step>1 && <button type="button" onClick={()=>next(step===3 && !enabled && !comicsEnabled && !moviesEnabled ? 1 : step-1)}>Back</button>}<button className="primary" type="submit">{step===3 ? 'Save setup' : 'Continue'}</button><button type="button" className="quiet" onClick={()=>close()}>Cancel setup</button></div>
       </fieldset></form>
-    </>}
-    {error && <p role="alert" className="error">{error} <button type="button" disabled={locked} onClick={()=>{setOpen(false);setError('');setReview(false);reload();}}>Reload settings</button></p>}
+      {settings.status==='not_started' && <button className="text-button" disabled={locked || review} onClick={() => void commit('skipped')}>Skip for now</button>}
+    </div>}
+    {error && <p role="alert" className="error">{error} <button type="button" disabled={locked} onClick={()=>{close();setError('');setReview(false);reload();}}>Reload settings</button></p>}
     <p role="status" className="notice">{notice}</p>
   </section>;
 }
