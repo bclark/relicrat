@@ -155,7 +155,7 @@ def test_owner_only_read_only_lookup_maps_values_and_cover_without_persistence(a
     assert len(calls)==1
 
 
-@pytest.mark.parametrize('error,status',[(musicbrainz.LookupBusy,429),(musicbrainz.LookupUnavailable,503)])
+@pytest.mark.parametrize('error,status',[(musicbrainz.LookupBusy,429),(musicbrainz.LookupUnavailable,503),(musicbrainz.LookupTimeout,504)])
 def test_provider_failure_is_explicit_and_does_not_include_upstream_details(api,monkeypatch,error,status):
     client,_=api
     def fail(*args):raise error('untrusted upstream credentials and text')
@@ -190,3 +190,42 @@ def test_untrusted_candidate_source_links_are_not_returned(api,monkeypatch,sourc
     monkeypatch.setitem(PROVIDERS['musicbrainz'],'search',lambda *args:[row])
     result=client.post('/api/v1/barcode-lookups/record',json=READING)
     assert result.status_code==200 and result.json()['candidates']==[]
+
+
+def test_transport_allows_slower_reads_but_rejects_exhausted_redirect_budget(monkeypatch):
+    clock=[0.0];seen=[];mode='slow'
+    monkeypatch.setattr(musicbrainz.time,'monotonic',lambda:clock[0])
+    def handle(request):
+        seen.append(request.extensions['timeout'])
+        if mode=='slow':clock[0]+=6;return httpx.Response(200,content=b'{}')
+        if len(seen)==1:clock[0]+=9;return httpx.Response(307,headers={'location':'https://archive.org/test.jpg'})
+        clock[0]+=4;return httpx.Response(200,content=b'not accepted after deadline')
+    real=httpx.Client
+    monkeypatch.setattr(musicbrainz.httpx,'Client',lambda **kwargs:real(transport=httpx.MockTransport(handle),**kwargs))
+    assert musicbrainz.fetch_bytes('https://musicbrainz.org/ws/2/release/',100)==b'{}'
+    assert seen[0]['read']==8 and seen[0]['connect']==3
+    clock[0]=0;seen.clear();mode='redirect'
+    with pytest.raises(musicbrainz.LookupTimeout):musicbrainz.fetch_bytes('https://coverartarchive.org/release/'+ID+'/front-250',100,cover=True)
+    assert len(seen)==2 and seen[1]['read']==3 and seen[1]['connect']==3
+
+
+def test_body_deadline_is_checked_after_each_chunk(monkeypatch):
+    clock=[0.0];monkeypatch.setattr(musicbrainz.time,'monotonic',lambda:clock[0])
+    class SlowBody(httpx.SyncByteStream):
+        def __iter__(self):clock[0]=13;yield b'late'
+    real=httpx.Client
+    monkeypatch.setattr(musicbrainz.httpx,'Client',lambda **kwargs:real(transport=httpx.MockTransport(lambda request:httpx.Response(200,stream=SlowBody())),**kwargs))
+    with pytest.raises(musicbrainz.LookupTimeout):musicbrainz.fetch_bytes('https://musicbrainz.org/ws/2/release/',100)
+
+
+def test_upstream_throttle_is_busy_and_timeout_diagnostics_never_log_inputs(monkeypatch,caplog):
+    real=httpx.Client;mode='busy'
+    def handle(request):
+        if mode=='busy':return httpx.Response(429,content=b'untrusted provider body')
+        raise httpx.ReadTimeout('untrusted provider body '+READING['value'])
+    monkeypatch.setattr(musicbrainz.httpx,'Client',lambda **kwargs:real(transport=httpx.MockTransport(handle),**kwargs))
+    with pytest.raises(musicbrainz.LookupBusy):musicbrainz.search(BarcodeReading(**READING),5)
+    musicbrainz._last_request=float('-inf');mode='timeout'
+    with pytest.raises(musicbrainz.LookupTimeout):musicbrainz.search(BarcodeReading(**READING),5)
+    assert 'Catalog search timeout' in caplog.text
+    assert READING['value'] not in caplog.text and 'untrusted provider body' not in caplog.text

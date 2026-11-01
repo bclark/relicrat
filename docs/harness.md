@@ -1585,3 +1585,27 @@ Compose command; no production test hook or owner/export data was added. API and
 backup helper source were otherwise unmodified by these fixture overrides.
 Physical-phone validation and deployment remain separate. Private evidence is
 under ignored `.harness-results/optional-cover/`.
+
+### Lookup failure recovery (2026-11-01)
+
+This increment keeps search separate from inventory writes: busy, timeout and
+network failures explain recovery while preserving the editable draft. The
+MusicBrainz adapter permits an eight-second read operation, with a twelve-second
+elapsed budget checked at request, header and chunk boundaries. This is not a
+hard whole-request timer; an in-flight operation can finish after the budget
+before rejection. No automatic retry or new dependency is introduced.
+
+Validation on disposable synthetic data:
+
+- `python3 scripts/test-api-remote.py relicrat-worker tests/test_barcode_lookup.py tests/test_catalog_covers.py tests/test_media_api.py`: 41 passed, one warning; migration downgrade/upgrade roundtrip passed.
+- Worker production build/typecheck, `npm test` (32 passed) and `npm run lint` passed.
+- Chromium and WebKit, `node --test --test-name-pattern='lookup explains|lookup failure|a changed draft|late lookup|review an album match' apps/web/tests/barcode.browser.mjs`: five passed in each browser, zero failures/skips. Includes retained drafts, busy/timeout/network errors, late-response isolation and explicit final save.
+- Source hashes matched the tested runtime. Design detector reported no findings; busy/timeout desktop/mobile captures retain the current theme and layout.
+
+Private evidence is under `.harness-results/lookup-resilience/`. Full API and
+backup/restore suites were not repeated: schema and storage are unchanged.
+Live diagnostics observed intermittent provider failures; the reported example
+later resolved successfully. That does not establish the cause of every earlier
+failure or guarantee provider availability. No owner barcode or collection data
+is included in fixtures. This change requires a web/API rollout after review;
+it needs no migration, credential or network change.

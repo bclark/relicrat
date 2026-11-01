@@ -117,3 +117,18 @@ Sources: [MusicBrainz release search](https://musicbrainz.org/doc/MusicBrainz_AP
 
 Optional cover retention uses the [catalog artwork contract](catalog-covers.md);
 the default remains an unchecked selection and no media is saved during lookup.
+
+## Slow or unavailable providers
+
+Provider network reads allow up to eight seconds per read operation, with a
+12-second elapsed budget checked before each request, after response headers and
+after each body chunk. Remaining budget caps subsequent operations. This is not
+a hard whole-request timer: an in-flight network operation can finish after the
+elapsed budget and is then rejected. Host/redirect/type/size limits and search
+throttling remain intact. There are no automatic retries.
+
+Search timeouts return 504; upstream throttling returns 429; other unavailable
+responses remain 503. The browser shows the sanitized API explanation and keeps
+the draft/manual-entry/retry controls available. Transport failures do not say a
+lookup was an unconfirmed inventory save. Diagnostic logs contain only failure
+category/status, never barcode, URL, provider response body or owner data.
