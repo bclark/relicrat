@@ -15,6 +15,7 @@ from relicrat.inventory_queries import copies_query,copy_order
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
 from relicrat.intake import CreateProvisionalCopy, stage_copy
+from relicrat.catalog_cover import CoverSelection,stage_cover
 from relicrat.barcodes import BarcodeReading
 from relicrat.record_details import RecordDetails
 from relicrat.comic_details import ComicDetails
@@ -49,11 +50,16 @@ class InventoryCopy(BaseModel):
     updated_at: datetime
 
 
+class CreateCopyRequest(CreateProvisionalCopy):
+    catalog_cover: CoverSelection | None = None
+
+
 @router.post("", response_model=InventoryCopy, status_code=201)
-def create_copy(payload: CreateProvisionalCopy, db: Session = Depends(get_db)) -> OwnedCopy:
+def create_copy(payload: CreateCopyRequest, db: Session = Depends(get_db)) -> OwnedCopy:
     try:
         copy = stage_copy(db, payload)
-        db.commit()
+        with stage_cover(db,copy,payload.collection_type,payload.catalog_cover):
+            db.commit()
         db.refresh(copy)
     except Exception:
         db.rollback()
@@ -86,6 +92,7 @@ def list_copies(
 
 
 class EditCopyDetails(BaseModel):
+    catalog_cover: CoverSelection | None = None
     barcode: BarcodeReading | None = None
     collection_type: Literal['other', 'record', 'comic'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
@@ -128,7 +135,8 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
                             record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,
                             comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None,
-                            barcode=(payload.barcode.model_dump(exclude_none=True) if payload.barcode else {}) if 'barcode' in payload.model_fields_set else None)
+                            barcode=(payload.barcode.model_dump(exclude_none=True) if payload.barcode else {}) if 'barcode' in payload.model_fields_set else None,
+                            catalog_cover=payload.catalog_cover)
     except DetailError as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from None
 

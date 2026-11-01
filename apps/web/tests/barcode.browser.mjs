@@ -280,3 +280,55 @@ test('each deliberate album scan starts exactly one lookup without a barcode con
  assert.equal(calls(),2);assert.equal(await page.locator('#find-title').inputValue(),'');
  assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
 });
+
+async function coverCapture(page,name){
+ if(!process.env.RELICRAT_COVER_SCREENSHOTS)return;
+ const dir=process.env.RELICRAT_COVER_SCREENSHOTS;await mkdir(dir,{recursive:true});
+ await page.screenshot({path:dir+'/'+name+'-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/'+name+'-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});
+}
+
+test('optional catalog cover is unchecked, staged for review, and stored only with final intake save',async t=>{
+ const {page,scanner,writes}=await setup(t);const title='Synthetic chosen cover '+Date.now();await lookupFixture(page,title);
+ const lookup=await scanForAlbum(page,scanner);await lookup.locator('.barcode-matches button').click();
+ const cover=lookup.getByRole('checkbox',{name:/Include catalog cover/});await page.waitForFunction(()=>!!document.querySelector('.lookup-cover')?.naturalWidth);
+ assert.equal(await cover.isChecked(),false);await cover.check();await coverCapture(page,'cover-review');
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();await page.getByText('Catalog cover selected. Save the form to keep it.',{exact:true}).waitFor();
+ assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,0);assert.equal((await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json()).length,0);
+ await coverCapture(page,'cover-pending');
+ await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('region',{name:'Catalog artwork',exact:true}).waitFor();
+ const copies=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();assert.equal(copies.length,1);
+ const art=await (await page.request.get(base+'/api/v1/inventory/'+copies[0].id+'/photos')).json();assert.equal(art.length,1);assert.equal(art[0].role,'catalog_cover');assert.equal(art[0].source_id,lookupId);
+ assert.equal(await page.getByRole('region',{name:'Catalog artwork'}).getByRole('link',{name:'Source: musicbrainz'}).getAttribute('href'),'https://musicbrainz.org/release/'+lookupId);
+ await page.getByText('No photos yet. Add a clear view of this physical copy.',{exact:true}).waitFor();await coverCapture(page,'cover-saved');
+});
+
+test('cover-only existing-copy save preserves physical photos and does not create another copy',async t=>{
+ const {page,writes}=await setup(t);const title='Synthetic existing cover '+Date.now();await lookupFixture(page);
+ const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title,collection_type:'record',barcode:{value:'012345678905',format:'UPC_A'}}});const original=await response.json();
+ const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=4;c.height=4;return c.toDataURL('image/png').split(',')[1];});assert.equal((await page.request.post(base+'/api/v1/inventory/'+original.id+'/photos',{headers:{Origin:base},multipart:{file:{name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')}}})).status(),201);
+ await page.reload();await page.selectOption('#collection-browse-view','copies');await page.locator('.inventory-list button').filter({hasText:title}).click();
+ const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
+ await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.locator('.barcode-matches button').click();await page.waitForFunction(()=>!!document.querySelector('.lookup-cover')?.naturalWidth);
+ for(const checkbox of await lookup.getByRole('checkbox').all())await checkbox.uncheck();await lookup.getByRole('checkbox',{name:/Include catalog cover/}).check();
+ await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal(await form.getByRole('button',{name:'Save details',exact:true}).isEnabled(),true);
+ assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/photos')).json()).length,1);
+ await form.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('region',{name:'Catalog artwork',exact:true}).waitFor();await page.getByText('View photo 1',{exact:true}).waitFor();
+ const images=await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/photos')).json();assert.equal(images.length,2);assert.equal(images.filter(image=>image.role==='photo').length,1);assert.equal(images.filter(image=>image.role==='catalog_cover').length,1);
+ assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,0);assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json()).title,title);
+});
+
+test('unavailable selected cover retains the draft and removing it permits one ordinary save',async t=>{
+ const {page,scanner}=await setup(t);const title='Synthetic unavailable cover '+Date.now();await lookupFixture(page,title);
+ await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[{id:'22222222-2222-4222-8222-222222222222',title,description:'Synthetic unavailable saved cover',source_url:'https://musicbrainz.org/release/22222222-2222-4222-8222-222222222222',fields:{title},cover_url:'/api/v1/barcode-lookups/record/'+lookupId+'/cover'}]}}));
+ const lookup=await scanForAlbum(page,scanner);await lookup.locator('.barcode-matches button').click();await page.waitForFunction(()=>!!document.querySelector('.lookup-cover')?.naturalWidth);await lookup.getByRole('checkbox',{name:/Include catalog cover/}).check();await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
+ const form=page.getByRole('form',{name:'Add a find',exact:true});await form.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('alert').filter({hasText:'selected cover is unavailable'}).waitFor();
+ assert.equal((await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json()).length,0);assert.equal(await page.locator('#find-title').inputValue(),title);
+ await page.getByRole('button',{name:'Remove selected cover',exact:true}).click();await form.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByText('Copy saved. You can add more details whenever you like.',{exact:true}).waitFor();
+ const rows=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();assert.equal(rows.length,1);assert.deepEqual(await (await page.request.get(base+'/api/v1/inventory/'+rows[0].id+'/photos')).json(),[]);
+});
+
+test('missing cover preview leaves field review available without a cover option',async t=>{
+ const {page,scanner}=await setup(t);await lookupFixture(page);await page.route('**/api/v1/barcode-lookups/record/*/cover',route=>route.fulfill({status:404}));
+ const lookup=await scanForAlbum(page,scanner);await lookup.locator('.barcode-matches button').click();await lookup.getByText('Cover preview unavailable.',{exact:true}).waitFor();
+ assert.equal(await lookup.getByRole('checkbox',{name:/Include catalog cover/}).count(),0);assert.equal(await lookup.getByRole('button',{name:'Use these details',exact:true}).isEnabled(),true);
+});

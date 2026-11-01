@@ -140,6 +140,8 @@ class MediaAsset(Timestamps, Base):
     __table_args__ = (
         CheckConstraint("byte_size >= 0", name="nonnegative_byte_size"),
         UniqueConstraint("storage_key"),
+        UniqueConstraint('owned_copy_id','source_provider','source_id',name='uq_media_cover_source'),
+        CheckConstraint("role != 'catalog_cover' OR (source_provider IS NOT NULL AND source_id IS NOT NULL AND source_url IS NOT NULL)", name='cover_source_required'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("owned_copies.id", ondelete="RESTRICT"), nullable=False, index=True)
@@ -148,6 +150,10 @@ class MediaAsset(Timestamps, Base):
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
     sha256: Mapped[str | None] = mapped_column(String(64))
     role: Mapped[str] = mapped_column(String(50), nullable=False, server_default="photo")
+
+    source_provider: Mapped[str | None] = mapped_column(String(40))
+    source_id: Mapped[str | None] = mapped_column(String(128))
+    source_url: Mapped[str | None] = mapped_column(String(1000))
 
 
 class ReconciliationEvent(Base):

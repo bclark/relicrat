@@ -14,7 +14,7 @@ def test_barcode_upgrade_preserves_rows_and_downgrade_preserves_evidence():
         with engine.begin() as db:
             db.execute(text("INSERT INTO owned_copies(id,provisional_title) VALUES (:id,'Synthetic migration find')"),{'id':cid})
             before=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one())
-        command.upgrade(config,'head')
+        command.upgrade(config,'0011_copy_barcodes')
         with engine.begin() as db:
             actual=dict(db.execute(text('SELECT * FROM owned_copies WHERE id=:id'),{'id':cid}).mappings().one())
             assert actual.pop('barcode')=={} and actual==before

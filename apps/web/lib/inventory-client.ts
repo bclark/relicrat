@@ -13,7 +13,8 @@ export type InventoryCopy = {
   ownership_status: string; created_at: string; updated_at: string;
 };
 export type Location = { id: string; name: string; parent_id: string | null };
-export type Photo = { id: string; owned_copy_id: string; content_type: string; byte_size: number };
+export type CatalogCover = {provider:string;candidate_id:string;title:string;cover_url:string;source_url:string;provider_label:string};
+export type Photo = { role?:string;source_provider?:string|null;source_id?:string|null;source_url?:string|null; id: string; owned_copy_id: string; content_type: string; byte_size: number };
 export type Movement = { id: string; before_location_id: string | null; after_location_id: string | null; after_revision: number; created_at: string };
 export type RunSave = <T>(action: () => Promise<T>) => Promise<T | undefined>;
 const titleName = (copy:InventoryCopy) => copy.title || copy.description || 'Untitled copy';

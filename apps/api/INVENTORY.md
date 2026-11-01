@@ -500,3 +500,18 @@ retains existing copy history and revision checks. See the complete
 
 No migration or dependency is added. Private internal-only deployments require
 an explicitly reviewed API outbound network before live lookup works.
+
+## Optional catalog cover on final save
+
+Create-copy and revision-checked details bodies accept optional `catalog_cover`:
+`{"provider":"musicbrainz","candidate_id":"release-uuid"}`. The type's current
+configured adapter and cover setting are authoritative; browser URLs/paths are
+not accepted. Validated image and metadata join the copy/details transaction.
+Unavailable or invalid artwork returns 422 without a partial copy/details save.
+Existing artwork from the same source is idempotent; photos remain intact.
+
+The media list adds nullable source_provider/source_id/source_url and role
+`catalog_cover`, distinct from physical `photo` media. Existing protected image
+URLs remain unchanged. Apply additive migration 0012 before deploying this API;
+[optional artwork](../../docs/catalog-covers.md) describes source retention,
+rollback, downgrade refusal and recovery requirements.

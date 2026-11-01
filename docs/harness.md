@@ -1538,3 +1538,50 @@ The first disposable-stack attempt stopped before tests when Docker's predefined
 address pool was exhausted. A nonoverlapping explicit private subnet, checked
 against existing Docker networks and worker routes, was assigned only to this
 test stack. No prior network, archive or retained recovery resource was removed.
+
+### Optional catalog covers (2026-11-01)
+
+Match review offers an unchecked Include catalog cover option. The ordinary final
+save commits validated image/source metadata with copy/details, with no automatic
+identity link, ownership change, photo replacement or duplicate source import.
+See [cover contract](catalog-covers.md) for schema 0012 and downgrade refusal.
+
+Validation used only generated fixtures and disposable databases/media:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: 288 passed, 81 warnings,
+  plus full migration downgrade/upgrade. The initial run exposed an older barcode
+  migration test's hard-coded head; it now targets its own 0011 revision.
+- Final focused API command with `tests/test_catalog_covers.py
+  tests/test_catalog_covers_migration.py tests/test_media_api.py`: 22 passed,
+  six warnings, plus migration round trip. Includes real commit acknowledgement
+  loss, unflushed-failure cleanup, canonical provider IDs, source/origin checks,
+  unavailable covers, stale edits, idempotency and database constraints.
+- Worker production build/typecheck, `npm test` (32 passed) and `npm run lint`
+  passed. Final API image was rebuilt after conservative file-cleanup changes;
+  reviewed final API/web file hashes matched isolated image reads.
+- Chromium full browser run: 19 passed, one test selector failed because its link
+  accessible name also included image alt text. After correcting the selector,
+  the six affected intake/edit/cover cases passed in Chromium and WebKit, with
+  zero failures/skips. Full camera regressions passed in the initial run.
+- Six desktop/mobile captures of cover review, pending selection and saved
+  artwork were opened. Detector: `[]`. Independent finish review: ship, no
+  blocking findings. Independent surface documentation preserves global design
+  files and clearly marks this increment not deployed.
+
+A copied-backup rehearsal moved the browser fixture into an isolated named-volume
+database and proved its complete row/media state equal before capture. The
+unmodified backup helper captured six imported covers and physical photos. After
+destroying both synthetic sources, the copied backup restored offline with exact
+row, migration and media fingerprints; restore application servers never started.
+All owned recovery resources were removed. This schema/media rehearsal preceded
+the final failure-cleanup-only correction, which passed the focused API checks.
+The first harness attempts used the wrong helper function name and then correctly
+refused the browser's tmpfs database; no invalid capture was accepted.
+
+Private test-only subnet overrides worked around the exhausted automatic address
+pool without deleting old networks/restores or changing deployment networking.
+The browser API used a generated-image adapter override in its private test
+Compose command; no production test hook or owner/export data was added. API and
+backup helper source were otherwise unmodified by these fixture overrides.
+Physical-phone validation and deployment remain separate. Private evidence is
+under ignored `.harness-results/optional-cover/`.
