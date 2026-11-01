@@ -31,10 +31,12 @@ export default function InventoryClient() {
   const [publisher, setPublisher] = useState('');
   const [artist, setArtist] = useState('');
   const [format, setFormat] = useState('');
+  const [mediaFormat,setMediaFormat] = useState('');
+  const [studio,setStudio] = useState('');
   const [edition, setEdition] = useState('');
   const draftTouched = useRef(false);
   const record = collectionType==='record';
-  const showField = (key:string,value:string) => collectionType==='other' || !!value || (collectionType==='comic' ? settings?.comic_fields : settings?.record_fields)?.includes(key as never);
+  const showField = (key:string,value:string) => collectionType==='other' || !!value || (collectionType==='movie' ? settings?.movie_fields || ['media_format','studio','edition','notes'] : collectionType==='comic' ? settings?.comic_fields : settings?.record_fields)?.includes(key as never);
   useEffect(() => {
     const controller = new AbortController(); setSettingsError('');
     Promise.all([api<CollectionSettings>('collection-settings', {signal:controller.signal}), api<CollectionTypes>('collection-settings/types', {signal:controller.signal})]).then(([value, definitions])=>{
@@ -46,8 +48,8 @@ export default function InventoryClient() {
   },[settingsVersion]);
   function changeType(value: CollectionTypeId) {
     if(value===collectionType) return;
-    if((title || notes || artist || format || edition || issueNumber || publisher || barcode) && !window.confirm('Changing type will discard this unsaved find. Change type?')) return;
-    setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setEdition('');setSaveError('');draftTouched.current=true;
+    if((title || notes || artist || format || mediaFormat || studio || edition || issueNumber || publisher || barcode) && !window.confirm('Changing type will discard this unsaved find. Change type?')) return;
+    setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setCollectionType(value);setIssueNumber('');setPublisher('');setTitle('');setNotes('');setArtist('');setFormat('');setMediaFormat('');setStudio('');setEdition('');setSaveError('');draftTouched.current=true;
   }
   const [notes, setNotes] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -104,8 +106,8 @@ export default function InventoryClient() {
     try {
       await runSave(async () => {
         setSaveError(''); setNotice('');
-        const copy = await api<InventoryCopy>('inventory', jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
-        setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setEdition('');draftTouched.current=false; setSelected(copy.id);
+        const copy = await api<InventoryCopy>('inventory', jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, movie_details:collectionType==='movie' ? {media_format:mediaFormat.trim() || null,studio:studio.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
+        setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setMediaFormat('');setStudio('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
         setNotice(typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
       });
@@ -129,7 +131,7 @@ export default function InventoryClient() {
       <main>
         <div className="development"><strong>Synthetic collection trial</strong><span>Use made-up records and test photos. Owner sign-in is enabled. Production backups are not ready.</span></div>
         <Appearance applied={setAppearanceStyles} />
-        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !edition && !issueNumber && !publisher && !barcode) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
+        {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!title && !notes && !artist && !format && !mediaFormat && !studio && !edition && !issueNumber && !publisher && !barcode) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={setSelected} />
@@ -138,7 +140,7 @@ export default function InventoryClient() {
             <section className="intake" aria-labelledby="add-find">
               <h1 id="add-find">Add a find</h1>
               <p className="intro">Start with a title. Everything else is optional.</p>
-              <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
+              <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} definition={types?.[collectionType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);draftTouched.current=true;titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings} />
               <form onSubmit={create} aria-label="Add a find">
                 <fieldset disabled={busy || uncertain || (!settings && !genericEntry)}>
                   {settings && <><label htmlFor="find-type">What are you adding?</label><select id="find-type" value={collectionType} onChange={event=>changeType(event.target.value as CollectionTypeId)}>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.label}</option>)}</select></>}
@@ -146,8 +148,8 @@ export default function InventoryClient() {
                     if(key==='title') return <Fragment key="title"><label htmlFor="find-title">{types?.[collectionType].title.label || 'Title'}</label>
                       <input ref={titleInput} id="find-title" required maxLength={types?.[collectionType].title.max_length || 500} value={title} onChange={e=>{setTitle(e.target.value);draftTouched.current=true;}} placeholder={types?.[collectionType].title.placeholder} aria-describedby="intake-help" /></Fragment>;
                     const field = types?.[collectionType].fields.find(field=>field.key===key);
-                    const values: Record<string,string> = {artist,format,edition,notes,issue_number:issueNumber,publisher};
-                    const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,edition:setEdition,notes:setNotes,issue_number:setIssueNumber,publisher:setPublisher};
+                    const values: Record<string,string> = {artist,format,media_format:mediaFormat,studio,edition,notes,issue_number:issueNumber,publisher};
+                    const setters: Record<string,(value:string)=>void> = {artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,notes:setNotes,issue_number:setIssueNumber,publisher:setPublisher};
                     if(!field || !showField(key,values[key])) return null;
                     return <Fragment key={key}><label htmlFor={`find-${key}`}>{field.label} (optional)</label>
                       {key==='notes' ? <textarea id="find-notes" maxLength={field.max_length} rows={3} value={notes} onChange={e=>{setNotes(e.target.value);draftTouched.current=true;}} placeholder={field.placeholder} aria-describedby="intake-help" />
@@ -162,7 +164,7 @@ export default function InventoryClient() {
               {uncertain && <p className="hint">Check for this copy before saving again. <button className="text-button" onClick={reloadInventory} disabled={busy || loading}>Reload inventory</button></p>}
               <p className="notice" role="status">{notice}</p>
             </section>
-            {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} types={types} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
+            {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} types={types} movieFields={settings?.movie_fields || ['media_format','studio','edition','notes']} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
               : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </div>
           <section className="collection" aria-labelledby="collection-title">
@@ -175,10 +177,10 @@ export default function InventoryClient() {
             <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>
-              <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Title, artist or barcode" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
+              <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Title, artist, studio or barcode" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
               {query && <button className="text-button" type="button" disabled={busy} onClick={() => { setDraftQuery(''); setQuery(''); setPage(0); }}>Clear search</button>}
             </form>
-            {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={id=>{setSelected(id);setNotice('');}} chooseType={value=>{setTypeFilter(value);setPage(0);}}/>:<>
+            {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={id=>{setSelected(id);setNotice('');}} chooseType={value=>{setTypeFilter(value);setPage(0);}}/>:<>
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${typeFilter ? ` · ${types?.[typeFilter].plural_label || typeFilter}` : ''}${query ? ` matching “${query}”` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 class TypeField(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
-    key: Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'edition', 'notes']
+    key: Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'media_format', 'studio', 'edition', 'notes']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     max_length: int = Field(ge=1, le=10000)
     placeholder: str = Field(max_length=120, pattern=r'^[^\x00]*$')
@@ -20,10 +20,10 @@ class TypeField(BaseModel):
 
     @model_validator(mode='after')
     def supported_control(self):
-        if self.input == 'autocomplete' and self.key not in ('artist','publisher'):
-            raise ValueError('Saved-value autocomplete is supported for artist and publisher only')
+        if self.input == 'autocomplete' and self.key not in ('artist','publisher','studio'):
+            raise ValueError('Saved-value autocomplete is supported for artist, publisher and studio only')
         if self.input == 'select':
-            if self.key != 'format' or not self.options:
+            if self.key not in ('format','media_format') or not self.options:
                 raise ValueError('Format choices must be nonempty')
             if any(option == '__other__' or not option.strip() or option != option.strip() or len(option) > self.max_length or '\x00' in option for option in self.options):
                 raise ValueError('Choices must be meaningful bounded text')
@@ -55,7 +55,7 @@ class BarcodeLookup(BaseModel):
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
-    id: Literal['other', 'record', 'comic']
+    id: Literal['other', 'record', 'comic', 'movie']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     barcode_formats: list[BarcodeFormat] = Field(default_factory=list, max_length=4)
@@ -63,7 +63,7 @@ class CollectionType(BaseModel):
     grouping: BrowseGrouping | None = None
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
-    entry_order: list[Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
+    entry_order: list[Literal['title', 'artist', 'format', 'issue_number', 'publisher', 'media_format', 'studio', 'edition', 'notes']] = Field(default_factory=list, max_length=5)
 
     @field_validator('schema_version', mode='before')
     @classmethod
@@ -77,8 +77,8 @@ class CollectionType(BaseModel):
         if len(self.barcode_formats) != len(set(self.barcode_formats)):
             raise ValueError('Barcode formats must be unique')
         # These limits describe deployed storage, not an arbitrary custom-field engine.
-        limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250}
-        allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}}[self.id]
+        limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250, 'media_format': 100, 'studio': 250}
+        allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}, 'movie': {'media_format','studio','edition','notes'}}[self.id]
         if self.lookup:
             lookup=self.lookup
             if lookup.provider not in PROVIDERS:
@@ -95,7 +95,7 @@ class CollectionType(BaseModel):
                     raise ValueError('Value maps require a mapped target field and at most20 translations')
                 if any(not source or len(source)>500 or '\x00' in source or not value or len(value)>limits[key] or '\x00' in value for source,value in values.items()):
                     raise ValueError('Value translations must fit stored fields')
-        if self.grouping and (self.grouping.field,self.grouping.order) != {'record':('artist','title'),'comic':('title','issue_number')}.get(self.id):
+        if self.grouping and (self.grouping.field,self.grouping.order) != {'record':('artist','title'),'comic':('title','issue_number'),'movie':('title','title')}.get(self.id):
             raise ValueError('Grouping must use supported storage fields and order')
         keys = [field.key for field in self.fields]
         if self.title.key != 'title' or len(keys) != len(set(keys)) or set(keys) != allowed:
@@ -119,7 +119,7 @@ def _unique_keys(pairs):
 
 
 def load_types() -> dict[str, CollectionType]:
-    identifiers = ('other', 'record', 'comic')
+    identifiers = ('other', 'record', 'comic', 'movie')
     bundled = Path(__file__).with_suffix('')
     overrides = {}
     directory = os.environ.get('RELICRAT_COLLECTION_TYPES_DIR')

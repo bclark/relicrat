@@ -1,22 +1,24 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type ComicField, type CollectionTypeId, type CollectionTypes, type RunSave } from '../lib/inventory-client';
+import { api, ApiError, errorText, jsonSave, type InventoryCopy, type RecordField, type ComicField, type MovieField, type CollectionTypeId, type CollectionTypes, type RunSave } from '../lib/inventory-client';
 import ObservationInput from './observation-input';
 import BarcodeInput from './barcode-input';
 import type {BarcodeReading,CatalogCover} from '../lib/inventory-client';
 import { Pages, usePage } from './identification';
 
-type Props = { types: CollectionTypes | null; fields: RecordField[]; comicFields: ComicField[]; copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy, artwork?:boolean) => void; failed: (error: unknown) => void };
-type Edit = { before_barcode?:Partial<BarcodeReading>|null;after_barcode?:Partial<BarcodeReading>|null; id: string; before_title: string | null; after_title: string | null; before_edition_label: string | null; after_edition_label: string | null; before_collection_type: string | null; after_collection_type: string | null; before_comic_details: {issue_number?:string;publisher?:string}|null; after_comic_details: {issue_number?:string;publisher?:string}|null; before_record_details: {artist?:string;format?:string}|null; after_record_details: {artist?:string;format?:string}|null; after_revision: number; created_at: string };
+type Props = { movieFields: MovieField[]; types: CollectionTypes | null; fields: RecordField[]; comicFields: ComicField[]; copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy, artwork?:boolean) => void; failed: (error: unknown) => void };
+type Edit = { before_movie_details?:{media_format?:string;studio?:string}|null;after_movie_details?:{media_format?:string;studio?:string}|null; before_barcode?:Partial<BarcodeReading>|null;after_barcode?:Partial<BarcodeReading>|null; id: string; before_title: string | null; after_title: string | null; before_edition_label: string | null; after_edition_label: string | null; before_collection_type: string | null; after_collection_type: string | null; before_comic_details: {issue_number?:string;publisher?:string}|null; after_comic_details: {issue_number?:string;publisher?:string}|null; before_record_details: {artist?:string;format?:string}|null; after_record_details: {artist?:string;format?:string}|null; after_revision: number; created_at: string };
 
-export default function CopyDetailsForm({ types, fields, comicFields, copy, runSave, locked, saved, failed }: Props) {
+export default function CopyDetailsForm({ types, fields, comicFields, copy, runSave, locked, saved, failed, movieFields }: Props) {
   const [catalogCover,setCatalogCover]=useState<CatalogCover|null>(null);
   const titleInput=useRef<HTMLInputElement>(null);
   const [recordType, setRecordType] = useState(copy.collection_type);
   const [barcode,setBarcode]=useState<BarcodeReading|null>(copy.barcode?.value ? copy.barcode as BarcodeReading : null);
   const [artist, setArtist] = useState(copy.record_details.artist || '');
   const [format, setFormat] = useState(copy.record_details.format || '');
+  const [mediaFormat,setMediaFormat] = useState(copy.movie_details?.media_format || '');
+  const [studio,setStudio] = useState(copy.movie_details?.studio || '');
   const [issueNumber, setIssueNumber] = useState(copy.comic_details?.issue_number || '');
   const [publisher, setPublisher] = useState(copy.comic_details?.publisher || '');
   const [title, setTitle] = useState(copy.title || '');
@@ -34,7 +36,7 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
 
   useEffect(() => {
     const controller = new AbortController();
-    setCatalogCover(null);setBarcode(copy.barcode?.value ? copy.barcode as BarcodeReading : null);setReady(false); setError(''); setNeedsReview(false); setTitle(copy.title || ''); setRecordType(copy.collection_type); setIssueNumber(copy.comic_details?.issue_number || '');setPublisher(copy.comic_details?.publisher || '');setArtist(copy.record_details.artist || ''); setFormat(copy.record_details.format || '');
+    setCatalogCover(null);setBarcode(copy.barcode?.value ? copy.barcode as BarcodeReading : null);setReady(false); setError(''); setNeedsReview(false); setTitle(copy.title || ''); setRecordType(copy.collection_type); setIssueNumber(copy.comic_details?.issue_number || '');setPublisher(copy.comic_details?.publisher || '');setArtist(copy.record_details.artist || ''); setFormat(copy.record_details.format || '');setMediaFormat(copy.movie_details?.media_format || '');setStudio(copy.movie_details?.studio || '');
     const load = copy.edition_label === null && copy.catalog_item_id && copy.release_id
       ? api<{ name: string | null }>(`catalog/items/${copy.catalog_item_id}/releases/${copy.release_id}`, { signal: controller.signal }).then(release => release.name || '')
       : Promise.resolve(copy.edition_label || '');
@@ -42,7 +44,7 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
       if (!controller.signal.aborted) { setEdition(value); setInitialEdition(value); setReady(true); }
     }).catch(problem => { if (!controller.signal.aborted) setError(errorText(problem)); });
     return () => controller.abort();
-  }, [copy.id, copy.title, copy.edition_label, copy.details_revision, copy.catalog_item_id, copy.release_id, copy.identification_revision, copy.collection_type, copy.record_details.artist, copy.record_details.format, copy.comic_details?.issue_number, copy.comic_details?.publisher, copy.barcode, refresh]);
+  }, [copy.id, copy.title, copy.edition_label, copy.details_revision, copy.catalog_item_id, copy.release_id, copy.identification_revision, copy.collection_type, copy.record_details.artist, copy.record_details.format, copy.comic_details?.issue_number, copy.comic_details?.publisher, copy.movie_details?.media_format, copy.movie_details?.studio, copy.barcode, refresh]);
 
   async function submit(event: FormEvent) {
     event.preventDefault(); if (locked || !ready) return;
@@ -52,21 +54,21 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
         // An unchanged matched edition keeps following the existing catalog link.
         // A changed label is an explicit personal description, including blank.
         const label = edition.trim() === initialEdition ? copy.edition_label : edition.trim();
-        const result = await api<InventoryCopy>(`inventory/${copy.id}/details`, jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim() || null, edition_label: label, collection_type: recordType, record_details:{artist:artist.trim() || null,format:format.trim() || null},comic_details:{issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null},
+        const result = await api<InventoryCopy>(`inventory/${copy.id}/details`, jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim() || null, edition_label: label, collection_type: recordType, record_details:{artist:artist.trim() || null,format:format.trim() || null},movie_details:{media_format:mediaFormat.trim() || null,studio:studio.trim() || null},comic_details:{issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null},
           expected_details_revision: copy.details_revision, expected_identification_revision: copy.identification_revision }));
         saved(result,!!catalogCover);setCatalogCover(null); setNotice('Copy details saved.');
       });
     } catch (problem) { setNotice(''); setNeedsReview(problem instanceof ApiError && (problem.uncertain || problem.status === 409)); failed(problem); }
   }
   const barcodeChanged=(barcode?.value || '')!==(copy.barcode?.value || '') || (barcode?.format || '')!==(copy.barcode?.format || '') || (barcode?.supplement || '')!==(copy.barcode?.supplement || '');
-  const dirty = !!catalogCover || barcodeChanged || title.trim() !== (copy.title || '') || edition.trim() !== initialEdition || recordType!==copy.collection_type || artist.trim()!==(copy.record_details.artist || '') || format.trim()!==(copy.record_details.format || '') || issueNumber.trim()!==(copy.comic_details?.issue_number || '') || publisher.trim()!==(copy.comic_details?.publisher || '');
-  const values:Record<string,string>={artist,format,issue_number:issueNumber,publisher};
-  const setters:Record<string,(value:string)=>void>={artist:setArtist,format:setFormat,issue_number:setIssueNumber,publisher:setPublisher};
-  const observed={...(copy.record_details || {}),...(copy.comic_details || {})} as Record<string,string>;
-  const activeFields=recordType==='record' ? fields : recordType==='comic' ? comicFields : [];
+  const dirty = !!catalogCover || barcodeChanged || title.trim() !== (copy.title || '') || edition.trim() !== initialEdition || recordType!==copy.collection_type || artist.trim()!==(copy.record_details.artist || '') || format.trim()!==(copy.record_details.format || '') || issueNumber.trim()!==(copy.comic_details?.issue_number || '') || publisher.trim()!==(copy.comic_details?.publisher || '') || mediaFormat.trim()!==(copy.movie_details?.media_format || '') || studio.trim()!==(copy.movie_details?.studio || '');
+  const values:Record<string,string>={artist,format,media_format:mediaFormat,studio,issue_number:issueNumber,publisher};
+  const setters:Record<string,(value:string)=>void>={artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,issue_number:setIssueNumber,publisher:setPublisher};
+  const observed={...(copy.record_details || {}),...(copy.comic_details || {}),...(copy.movie_details || {})} as Record<string,string>;
+  const activeFields=recordType==='movie' ? movieFields : recordType==='record' ? fields : recordType==='comic' ? comicFields : [];
   const order=(types?.[recordType].entry_order || ['title','artist','format','edition']).filter(key=>key!=='notes');
   if(!order.includes('edition')) order.push('edition');
-  const retained=['artist','format','issue_number','publisher'].filter(key=>!order.includes(key as never) && (values[key] || observed[key]));
+  const retained=['artist','format','issue_number','publisher','media_format','studio'].filter(key=>!order.includes(key as never) && (values[key] || observed[key]));
   return <div className="copy-details-form">
     <h3>Edit this copy</h3>
     <form aria-label="Edit copy details" onSubmit={submit}><fieldset disabled={locked || !ready}>
@@ -74,12 +76,12 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
       {recordType!==copy.collection_type && <p className="hint">Changing type keeps this physical copy and its saved details. Save details to apply it.</p>}
       {[...order,...retained].map(key=>{
         if(key==='title')return <Fragment key={key}><label htmlFor="copy-title">{types?.[recordType].title.label || 'Title'}</label><input ref={titleInput} id="copy-title" maxLength={500} value={title} onChange={event=>{setTitle(event.target.value);setNotice('');}} /></Fragment>;
-        if(key==='edition')return (recordType==='other' || activeFields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) ? <Fragment key={key}><label htmlFor="copy-edition">{recordType==='comic' ? 'Edition or cover' : 'Edition'}</label><input id="copy-edition" maxLength={500} value={edition} onChange={event=>{setEdition(event.target.value);setNotice('');}} aria-describedby="copy-edition-help" /><p className="hint" id="copy-edition-help">Optional. Describe this physical copy’s edition or variant.</p></Fragment> : null;
+        if(key==='edition')return (recordType==='other' || activeFields.includes('edition') || edition || copy.edition_label!==null || copy.release_id) ? <Fragment key={key}><label htmlFor="copy-edition">{types?.[recordType].fields.find(field=>field.key==='edition')?.label || 'Edition'}</label><input id="copy-edition" maxLength={500} value={edition} onChange={event=>{setEdition(event.target.value);setNotice('');}} aria-describedby="copy-edition-help" /><p className="hint" id="copy-edition-help">Optional. Describe this physical copy’s edition or variant.</p></Fragment> : null;
         if(!activeFields.includes(key as never) && !values[key] && !observed[key])return null;
         const field=types?.[recordType].fields.find(field=>field.key===key) || Object.values(types || {}).flatMap(type=>type.fields).find(field=>field.key===key);
         return field ? <Fragment key={key}><label htmlFor={`copy-${key}`}>{field.label} (optional)</label><ObservationInput key={`${key}-${copy.id}-${copy.details_revision}`} id={`copy-${key}`} field={field} value={values[key]} change={value=>{setters[key](value);setNotice('');}} /></Fragment> : null;
       })}
-      <details onToggle={event=>setBarcodeOpen(event.currentTarget.open)}><summary>Barcode (optional)</summary>{barcodeOpen&&<BarcodeInput saved={!barcodeChanged} key={`${copy.id}-${copy.details_revision}-${recordType}-${JSON.stringify(types?.[recordType].lookup)}`} definition={types?.[recordType]} values={{title,artist,format,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);setNotice('');titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);setNotice('');}} formats={types?.[recordType].barcode_formats || []} locked={locked || !ready}/>}</details>
+      <details onToggle={event=>setBarcodeOpen(event.currentTarget.open)}><summary>Barcode (optional)</summary>{barcodeOpen&&<BarcodeInput saved={!barcodeChanged} key={`${copy.id}-${copy.details_revision}-${recordType}-${JSON.stringify(types?.[recordType].lookup)}`} definition={types?.[recordType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);setNotice('');titleInput.current?.focus();}} value={barcode} change={value=>{setCatalogCover(null);setBarcode(value);setNotice('');}} formats={types?.[recordType].barcode_formats || []} locked={locked || !ready}/>}</details>
       {recordType!=='other' && <p className="hint">Saved details stay editable even when hidden from new entry forms.</p>}
       {copy.edition_label !== null && copy.release_id && <p className="hint">Your edition label is used for this copy. Shared catalog information is under Advanced.</p>}
       <button className="primary" type="submit" disabled={!dirty}>Save details</button>
@@ -96,6 +98,7 @@ export default function CopyDetailsForm({ types, fields, comicFields, copy, runS
         {edit.before_collection_type!==edit.after_collection_type && <small>Type: {edit.before_collection_type ? types?.[edit.before_collection_type as CollectionTypeId]?.label || edit.before_collection_type : 'Other'} to {edit.after_collection_type ? types?.[edit.after_collection_type as CollectionTypeId]?.label || edit.after_collection_type : 'Other'}</small>}
         {(['artist','format'] as const).filter(key=>edit.before_record_details?.[key]!==edit.after_record_details?.[key]).map(key=><small key={key}>{key==='artist' ? 'Artist' : 'Format'}: {edit.before_record_details?.[key] || 'Not entered'} to {edit.after_record_details?.[key] || 'Not entered'}</small>)}
         {(['issue_number','publisher'] as const).filter(key=>edit.before_comic_details?.[key]!==edit.after_comic_details?.[key]).map(key=><small key={key}>{key==='publisher' ? 'Publisher' : 'Issue number'}: {edit.before_comic_details?.[key] || 'Not entered'} to {edit.after_comic_details?.[key] || 'Not entered'}</small>)}
+        {(['media_format','studio'] as const).filter(key=>edit.before_movie_details?.[key]!==edit.after_movie_details?.[key]).map(key=><small key={key}>{key==='studio' ? 'Studio' : 'Movie format'}: {edit.before_movie_details?.[key] || 'Not entered'} to {edit.after_movie_details?.[key] || 'Not entered'}</small>)}
         {(edit.before_barcode?.value!==edit.after_barcode?.value || edit.before_barcode?.format!==edit.after_barcode?.format || edit.before_barcode?.supplement!==edit.after_barcode?.supplement) && <small>Barcode: {edit.before_barcode?.value || 'Not entered'} ({edit.before_barcode?.format || 'Unknown format'}; supplement {edit.before_barcode?.supplement || 'not detected'}) to {edit.after_barcode?.value || 'Not entered'} ({edit.after_barcode?.format || 'Unknown format'}; supplement {edit.after_barcode?.supplement || 'not detected'})</small>}
         <small>Revision {edit.after_revision} · {new Date(edit.created_at).toLocaleString()}</small>
       </li>)}</ol> : <p>No copy edits recorded.</p>}

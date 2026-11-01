@@ -46,6 +46,7 @@ def test_legacy_topology_upgrade_and_roundtrip(cyclic):
             assert after.pop('record_details') == {}
             assert after.pop('barcode') == {}
             assert after.pop('comic_details') == {}
+            assert after.pop('movie_details') == {}
             assert after.pop('edition_label') is None
             assert after.pop('details_revision') == 0
             assert after == before

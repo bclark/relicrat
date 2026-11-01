@@ -8,7 +8,7 @@ from relicrat.record_details import RecordDetails
 
 def test_bundled_definitions_and_api_limits():
     types = load_types()
-    assert list(types) == ['other', 'record', 'comic']
+    assert list(types) == ['other', 'record', 'comic', 'movie']
     assert types['record'].label == 'Album'
     assert types['record'].plural_label == 'Albums'
     assert types['record'].id == 'record'  # Stable persisted ID; a label change needs no migration.

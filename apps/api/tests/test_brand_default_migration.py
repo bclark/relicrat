@@ -24,7 +24,7 @@ def test_brand_default_preserves_choices_and_revisions(factory, revision):
             db.execute(text('UPDATE appearance_settings SET theme=CAST(:theme AS jsonb),revision=:revision WHERE id=1'),
                        {'theme':json.dumps(theme), 'revision':revision})
             preferences = dict(db.execute(text('SELECT * FROM collection_settings WHERE id=1')).mappings().one())
-        command.upgrade(config, 'head')
+        command.upgrade(config, '0010_brand_default')
         changed = factory and revision == 0
         with engine.connect() as db:
             row = db.execute(text('SELECT theme,revision FROM appearance_settings WHERE id=1')).one()
@@ -36,7 +36,7 @@ def test_brand_default_preserves_choices_and_revisions(factory, revision):
             row = db.execute(text('SELECT theme,revision FROM appearance_settings WHERE id=1')).one()
             assert row.theme == theme
             assert row.revision == revision + (2 if changed else 0)
-        command.upgrade(config, 'head')
+        command.upgrade(config, '0010_brand_default')
         with engine.connect() as db:
             row = db.execute(text('SELECT theme,revision FROM appearance_settings WHERE id=1')).one()
             # A rollback's higher revision must never be mistaken for pristine.

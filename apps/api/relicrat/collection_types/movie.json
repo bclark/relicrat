@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "movie",
+  "label": "Movie",
+  "plural_label": "Movies",
+  "title": {
+    "key": "title",
+    "label": "Movie or box-set title",
+    "max_length": 500,
+    "placeholder": "e.g. Movie title",
+    "suggested": true
+  },
+  "fields": [
+    {
+      "key": "media_format",
+      "label": "Format",
+      "max_length": 100,
+      "placeholder": "",
+      "suggested": true,
+      "input": "select",
+      "options": [
+        "Blu-ray",
+        "4K UHD",
+        "DVD",
+        "Blu-ray + DVD",
+        "VHS",
+        "LaserDisc"
+      ]
+    },
+    {
+      "key": "studio",
+      "label": "Studio",
+      "max_length": 250,
+      "placeholder": "",
+      "suggested": true,
+      "input": "autocomplete"
+    },
+    {
+      "key": "edition",
+      "label": "Edition or packaging",
+      "max_length": 500,
+      "placeholder": "e.g. SteelBook",
+      "suggested": true
+    },
+    {
+      "key": "notes",
+      "label": "Notes",
+      "max_length": 10000,
+      "placeholder": "Distinctive details, condition, or where you found it",
+      "suggested": true
+    }
+  ],
+  "entry_order": [
+    "title",
+    "media_format",
+    "studio",
+    "edition",
+    "notes"
+  ],
+  "grouping": {
+    "field": "title",
+    "plural_label": "Titles",
+    "unknown_label": "Title not recorded",
+    "order": "title"
+  },
+  "barcode_formats": [
+    "UPC_A",
+    "UPC_E",
+    "EAN_8",
+    "EAN_13"
+  ],
+  "lookup": null
+}

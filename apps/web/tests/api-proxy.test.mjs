@@ -255,8 +255,8 @@ test('artist suggestions use the fixed owner-only read route and preserve litera
   assert.equal(observed.length,count);
 });
 
-test('publisher suggestions retain the fixed read-only owner boundary',async()=>{
-  const path='collection-settings/publisher-suggestions';
+for(const field of ['publisher','studio'])test(`${field} suggestions retain the fixed read-only owner boundary`,async()=>{
+  const path=`collection-settings/${field}-suggestions`;
   assert.equal((await forwardApi(request(path+'?q=A%25_'),path.split('/'))).status,200);
   assert.equal(observed.at(-1).url,'/api/v1/'+path+'?q=A%25_');
   const count=observed.length;

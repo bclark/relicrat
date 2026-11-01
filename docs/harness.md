@@ -1643,3 +1643,64 @@ reviewed rollout and recovery capture of the mounted definitions. No schema, new
 dependency, credentials, provider selection or live deployment is changed here.
 MusicBrainz remains the only bundled live-service adapter; synthetic swapping
 proves the contract, not a Discogs integration.
+
+### Movies and Blu-ray.com imports (2026-11-01)
+
+Movie observations/preferences/history extend the existing physical-copy model;
+`movie.json` defines title-first optional entry and title grouping. The Blu-ray.com
+CSV preset previews its digest-bound mapping, preserves every original cell and
+creates one owned item per row after confirmation. Disc counts do not expand
+ownership. Unknown counts stay unknown; invalid or conflicting UPC/EAN codes
+produce notes and remain source evidence. Read [the Movie contract](movies.md)
+for exact mapping and migration/recovery requirements. No private export or live
+owner inventory was used as a fixture or transferred to the test worker.
+
+Executed checks on disposable synthetic data:
+
+- `python3 scripts/test-api-remote.py relicrat-worker`: **322 passed, 89 warnings**,
+  followed by the full migration downgrade/upgrade roundtrip. Includes new Movie
+  create/edit/stale-save/history/legacy-omission, preferences/studio suggestions,
+  SQL JSON/type/source constraints, barcode checksums/conflicts, transactional
+  import retry/provenance and guarded `0013_movies` upgrade/downgrade cases.
+- Corrected worker production build/typecheck, `npm test` (**33 passed**) and
+  `npm run lint` passed. The fixed private proxy permits only the owner-protected
+  studio GET route and bounded Movie lookup/cover paths.
+- Chromium and WebKit: `node --test apps/web/tests/movies.browser.mjs`, **two
+  passed each, zero failures/skips**. Each exercises Movie setup, title-only
+  intake, custom format, retained edits/type changes, a 389-row generated import,
+  warning review, retained source rows, exact-file retry and Movie filtering.
+- Existing Chromium barcode suite initially passed 19 cases; two artwork-import
+  cases required a generated-image server fixture because this isolated stack has
+  no external network. With that fixture only in its private Compose command,
+  `node --test --test-name-pattern='optional catalog cover|cover-only existing-copy|missing cover|lookup explains' apps/web/tests/barcode.browser.mjs` passed **four**.
+- `node --test --test-name-pattern='invalid rows' apps/web/tests/import.browser.mjs`
+  passed **one**, covering blocked invalid imports, changed-source preview and
+  ambiguous-save recovery. Browser correction runs used separate generated data.
+- Final API/web runtime hashes matched reviewed production files. Eight final
+  full-page desktop/mobile captures were opened after one studio-proxy correction.
+  Detector: `[]`. Independent finish review: **ship**, no actionable findings.
+
+The first focused API run stopped at a preview assertion that expected an absent
+optional field rather than its explicit null in the preview. The initial full
+run found legacy migration tests assuming the previous column set, a brand test
+that should target its own revision and logging disabled by earlier Alembic tests;
+those checks were corrected without changing deployed migration history. The
+initial WebKit history selector matched multiple synthetic batches; the final
+selector opens the latest batch. A local sandbox-bound Node runner was stopped;
+the completed Node evidence is the worker run, not the interrupted local run.
+
+A copied-backup rehearsal retained a generated fixture with **1,556** Movie
+observations and source rows, **eight** Movie history events, enabled preferences,
+and **five** media files including a generated Movie photo. The browser tmpfs
+state was first copied to a separate named-volume fixture and proved equal. The
+unchanged backup helper captured it; both source projects were destroyed before
+restoring the copied bundle offline. Every row, migration and media fingerprint
+matched. Restore API/web servers never started, and all owned recovery resources
+were removed. A local helper quoting error was fixed before any remote rehearsal
+mutation. Explicit nonoverlapping internal test subnets avoided the exhausted
+automatic address pool; live networks and retained manual restores were untouched.
+
+Private evidence is under `.harness-results/movies/`. No live Movie import,
+provider lookup, physical-phone test or deployment occurred. Migration 0013 needs
+a fresh pre-rollout backup and offline restored-copy rehearsal before the live
+schema/API/web release; populated Movie evidence prevents automatic downgrade.
