@@ -296,3 +296,11 @@ The dedicated generated-volume browser coverage runs with an owned disposable
 loopback URL using `node --test apps/web/tests/groups.browser.mjs`. The existing
 inventory/import browser tests explicitly select Individual copies for their
 original copy-workflow coverage. Do not point test commands at the private trial.
+
+## Compact collection workspace
+
+Intake sits openly on the workspace. Individual-copy pages group Albums, Comics,
+Movies and Other finds with counts labelled “on this page”; these are not whole
+collection totals. Rows keep title and optional edition together, with Location
+assigned or Unassigned alongside. Notes remain in the selected record. Existing
+server groups, search, type/storage filters and pagination retain their semantics.
