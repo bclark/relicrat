@@ -236,7 +236,7 @@ export default function InventoryClient() {
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
               : items.length === 0 ? <div className="empty"><h3>{query || typeFilter ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{typeFilter ? 'Try another collection type or choose All types. You can also clear the search.' : query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
-              : <CollectionRows items={items} busy={busy} selected={selected} open={id=>{setSelected(id);setNotice('');}}/>}
+              : <CollectionRows groupByType types={types} items={items} busy={busy} selected={selected} open={id=>{setSelected(id);setNotice('');}}/>}
 
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
             </>}
