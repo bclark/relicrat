@@ -1891,3 +1891,49 @@ Only the exact owned test projects, their resources/source and temporary bridge
 were removed after verification. Live inventory, owner settings, all recovery
 resources and the original design checkout were untouched. No new backup/restore
 or live deployment was performed; API rollout and phone use follow merge.
+
+## Unboxed workspace — 2026-11-01
+
+Web-only integration of the approved DESIGN_PLAN.md: unboxed intake, compact
+shared copy rows, semantic type sections on individual-copy pages and explicit
+page-local counts. Existing server groups, queries, ownership saves and Movie
+barcode behavior are unchanged. All browser data was synthetic on an isolated
+stack; no live collection was used as a test fixture.
+
+Commands actually run:
+
+- `npm test` in the synthetic web image: **33 passed**.
+- `npm run lint` locally and in the image: passed.
+- `NEXT_TELEMETRY_DISABLED=1 npm run build` via the web Docker build: passed.
+- `node --test --test-name-pattern='unboxed type groups|page-local type counts|collection opening|add-first workflow|unreadable/network errors|aborted detail|a saved copy edits|appearance drafts|uncertain appearance|Comics setup previews' apps/web/tests/inventory.browser.mjs`: eight existing cases passed; two new cases initially expected Other finds instead of the configured Other label. Corrected test expectations; both passed in Chromium and WebKit.
+- WebKit `--test-name-pattern='collection opening'` within the initial three-case selection: passed.
+- `node --test apps/web/tests/groups.browser.mjs apps/web/tests/movies.browser.mjs`: all three group cases and the 389-row Movie import case passed. Movie setup timed out waiting for settings during this combined run; isolated `--test-name-pattern='Movie setup'` rerun passed.
+- `node --test --test-name-pattern='review an album match|Movie config automatically|Movie provider quota|collapsing mobile intake' apps/web/tests/barcode.browser.mjs`: **4 passed**.
+- Impeccable `detect --json` on CollectionRows, GroupedCollection, InventoryClient and globals.css: empty findings.
+
+New tests cover all four configured types exactly once, notes-only naming, long
+unbroken titles/editions, no invented location names, no stale error counts, empty
+state, 44px rows, 320/390/768/1440px widths, enlarged text, light/dark/custom compact
+themes and preservation of selection plus both drafts across paging. Eight actual
+app captures (desktop/mobile, three themes and empty) were inspected. No runtime
+changes followed that visual review. Physical phone camera use and manual screen
+reader testing were not performed. API tests were not rerun: API, database schema
+and collection definitions are unchanged. Other unselected browser cases were not
+rerun for this presentation-only integration.
+
+Rollout is frontend-only, with full database/media fingerprints, API/database
+container identities, owner environment, private topology and authentication
+boundaries checked separately. No new recovery capture is claimed for this UI
+change; the prior verified snapshot remains retained. Deployment evidence stays
+private and is never committed with inventory or host configuration.
+
+PR63 rollout completed from a1b2b16: both frontends replaced, API/database
+container identities and all row/media fingerprints preserved. Mac login 200 and
+guest inventory/settings 401 passed; private HTTPS certificate/hostname verification
+and the same access boundaries passed, with Funnel disabled and Symphony stopped.
+Image-source verification differed only in generated web next-env.d.ts. The exact
+owned synthetic stack, source and temporary bridge were removed after success.
+Release build initially stopped at its 8 GiB capacity preflight; removing only this
+run’s completed synthetic resources allowed the unchanged preflight and build to
+pass. Prior recovery resources were preserved. PR63 remains open; this is deployed
+source evidence, not a claim that main already contains the change.

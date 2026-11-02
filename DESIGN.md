@@ -81,13 +81,13 @@ components:
     rounded: "{rounded.input}"
     padding: "10px 12px"
   intake-panel:
-    backgroundColor: "{colors.paper}"
-    rounded: "{rounded.panel}"
-    padding: "28px"
+    backgroundColor: "transparent"
+    rounded: "0"
+    padding: "0"
   inventory-row-selected:
     backgroundColor: "{colors.soft}"
     textColor: "{colors.ink}"
-    padding: "18px 12px"
+    padding: "10px 0"
 ---
 
 # Design System: RelicRat inventory application
@@ -122,7 +122,7 @@ The factory light theme pairs warm neutral surfaces with one burgundy action acc
 - **Confirmation ink:** success aliases ink. Save notices use ordinary readable text plus explicit status wording.
 
 ### Neutral
-- **Warm ivory and white surfaces:** page holds the workspace; paper holds intake, fields and secondary buttons.
+- **Warm ivory and white surfaces:** page holds the workspace; paper holds fields and secondary buttons.
 - **Charcoal and quiet warm-gray ink:** ink carries authoritative copy; muted carries hints, metadata, placeholders and editable-field borders. Control-border aliases muted.
 - **Subtle neutral rule:** rule separates sections and outlines secondary buttons and panels.
 
@@ -134,13 +134,13 @@ After hours uses forest page/paper/soft surfaces with ivory primary text, pale s
 
 ## Typography
 
-The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Headline and title values are in frontmatter; heading weights are browser-default bold. The collection-opening headline scales from 2rem to 3rem; intake uses the subordinate h2 role. The brand uses 1.75rem, weight 750 and -.025em tracking. Labels and row titles use weight 650; row titles are 1.125rem with 1.4 line-height; buttons use 600. Row descriptions are .875rem; status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace. Intro and notes cap at 65ch. Pagination and copy metadata use tabular numerals.
+The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Headline and title values are in frontmatter; heading weights are browser-default bold. The collection-opening headline scales from 2rem to 3rem; intake uses the subordinate h2 role. The brand uses 1.75rem, weight 750 and -.025em tracking. Labels and row titles use weight 650; copy row titles are 1rem; catalog group titles are 1.125rem with 1.4 line-height; buttons use 600. Row descriptions are .875rem; status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace. Intro and notes cap at 65ch. Pagination and copy metadata use tabular numerals.
 
 ## Layout
 
-A centered 1320px maximum shell uses 36px desktop gutters. Appearance, collection settings and Sign out sit at the right of the brand header. The collection-opening heading precedes inline settings editors in main. The workspace begins with a 32px top margin, using minmax(320px,.9fr) and minmax(0,1.35fr) columns with a 48px gap at balanced spacing. The left workbench holds intake in a bordered paper panel with 28px padding, followed by the selected working record below a rule. Search and the broader collection register sit at right. The synthetic-trial notice follows the workspace. These are the current first surface's composition, not a required template for every future page.
+A centered 1320px maximum shell uses 36px desktop gutters. Appearance, collection settings and Sign out sit at the right of the brand header. The collection-opening heading precedes inline settings editors in main. The workspace begins with a 32px top margin, using minmax(320px,.9fr) and minmax(0,1.35fr) columns with a 48px gap at balanced spacing. The left workbench holds intake directly on the workspace without enclosing fill, border or padding, followed by the selected working record below a rule. Search and the broader collection register sit at right. The synthetic-trial notice follows the workspace. These are the current first surface's composition, not a required template for every future page.
 
-At 850px and below, columns use minmax(280px,1fr) and minmax(0,1fr), the gap is 28px, gutters are 24px, panel padding is 24px 20px, section headings may wrap, the header tagline hides, and the development notice stacks. At 650px and below, content stacks in DOM order: intake, selected record, collection. Intake starts collapsed behind an Add a find Show/Hide button; its fields remain mounted, preserving the unsaved entry draft across collapse and re-expansion. Desktop always shows intake fields. The unused record placeholder hides on mobile. Header utilities collapse into one Menu button with a dropdown. Gutters become 20px and the workspace gap is 36px. Photo grids change from three columns to two. Long titles, identifiers and errors wrap; row descriptions clamp to two lines. Collection pagination shows 20 copies per page with explicit Previous/Next controls.
+At 850px and below, columns use minmax(280px,1fr) and minmax(0,1fr), the gap is 28px, gutters are 24px, section headings may wrap, the header tagline hides, and the development notice stacks. At 650px and below, content stacks in DOM order: intake, selected record, collection. Intake starts collapsed behind an Add a find Show/Hide button; its fields remain mounted, preserving the unsaved entry draft across collapse and re-expansion. Desktop always shows intake fields. The unused record placeholder hides on mobile. Header utilities collapse into one Menu button with a dropdown. Gutters become 20px and the workspace gap is 36px. Photo grids change from three columns to two. Long titles, identifiers and errors wrap; copy titles, editions and location state wrap without clamping. Individual-copy pagination shows 20 copies per page with explicit Previous/Next controls. Each page groups Albums, Comics, Movies and Other finds under semantic headings with counts explicitly labelled “on this page.” Whole-collection artist/series/movie-title groups retain their server totals and paging. Copy rows keep title and optional edition adjacent, with Location assigned or Unassigned alongside; they do not repeat saved/type/catalog status.
 
 ## Elevation & Depth
 

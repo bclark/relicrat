@@ -1474,3 +1474,73 @@ test('approved factory palette matches login and the initial inventory appearanc
     await page.screenshot({path:`${resolve(shots)}/dark-mobile.png`,fullPage:true});
   }
 });
+
+test('unboxed type groups keep Movie and notes-only copies compact, accessible and readable across themes',async t=>{
+ const copies=[
+  copy(1,'Synthetic series',{collection_type:'comic',comic_details:{issue_number:'08'},edition_label:'Alternate cover'}),
+  copy(2,'Synthetic film',{collection_type:'movie',movie_details:{media_format:'4K UHD'},edition_label:'SteelBook'}),
+  copy(3,'Glass Arcade',{collection_type:'record',record_details:{artist:'Synthetic artist'},edition_label:'Blue vinyl',storage_location_id:id(600)}),
+  copy(4,null,{description:'Synthetic notes-only object'}),
+  copy(5,'LongTitle'.repeat(35),{collection_type:'record',record_details:{artist:'Long artist'},edition_label:'LongEdition'.repeat(30)})
+ ];
+ const {page,state}=await fixture(t,{copies,locations:[{id:id(600),name:'Synthetic box',parent_id:null}]});
+ const list=page.locator('.copy-type-groups');assert.equal(await list.locator('.copy-row').count(),5);
+ for(const [name,count] of [['Albums',2],['Comics',1],['Movies',1],['Other',1]]){
+  const group=page.getByRole('region',{name,exact:true});assert.equal(await group.locator('.copy-row').count(),count);
+  assert.ok(await group.getByText(`${count} on this page`,{exact:true}).isVisible());
+ }
+ assert.equal(await list.getByRole('button',{name:'Open Synthetic series #08 · Alternate cover',exact:true}).count(),1);
+ assert.equal(await list.getByRole('button',{name:'Open Synthetic notes-only object',exact:true}).count(),1);
+ assert.equal(await list.getByText('Location assigned',{exact:true}).count(),1);
+ assert.equal(await list.getByText('Unassigned',{exact:true}).count(),4);
+ assert.equal(await list.getByText(/^(Saved copy|Open this physical copy|Catalog matched)$/).count(),0);
+ assert.equal(await list.getByText('Synthetic box',{exact:true}).count(),0,'Do not invent location-name lookup');
+ const output=process.env.RELICRAT_UNBOXED_SCREENSHOTS;
+ if(output)await mkdir(output,{recursive:true});
+ const appearance=await(await page.request.get(base+'/api/v1/appearance')).json();
+ const themes=[['light',appearance.default_theme],['dark',appearance.presets.find(theme=>theme.mode==='dark')],['custom-compact',{...appearance.default_theme,font:'serif',heading_font:'mono',density:'compact',spacing:'close',corners:'square'}]];
+ for(const [name,theme] of themes){
+  assert.ok(theme);
+  const result=await page.request.post(base+'/api/v1/appearance/preview',{data:{theme},headers:{Origin:new URL(base).origin}});assert.equal(result.status(),200);
+  await page.evaluate(styles=>{const app=document.querySelector('.themed-app');for(const [key,value]of Object.entries(styles))app.style.setProperty(key,value);},(await result.json()).styles);
+  for(const [size,width,height]of [['desktop',1440,1050],['tablet',768,1024],['mobile',390,844],['narrow',320,780]]){
+   await page.setViewportSize({width,height});await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} ${size} overflow`);
+   assert.deepEqual(await page.locator('.intake').evaluate(node=>{const s=getComputedStyle(node);return [s.borderTopWidth,s.paddingTop,s.paddingInlineStart,s.backgroundColor];}),['0px','0px','0px','rgba(0, 0, 0, 0)']);
+   for(const row of await list.locator('.copy-row').all())assert.ok((await row.boundingBox()).height>=44);
+   if(output&&['desktop','mobile'].includes(size))await page.screenshot({path:`${output}/${name}-${size}.png`,fullPage:true,animations:'disabled'});
+  }
+ }
+ // Exercise enlarged text without changing owner settings or save state.
+ await page.locator('.themed-app').evaluate(node=>node.style.fontSize='200%');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.locator('.themed-app').evaluate(node=>node.style.removeProperty('font-size'));
+ await page.setViewportSize({width:1440,height:1050});
+ state.failList='network';await page.getByRole('button',{name:'Reload inventory',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Cannot reach the inventory'}).waitFor();assert.equal(await page.locator('.copy-type-group').count(),0);
+ state.failList=false;state.copies=[];await page.getByRole('button',{name:'Reload inventory',exact:true}).click();
+ await page.getByRole('heading',{name:'Your first find starts here',exact:true}).waitFor();assert.equal(await page.locator('.copy-type-group').count(),0);
+ const light=await page.request.post(base+'/api/v1/appearance/preview',{data:{theme:appearance.default_theme},headers:{Origin:new URL(base).origin}});
+ await page.evaluate(styles=>{const app=document.querySelector('.themed-app');for(const [key,value]of Object.entries(styles))app.style.setProperty(key,value);},(await light.json()).styles);
+ if(output)for(const [name,width,height]of [['desktop',1440,1050],['mobile',390,844]]){await page.setViewportSize({width,height});await page.screenshot({path:`${output}/empty-${name}.png`,fullPage:true,animations:'disabled'});}
+ assert.equal(state.writes.length,0,'Grouping/theme preview must not save preferences or inventory');
+});
+
+test('page-local type counts preserve copy selection and drafts across pagination',async t=>{
+ const copies=Array.from({length:20},(_,i)=>copy(i+1,`Synthetic page copy ${i}`,{collection_type:i%2?'comic':'record'}));
+ copies.push(copy(21,'Later movie',{collection_type:'movie'}),copy(22,'Later object'));
+ const {page,state}=await fixture(t,{copies});
+ assert.ok(await page.getByRole('region',{name:'Albums',exact:true}).getByText('10 on this page',{exact:true}).isVisible());
+ assert.ok(await page.getByRole('region',{name:'Comics',exact:true}).getByText('10 on this page',{exact:true}).isVisible());
+ await open(page,'Synthetic page copy 0');
+ const detail=page.getByRole('form',{name:'Edit copy details',exact:true});await detail.getByLabel('Album title',{exact:true}).fill('Keep this edit draft');
+ const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Title',{exact:true}).fill('Keep this intake draft');
+ const pages=page.getByRole('navigation',{name:'Inventory pages',exact:true});await pages.getByRole('button',{name:'Next',exact:true}).click();
+ await page.getByRole('button',{name:'Open Later movie',exact:true}).waitFor();
+ assert.equal(await page.locator('.copy-row').count(),2);assert.equal(await page.getByRole('region',{name:'Albums',exact:true}).count(),0);
+ for(const name of ['Movies','Other'])assert.ok(await page.getByRole('region',{name,exact:true}).getByText('1 on this page',{exact:true}).isVisible());
+ assert.equal(await detail.getByLabel('Album title',{exact:true}).inputValue(),'Keep this edit draft');
+ assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep this intake draft');
+ await pages.getByRole('button',{name:'Previous',exact:true}).click();const selected=page.getByRole('button',{name:'Open Synthetic page copy 0',exact:true});await selected.waitFor();
+ assert.equal(await selected.getAttribute('aria-pressed'),'true');assert.equal(state.writes.length,0);
+});
