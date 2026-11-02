@@ -10,7 +10,7 @@ after(async()=>{await browser?.close();});
 async function setup(t){
  const context=await browser.newContext({viewport:{width:1440,height:1050}});t.after(()=>context.close());
  assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}})).status(),200);
- const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);
+ const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);await page.getByRole('button',{name:'Review item',exact:true}).click();
  return {page,context};
 }
 async function capture(page,name){
@@ -30,7 +30,7 @@ test('Movie setup, title-only intake, custom format, retained history and type c
  await wizard.getByRole('button',{name:'Continue',exact:true}).click();await wizard.getByRole('checkbox',{name:'Notes',exact:true}).last().uncheck();
  await wizard.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('region',{name:'Movie preview',exact:true}).waitFor();
  await capture(page,'movie-setup');await wizard.getByRole('button',{name:'Save setup',exact:true}).click();
- await form.getByLabel('What are you adding?',{exact:true}).selectOption('movie');await form.getByLabel('Movie or box-set title',{exact:true}).fill('Synthetic title-only movie');
+ await page.getByLabel('What are you adding?',{exact:true}).selectOption('movie');await form.getByLabel('Movie or box-set title',{exact:true}).fill('Synthetic title-only movie');
  await form.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic title-only movie',exact:true}).waitFor();
  const detail=page.getByRole('form',{name:'Edit copy details',exact:true});await detail.getByLabel('Format (optional)',{exact:true}).selectOption('__other__');
  await detail.getByLabel('Other format',{exact:true}).fill('UMD');await detail.getByLabel('Studio (optional)',{exact:true}).fill('Synthetic manual studio');await detail.getByRole('button',{name:'Save details',exact:true}).click();
@@ -60,7 +60,7 @@ test('Blu-ray.com preview, 389 synthetic imports, warnings, source evidence, ret
  await page.getByRole('heading',{name:moviePrefix+' 0',exact:true}).waitFor();
  await imports.getByRole('button',{name:'Close imports',exact:true}).click();await page.getByLabel('Show collection type',{exact:true}).selectOption('movie');await page.getByLabel('Browse view',{exact:true}).selectOption('groups');
  await page.getByLabel('Find a copy',{exact:true}).fill(moviePrefix+' 0');await page.getByRole('button',{name:'Search',exact:true}).click();
- const collection=page.getByRole('region',{name:'Saved copies',exact:true});await collection.getByRole('button',{name:new RegExp(moviePrefix+' 0.*Open group')}).click();
+ const collection=page.getByRole('region',{name:'Your collection',exact:true});await collection.getByRole('button',{name:new RegExp(moviePrefix+' 0.*Open group')}).click();
  await collection.getByRole('button',{name:'Open '+moviePrefix+' 0 · SteelBook',exact:true}).waitFor();await capture(page,'movie-collection');
  const batches=await (await context.request.get(base+'/api/v1/imports')).json();const batch=batches.find(row=>row.source==='bluray');assert.equal(batch.copy_count,389);
  const rows=await (await context.request.get(base+`/api/v1/imports/${batch.id}/rows`)).json();assert.equal(rows[0].source.Price,'not a valuation');assert.equal(rows[0].source['Blu-ray discs'],'20');

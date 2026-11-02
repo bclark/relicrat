@@ -29,7 +29,7 @@ async function setup(t,mode='read'){
   };
   Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:fakeGetUserMedia}});window.__fakeGetUserMedia=fakeGetUserMedia;
  },{mode,fixture});
- await page.goto(base);await page.getByRole('button',{name:'Add a find',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
+ await page.goto(base);await page.getByRole('button',{name:'Review item',exact:true}).click();await page.selectOption('#find-type','other');assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
  return {page,scanner,writes,external};
 }
 async function stopped(page){await page.waitForFunction(()=>window.__cameraStreams.length>0&&window.__cameraStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')));}
@@ -347,19 +347,6 @@ test('lookup explains provider busy, timeout and network failures without treati
  assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained lookup draft');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.equal((await lookup.innerText()).includes('Save could not be confirmed'),false);
 });
 
-test('collapsing mobile intake stops its camera while preserving the unsaved draft',async t=>{
- const {page,scanner,writes}=await setup(t,'blank');
- await page.locator('#find-title').fill('Synthetic retained mobile draft');
- await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
- await scanner.getByRole('status').filter({hasText:'Hold the barcode steady'}).waitFor();
- await page.getByRole('button',{name:'Add a find',exact:true}).click();
- await stopped(page);
- assert.equal(await page.locator('#find-title').isVisible(),false);
- await page.getByRole('button',{name:'Add a find',exact:true}).click();
- assert.equal(await page.locator('#find-title').inputValue(),'Synthetic retained mobile draft');
- assert.deepEqual(writes,[]);
-});
-
 test('Movie config automatically looks up a scan, reviews title only and saves one copy',async t=>{
  const {page,scanner,writes,external}=await setup(t);let calls=0;
  const title='Synthetic barcode movie '+Date.now();
@@ -411,4 +398,14 @@ test('Movie provider quota and no-match responses retain manual entry without au
  await lookup.getByRole('status').filter({hasText:'No matching releases found'}).waitFor();
  assert.equal(calls,2);assert.equal(await page.locator('#find-title').inputValue(),'Keep my manual movie title');
  assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);assert.deepEqual(external,[]);
+});
+
+
+test('opening phone details stops the hidden rail camera and Back preserves the intake draft',async t=>{
+ const {page,scanner}=await setup(t,'blank');const title='Synthetic rail stop '+Date.now();
+ const r=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title}});assert.equal(r.status(),201);
+ await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await page.getByRole('button',{name:'Reload inventory',exact:true}).click();
+ const row=page.getByRole('button',{name:'Open '+title,exact:true});await row.waitFor();await page.locator('#find-title').fill('Keep the camera draft');
+ await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByText('Hold the barcode steady and keep the bars in view.',{exact:true}).waitFor();await row.click();await stopped(page);
+ assert.equal(await page.locator('.workbench').isVisible(),false);await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Keep the camera draft');assert.equal(await page.evaluate(()=>window.__cameraRequests.length),1);
 });

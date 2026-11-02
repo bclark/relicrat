@@ -1937,3 +1937,55 @@ Release build initially stopped at its 8 GiB capacity preflight; removing only t
 run’s completed synthetic resources allowed the unchanged preflight and build to
 pass. Prior recovery resources were preserved. PR63 remains open; this is deployed
 source evidence, not a claim that main already contains the change.
+
+## Three-pane layout integration review — 2026-11-02
+
+The designer’s approved layout was integrated onto main at PR63 in a separate
+checkout. The original designer checkout and unrelated lockfile remain untouched.
+The original replacement would have dropped Movies, CSV import, server groups,
+storage filters, configured lookup/covers and structured barcode history because
+it started from older source. This integration retains those paths and reuses the
+existing scanner, BarcodeInput, CopyDetail and CollectionRows. Quick input does
+not append codes to notes or create ownership. Eight-digit format ambiguity is
+explicit; repeated review of the same draft does not repeat lookup.
+
+Executed checks (synthetic data only):
+
+- Worker web image `npm test`: **33 passed**, zero skips. A local invocation
+  stalled in loopback-server tests under restricted execution and was stopped;
+  its interrupted result is not counted as a pass.
+- `npm --prefix apps/web run lint`: passed. Production Docker/Next builds passed,
+  including TypeScript. `git diff --check`: passed.
+- Chromium inventory selection: **11 distinct cases passed** across the final
+  selection and focused reruns: `three-pane layout|quick barcode entry|quick lookup|
+  unreadable/network errors|aborted detail|a saved copy edits|collection type filters|
+  page-local type counts|unboxed type groups|appearance drafts|uncertain appearance`.
+- `node --test apps/web/tests/groups.browser.mjs`: **3 passed**, including
+  1,915 generated imports, server totals, storage filters, paging and stale reads.
+- `node --test apps/web/tests/movies.browser.mjs`: **2 passed**, including 389
+  generated Blu-ray.com rows, intake/edit/history and existing Movie filtering.
+- Chromium barcode selection `actual decoder|review an album match|Movie config
+  automatically|opening phone details`: **4 passed**, including actual decoding
+  of synthetic frames and hidden-rail track shutdown without restarting on Back.
+- WebKit inventory selection `three-pane layout|quick barcode entry|quick lookup|
+  page-local type counts|appearance drafts`: **5 passed**.
+- Impeccable detector on the changed UI components/CSS returned `[]`. Nine final
+  app captures were inspected: desktop/tablet/narrow detail and Bricks, dark
+  desktop/mobile, and empty desktop/mobile. No further visual changes followed.
+
+Initial failures included obsolete Add a find/form-scoped type/region selectors,
+Back focus assertions before the animation-frame restoration, whitespace in
+category accessible names and shared test settings changing the barcode type.
+Fixtures/selectors were updated for the approved flow, deterministic type setup
+and explicit focus waits; affected final reruns passed. The isolated synthetic
+database was reset before final large-import checks.
+
+A broader existing optional-cover persistence case timed out waiting for saved
+artwork on this stack. Its full end-to-end result was not established. A focused
+mock-backed test passed unchecked-by-default cover review, staged selection and
+exact final create payload; this does not certify external artwork retrieval or
+backend persistence. No API/provider implementation changed. Full API, recovery,
+physical-phone, manual screen-reader and unselected browser cases were not rerun.
+
+This is a PR review, not a deployment. No live inventory, credentials, schema,
+network access, provider default, dependency or canonical brand asset changed.

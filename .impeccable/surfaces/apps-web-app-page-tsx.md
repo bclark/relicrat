@@ -157,3 +157,13 @@ barcode lookup/covers and explicit saves remain. Mobile collapse stops camera
 tracks without discarding the find draft. Focused worker/browser verification and
 initial test-helper corrections are recorded in docs/harness.md; deployment
 status is recorded separately. No proposed brand assets were promoted.
+
+## Reviewed three-pane integration — 2026-11-02
+
+Approved designer direction: quick intake and page categories left, flexible
+List/Bricks middle, full selected-copy inspector right. Below 1180px, Back switches
+list/detail; below 760px it restores the hidden intake rail too. Preserve mounted
+drafts, explicit saves, semantic focus and camera shutdown. Adapted onto current
+main rather than replacing current Movie, CSV, storage, group and barcode flows.
+This review prepares a PR; it does not deploy the layout. Validation and remaining
+limits are recorded in docs/harness.md.

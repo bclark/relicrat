@@ -1,19 +1,21 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import BarcodeLookup from './barcode-lookup';
 import BarcodeScanner from './barcode-scanner';
 import type { BarcodeReading,CollectionType,CatalogCover } from '../lib/inventory-client';
 
 type Props = {
- value: BarcodeReading | null; change: (value: BarcodeReading | null) => void;
+ quickReading?:BarcodeReading|null; value: BarcodeReading | null; change: (value: BarcodeReading | null) => void;
  formats: string[]; locked: boolean; saved?:boolean; definition?:CollectionType; values?:Record<string,string>; apply?:(fields:Record<string,string>,cover?:CatalogCover)=>void; cover?:CatalogCover|null; removeCover?:()=>void;
 };
 
 /** A page-local observation. Only the enclosing copy form persists it. */
-export default function BarcodeInput({value,change,formats,locked,saved=false,definition,values,apply,cover,removeCover}:Props){
+export default function BarcodeInput({quickReading,value,change,formats,locked,saved=false,definition,values,apply,cover,removeCover}:Props){
  const [requested,setRequested]=useState(0),[scannerOpen,setScannerOpen]=useState(false);
  const lookup=definition?.lookup&&apply&&values;
+ useEffect(()=>{if(quickReading&&!locked&&formats.includes(quickReading.format)){change(quickReading);setRequested(n=>n+1);}},[quickReading]);
+
  return <div className="barcode-input">
   <BarcodeScanner disabled={locked || !formats.length} formats={formats} onUse={reading=>{setRequested(0);change(reading);}} replacing={!!value} onOpenChange={open=>{setScannerOpen(open);if(open)setRequested(0);}} onLookup={lookup?reading=>{change(reading);setRequested(n=>n+1);}:undefined}/>
   {value && <div>

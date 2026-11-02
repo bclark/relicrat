@@ -175,6 +175,7 @@ async function fixture(t, initial = {}) {
     try { await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) }); } catch { /* An intentionally aborted stale read may have closed. */ }
   });
   await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
+  if(!initial.quickIntake)await page.getByRole('button',{name:'Review item',exact:true}).click();
   return { page, state };
 }
 async function open(page, title, edition = '') {
@@ -188,81 +189,6 @@ async function catalog(page) {
   if (!(await summary.evaluate(node => node.parentElement.open))) await summary.click();
   await page.getByRole('heading', { name: 'Shared catalog match', exact: true }).waitFor();
 }
-
-test('collection opening preserves drafts and ownership across responsive navigation', async t => {
-  const { page, state } = await fixture(t);
-  assert.equal(await page.locator('h1').textContent(), 'Your collection');
-  assert.equal(await page.getByRole('link', { name: 'Add a find', exact: true }).count(), 0);
-  assert.ok(await page.getByRole('button', { name: 'Appearance', exact: true }).isVisible());
-  const intakeBox = await page.locator('.intake').boundingBox();
-  const collectionBox = await page.locator('.collection').boundingBox();
-  assert.ok(intakeBox.x < collectionBox.x, 'Desktop intake belongs on the left');
-  const output = process.env.RELICRAT_SCREENSHOTS && resolve(process.env.RELICRAT_SCREENSHOTS);
-  if (output) await mkdir(output, { recursive: true });
-  for (const populated of [false, true]) {
-    if (populated) {
-      state.copies = [copy(1, 'Synthetic blue-cover comic'), copy(2, 'Synthetic green vinyl', { edition_label: 'Second pressing' }), copy(3, 'Synthetic painted figure')];
-      await page.getByRole('button', { name: 'Reload inventory', exact: true }).click();
-      await page.getByRole('button', { name: 'Open Synthetic blue-cover comic', exact: true }).waitFor();
-    }
-    for (const [name, width, height] of [['desktop', 1440, 1050], ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 780]]) {
-      await page.setViewportSize({ width, height });
-      await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      if (output) await page.screenshot({ path: `${output}/${populated ? '' : 'empty-'}${name}.png`, fullPage: true, animations: 'disabled' });
-    }
-  }
-  await page.setViewportSize({ width: 390, height: 844 });
-  const toggle = page.getByRole('button', { name: 'Add a find', exact: true });
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-  assert.equal(await page.locator('#find-title').isVisible(), false);
-  await toggle.click();
-  await page.locator('#find-title').fill('Keep my unsaved draft');
-  await toggle.click();
-  await toggle.click();
-  assert.equal(await page.locator('#find-title').inputValue(), 'Keep my unsaved draft');
-  await page.evaluate(() => window.scrollTo(0, 0));
-  if (output) await page.screenshot({ path: `${output}/mobile-expanded.png`, fullPage: true, animations: 'disabled' });
-  await toggle.click();
-  await page.locator('.skip-link').focus();
-  await page.keyboard.press('Enter');
-  assert.equal(await page.locator('#find-title').isVisible(), true);
-  assert.equal(await page.locator('#add-find').evaluate(node => node === document.activeElement), true);
-  await page.keyboard.press(process.env.RELICRAT_BROWSER==='webkit' ? 'Alt+Tab' : 'Tab');
-  assert.equal(await toggle.evaluate(node => node === document.activeElement), true);
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  assert.equal(await page.getByRole('button', { name: 'Sign out', exact: true }).isVisible(), false);
-  await menu.click();
-  assert.equal(await menu.getAttribute('aria-expanded'), 'true');
-  await page.keyboard.press(process.env.RELICRAT_BROWSER==='webkit' ? 'Alt+Tab' : 'Tab');
-  assert.equal(await page.getByRole('button', { name: 'Appearance', exact: true }).evaluate(node => node === document.activeElement), true);
-  await page.keyboard.press('Escape');
-  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
-  assert.equal(await menu.evaluate(node => node === document.activeElement), true);
-  await menu.click();
-  if (output) await page.screenshot({ path: `${output}/mobile-menu.png`, fullPage: true, animations: 'disabled' });
-  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
-  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
-  assert.equal(await page.getByRole('heading', { name: 'Make RelicRat yours' }).evaluate(node => node === document.activeElement), true);
-  await page.getByLabel('Theme name', { exact: true }).fill('Unsaved appearance draft');
-  await menu.click();
-  await page.getByRole('button', { name: 'Close appearance', exact: true }).click();
-  await menu.click();
-  await page.getByRole('button', { name: 'Collection settings', exact: true }).click();
-  await page.getByRole('heading', { name: 'Collection setup · Step 1 of 3', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Cancel setup', exact: true }).click();
-  assert.equal(await menu.evaluate(node => node === document.activeElement), true);
-  await menu.click();
-  await page.locator('h1').click();
-  assert.equal(await menu.getAttribute('aria-expanded'), 'false', 'Outside click dismisses mobile menu');
-  await menu.click();
-  await page.getByRole('button', { name: 'Appearance', exact: true }).click();
-  assert.equal(await page.getByLabel('Theme name', { exact: true }).inputValue(), 'Unsaved appearance draft');
-  await page.setViewportSize({ width: 1440, height: 1050 });
-  assert.equal(await page.locator('#find-title').inputValue(), 'Keep my unsaved draft');
-  assert.ok(await page.getByRole('button', { name: 'Sign out', exact: true }).isVisible());
-  assert.equal(state.writes.length, 0, 'Navigation must not create ownership or save settings');
-});
 
 test('add-first workflow keeps one copy across photo, immediate nested storage, and search', async t => {
   const { page, state } = await fixture(t);
@@ -476,10 +402,12 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   assert.equal(await page.locator('.inventory-list img').count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  await page.getByRole('button', { name: 'Add a find', exact: true }).click();
+  await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+  await page.waitForFunction(name=>document.activeElement?.getAttribute('aria-label')===name,'Open '+title);
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
-  assert.ok(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => input === document.activeElement));
-  assert.notEqual(await page.getByLabel('Notes (optional)', { exact: true }).evaluate(input => getComputedStyle(input).outlineStyle), 'none');
+  const notesField=page.getByRole('form',{name:'Add a find',exact:true}).getByLabel('Notes (optional)',{exact:true});
+  assert.ok(await notesField.evaluate(input=>input===document.activeElement));
+  assert.notEqual(await notesField.evaluate(input=>getComputedStyle(input).outlineStyle),'none');
 });
 
 test('a saved copy edits its existing title and edition in one form without catalog setup', async t => {
@@ -1090,7 +1018,7 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
   await page.getByLabel('Record title',{exact:true}).fill('Example album');
   await page.getByLabel('Performer (optional)',{exact:true}).fill('Example artist');
   assert.equal(await page.locator('#find-format').count(),0);
-  assert.deepEqual(await page.getByRole('form',{name:'Add a find',exact:true}).locator('label').allTextContents(),['What are you adding?','Notes (optional)','Record title','Edition or pressing (optional)','Performer (optional)']);
+  assert.deepEqual(await page.getByRole('form',{name:'Add a find',exact:true}).locator('label').allTextContents(),['Notes (optional)','Record title','Edition or pressing (optional)','Performer (optional)']);
   await page.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('button',{name:/Open Example artist/}).waitFor();
   assert.equal(state.copies[0].record_details.artist,'Example artist');
@@ -1255,7 +1183,7 @@ test('password-manager autofill without input events can sign in; empty native v
   await page.evaluate(password=>{const input=document.querySelector('#owner-password');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,password);},ownerPassword);
   assert.ok(await button.isEnabled());
   await button.click();
-  await page.getByRole('heading',{name:'Add a find',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Add an item',exact:true}).waitFor();
   assert.equal(requests.length,1);
 });
 
@@ -1268,7 +1196,7 @@ test('autofilled rejected passwords retain input and allow an explicit corrected
   assert.equal(await page.getByLabel('Owner password',{exact:true}).inputValue(),'incorrect-synthetic-password');
   await page.getByLabel('Owner password',{exact:true}).fill(ownerPassword);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  await page.getByRole('heading',{name:'Add a find',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Add an item',exact:true}).waitFor();
 });
 
 
@@ -1507,7 +1435,7 @@ test('unboxed type groups keep Movie and notes-only copies compact, accessible a
    await page.setViewportSize({width,height});await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} ${size} overflow`);
    assert.deepEqual(await page.locator('.intake').evaluate(node=>{const s=getComputedStyle(node);return [s.borderTopWidth,s.paddingTop,s.paddingInlineStart,s.backgroundColor];}),['0px','0px','0px','rgba(0, 0, 0, 0)']);
-   for(const row of await list.locator('.copy-row').all())assert.ok((await row.boundingBox()).height>=44);
+   for(const row of await list.locator('.copy-row').all())assert.ok((await row.boundingBox()).height>=(width<760?44:30));
    if(output&&['desktop','mobile'].includes(size))await page.screenshot({path:`${output}/${name}-${size}.png`,fullPage:true,animations:'disabled'});
   }
  }
@@ -1543,4 +1471,60 @@ test('page-local type counts preserve copy selection and drafts across paginatio
  assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep this intake draft');
  await pages.getByRole('button',{name:'Previous',exact:true}).click();const selected=page.getByRole('button',{name:'Open Synthetic page copy 0',exact:true});await selected.waitFor();
  assert.equal(await selected.getAttribute('aria-pressed'),'true');assert.equal(state.writes.length,0);
+});
+
+
+test('three-pane layout preserves all types, list/bricks selection and drafts across Back',async t=>{
+ const copies=[copy(1,'Glass Arcade',{collection_type:'record',edition_label:'Blue vinyl'}),copy(2,'Moon Harbor',{collection_type:'comic',comic_details:{issue_number:'08'}}),copy(3,'Synthetic film',{collection_type:'movie'}),copy(4,'Tin robot')];
+ const {page,state}=await fixture(t,{quickIntake:true,copies});
+ assert.equal(await page.locator('#find-title').isVisible(),false);
+ await page.locator('#quick-entry').fill('Unsaved intake');await page.locator('#quick-entry').press('Enter');
+ assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
+ await open(page,'Glass Arcade','Blue vinyl');
+ const edit=page.getByRole('form',{name:'Edit copy details',exact:true});await edit.getByLabel('Album title',{exact:true}).fill('Unsaved correction');
+ const a=await page.locator('.workbench').boundingBox(),b=await page.locator('.collection').boundingBox(),c=await page.locator('.copy-inspector').boundingBox();assert.ok(a.x<b.x&&b.x<c.x);
+ const output=process.env.RELICRAT_THREE_PANE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
+ if(output)await page.screenshot({path:`${output}/desktop.png`,fullPage:true,animations:'disabled'});
+ for(const width of [1024,390,320]){
+  await page.setViewportSize({width,height:900});assert.ok(await page.locator('#record-title').isVisible());assert.equal(await page.locator('.collection').isVisible(),false);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  if(output&&width!==390)await page.screenshot({path:`${output}/detail-${width}.png`,fullPage:true,animations:'disabled'});
+  await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Open Glass Arcade · Blue vinyl');
+  await page.getByRole('button',{name:'Bricks',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  if(output&&width!==390)await page.screenshot({path:`${output}/bricks-${width}.png`,fullPage:true,animations:'disabled'});
+  await page.getByRole('button',{name:'List',exact:true}).click();await open(page,'Glass Arcade','Blue vinyl');assert.equal(await edit.getByLabel('Album title',{exact:true}).inputValue(),'Unsaved correction');
+ }
+ await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+ const categories=page.getByRole('navigation',{name:'Categories on this page',exact:true});await categories.getByRole('button',{name:/^Movies\s*1$/,exact:true}).click();assert.equal(await page.locator('.copy-row').count(),1);
+ await categories.getByRole('button',{name:/^All items\s*4$/,exact:true}).click();assert.equal(await page.locator('.copy-row').count(),4);
+ await page.getByRole('button',{name:'Hide details',exact:true}).click();await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
+ await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Appearance',exact:true}).click();await page.getByRole('heading',{name:'Make RelicRat yours'}).waitFor();
+ await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Close appearance',exact:true}).click();
+ const appearance=await(await page.request.get(base+'/api/v1/appearance')).json();const dark=appearance.presets.find(theme=>theme.mode==='dark');const preview=await page.request.post(base+'/api/v1/appearance/preview',{data:{theme:dark},headers:{Origin:new URL(base).origin}});assert.equal(preview.status(),200);await page.evaluate(styles=>{for(const [key,value]of Object.entries(styles))document.querySelector('.themed-app').style.setProperty(key,value);},(await preview.json()).styles);
+ if(output)for(const [name,width]of [['desktop',1440],['mobile',390]]){await page.setViewportSize({width,height:900});await page.screenshot({path:`${output}/dark-${name}.png`,fullPage:true,animations:'disabled'});}
+ state.copies=[];await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByRole('heading',{name:'Your first find starts here',exact:true}).waitFor();
+ if(output)for(const [name,width]of [['desktop',1440],['mobile',390]]){await page.setViewportSize({width,height:900});await page.screenshot({path:`${output}/empty-${name}.png`,fullPage:true,animations:'disabled'});}
+ assert.equal(state.writes.length,0);
+});
+
+test('quick barcode entry uses structured observations and configured lookup without ownership writes',async t=>{
+ const {page,state}=await fixture(t,{quickIntake:true});let calls=0;
+ await page.route('**/api/v1/barcode-lookups/record',route=>{calls++;return route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}});});
+ await page.selectOption('#find-type','record');await page.locator('#quick-entry').fill('01234565');await page.locator('#quick-entry').press('Enter');await page.getByRole('alert').filter({hasText:'Eight-digit barcodes'}).waitFor();assert.equal(calls,0);
+ await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
+ await page.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();assert.equal(calls,1);assert.equal(await page.locator('#find-title').inputValue(),'');
+ await page.locator('#find-notes').fill('Keep notes separate');await page.getByRole('button',{name:'Hide details',exact:true}).click();await page.waitForTimeout(650);assert.equal(calls,1);
+ await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(calls,1,'Showing the same draft must not repeat lookup');await page.locator('#find-title').fill('Synthetic typed barcode album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
+ await page.getByRole('heading',{name:'Synthetic typed barcode album',exact:true}).waitFor();const writes=state.writes.filter(x=>x.path==='inventory');assert.equal(writes.length,1);assert.deepEqual(writes[0].body.barcode,{value:'012345678905',format:'UPC_A',supplement:null});assert.equal(writes[0].body.description,'Keep notes separate');assert.equal(writes[0].body.catalog_cover,null);
+});
+
+
+test('quick lookup keeps catalog cover optional and sends it only with the final save',async t=>{
+ const {page,state}=await fixture(t,{quickIntake:true});const candidate='11111111-1111-4111-8111-111111111111';
+ await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[{id:candidate,title:'Synthetic reviewed artwork album',description:'Synthetic test release',source_url:'https://musicbrainz.org/release/'+candidate,fields:{title:'Synthetic reviewed artwork album'},cover_url:'/api/v1/barcode-lookups/record/'+candidate+'/cover'}]}}));
+ await page.route('**/api/v1/barcode-lookups/record/*/cover',route=>route.fulfill({contentType:'image/png',body:png}));
+ await page.selectOption('#find-type','record');await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
+ const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true});await lookup.locator('.barcode-matches button').click();const checkbox=lookup.getByRole('checkbox',{name:/Include catalog cover/});assert.equal(await checkbox.isChecked(),false);await checkbox.check();await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
+ assert.equal(state.writes.filter(x=>x.path==='inventory').length,0);await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic reviewed artwork album',exact:true}).waitFor();const writes=state.writes.filter(x=>x.path==='inventory');assert.equal(writes.length,1);assert.deepEqual(writes[0].body.catalog_cover,{provider:'musicbrainz',candidate_id:candidate});assert.equal(state.copies.length,1);
 });

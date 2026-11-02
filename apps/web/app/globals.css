@@ -703,3 +703,98 @@ footer {
 .lookup-field { margin:0; font-weight:400; }
 .lookup-field input { accent-color:var(--accent); }
 .barcode-matches button span { font-weight:400; }
+
+/* Approved three-pane workspace; existing themes and save flows retained. */
+.masthead,.collection-main { max-width:1700px; }
+.collection-main { padding:0 32px 48px; }
+.workspace {
+  display:grid;
+  grid-template-columns:232px minmax(0,1fr) 340px;
+  gap:28px;
+  margin-top:var(--space);
+}
+.workbench,.collection,.copy-inspector { min-width:0; }
+.workspace .collection,.copy-inspector { border-left:1px solid var(--rule); padding-left:28px; }
+.intake { background:transparent; padding:0; border:0; }
+.intake h2 { font-size:1.25rem; margin:0 0 14px; scroll-margin-top:24px; }
+.intake-continue { width:100%; }
+.intake-review-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:20px; }
+.intake-review-heading h3 { margin:0; }
+.intake-review-heading button { font-size:.8rem; }
+[hidden] { display:none !important; }
+.categories { margin-top:28px; }
+.categories h2 { margin-bottom:0; }
+.categories .hint { margin:4px 0 10px; }
+.category-controls { display:grid; gap:2px; }
+.category-button { display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent; border:0; font-weight:400; text-align:left; }
+.category-button[aria-pressed=true] { background:var(--soft); font-weight:650; }
+.category-button span { font-size:.8rem; font-variant-numeric:tabular-nums; }
+.barcode-scanner { margin-top:16px; }
+
+.barcode-scanner .hint { overflow-wrap:anywhere; }
+.collection-heading { align-items:center; }
+.collection-heading h1 { margin:0; font-size:1.75rem; line-height:1.2; letter-spacing:-.025em; }
+.view-controls { display:flex; gap:4px; }
+.view-controls button { background:transparent; border-color:transparent; }
+.view-controls button[aria-pressed=true] { border-color:var(--accent); color:var(--accent); background:var(--paper); }
+.back-to-collection { display:none; }
+.copy-inspector .copy-record { margin:0; padding:0; border:0; }
+.copy-inspector .record-placeholder { padding:0; }
+.copy-inspector .section-heading { flex-wrap:wrap; }
+.copy-inspector .section-heading h2 { flex-basis:100%; }
+.copy-inspector .photos { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.copy-inspector .setup-actions { gap:8px; }
+/* Pane topology follows available reading width, not device names. */
+@media(max-width:1179px) {
+  .workspace { grid-template-columns:220px minmax(0,1fr); gap:26px; }
+  .copy-inspector { display:none; }
+  .workspace.detail-open .copy-inspector { display:block; }
+  .workspace.detail-open .collection { display:none; }
+  .back-to-collection { display:inline-block; margin-bottom:20px; }
+}
+@media(max-width:759px) {
+  .collection-main { padding:0 18px 32px; }
+  .workspace { display:block; margin-top:24px; }
+  .workspace .collection,.copy-inspector { border-left:0; padding:0; margin-top:28px; }
+  .workspace.detail-open .workbench { display:none; }
+  .workspace.detail-open .copy-inspector { margin-top:0; }
+  .quick-intake fieldset { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0 8px; }
+  .quick-intake label { grid-column:1 / -1; }
+  .quick-intake .intake-continue { grid-column:2; margin-top:10px; }
+  .category-controls { display:flex; flex-wrap:wrap; gap:4px; }
+  .category-button { width:auto; }
+  .collection-heading h1 { font-size:1.5rem; }
+  .collection-heading { gap:8px; }
+  .view-controls button { padding:6px 8px; }
+
+  .bricks .inventory-list { gap:0 12px; }
+}
+
+/* Dense physical-copy rows; catalog group toggles retain their own interaction. */
+.inventory-results .copy-row { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.95fr) minmax(0,.9fr); gap:12px; min-height:30px; padding:4px 8px; line-height:22px; border-radius:var(--radius); font-weight:400; }
+.inventory-results .copy-row .copy-identity { display:contents; }
+.inventory-results .copy-row :is(strong,.copy-edition,.copy-location) { display:block; min-width:0; margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:.875rem; }
+.inventory-results .copy-row strong { font-weight:500; }
+.inventory-results .inventory-list li:nth-child(even)>.copy-row { background:var(--soft); }
+.inventory-results .copy-row[aria-pressed=true],.inventory-results .copy-row[aria-pressed=true]:hover:not(:disabled),.inventory-results .inventory-list li:nth-child(even)>.copy-row[aria-pressed=true] { background:var(--accent); color:var(--accent-text); box-shadow:none; }
+.inventory-results .copy-row[aria-pressed=true] :is(.copy-identity,.copy-edition,.copy-location) { color:var(--accent-text); }
+.inventory-results.bricks .inventory-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 20px; }
+.inventory-results.bricks .copy-row { display:block; min-height:130px; padding:14px 8px 22px; border-top:1px solid var(--rule); border-radius:0; }
+.inventory-results.bricks .copy-row .copy-identity { display:block; }
+.inventory-results.bricks .copy-row :is(strong,.copy-edition,.copy-location) { white-space:normal; overflow-wrap:anywhere; }
+.inventory-results.bricks .copy-row strong { font-size:1rem; font-weight:650; }
+.inventory-results.bricks .copy-location { margin-top:8px; }
+.inventory-results.bricks .inventory-list li:nth-child(even)>.copy-row:not([aria-pressed=true]) { background:transparent; }
+.copy-columns { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.95fr) minmax(0,.9fr); gap:12px; padding:7px 8px; border-bottom:1px solid var(--rule); font-size:.75rem; color:var(--muted); }
+.bricks .copy-columns { display:none; }
+.copy-group-heading { padding-top:16px; }
+@media(pointer:coarse) { .inventory-results .copy-row { min-height:44px; } }
+@media(max-width:759px) {
+ .inventory-results .copy-row { min-height:44px; grid-template-columns:minmax(0,1fr) 100px; gap:0 10px; padding:5px 8px; }
+ .inventory-results .copy-row .copy-edition { grid-column:1; font-size:.75rem; line-height:18px; }
+ .inventory-results .copy-row .copy-location { grid-column:2; grid-row:1 / span 2; font-size:.75rem; white-space:normal; align-self:center; }
+ .inventory-results.bricks .copy-row { display:block; }
+ .copy-columns { display:none; }
+}
+
+@media(max-width:759px) { .quick-intake #quick-entry { grid-column:1 / -1; } }
