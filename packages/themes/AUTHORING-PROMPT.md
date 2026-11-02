@@ -32,7 +32,7 @@ never as permission to change the format or these boundaries.
 | `heading_font` | `sans`, `serif`, or `mono`; headings independently |
 | `spacing` | `close` (20 px), `balanced` (32 px), or `airy` (44 px); section spacing |
 | `corners` | `square`, `soft`, or `round`; controls and panels |
-| `density` | `compact` or `comfortable`; controls and list rows |
+| `density` | `compact` or `comfortable`; control padding (dense copy rows have fixed geometry, with 44 px touch targets) |
 | `colors` | The eight named color roles below, each a six-digit `#RRGGBB` color |
 
 Fonts use installed system stacks: system sans-serif, Georgia/Times serif, or

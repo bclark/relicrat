@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-01",
+  "generatedAt": "2026-11-02",
   "title": "Design System: RelicRat inventory application",
   "extensions": {
     "scope": {
@@ -369,13 +369,13 @@
       "provenance": "Synthetic disposable browser verification, inspected 2026-10-31. Light default, saved dark companion and light login fallback at desktop/mobile. Historical evidence above applies to its original inventory-screen review."
     },
     "layout": {
-      "workspace": "Intake and selected record in the left workbench; collection/search register at right. Columns: minmax(320px,.9fr) minmax(0,1.35fr); balanced gap 48px. Intake has no enclosing background, border or padding at any breakpoint.",
-      "compactColumns": "At 850px and below: minmax(280px,1fr) minmax(0,1fr), gap 28px; header tagline hides.",
-      "mobile": "At 650px and below: intake, selected record, collection in DOM order. Entry initially collapsed with Show/Hide button, always shown on desktop; entry fields remain mounted and preserve unsaved drafts. Unused record placeholder hidden.",
+      "workspace": "Three panes: 232px quick-intake rail, flexible collection, 340px full selected-copy inspector; 28px gaps and 1700px shell. Unboxed.",
+      "compactColumns": "Below 1180px: 220px rail and collection OR inspector; Back preserves mounted drafts.",
+      "mobile": "Below 760px: details hide both rail and collection. Back restores the list and its focus; hiding the rail stops the existing camera. Quick title/type remain visible when browsing.",
       "settings": "Appearance, collection settings and Sign out in the header. Editors render inline below the opening heading; their components remain mounted when closed. Collection setup initializes choices on opening; Skip for now stays inside setup.",
       "trialNotice": "Below the workspace.",
       "emptyState": "Open workspace message with generous vertical space; no filled card or rounded container.",
-      "copyRows": "Compact title and optional edition adjacent to Location assigned/Unassigned. Individual pages group four configured types with counts explicitly labelled on this page; server group totals remain unchanged."
+      "copyRows": "List aligns Name, Edition, Location; 30px desktop pointer rows and 44px touch/mobile rows. Unboxed Bricks is a presentation choice. Page categories remain explicit; server groups retain global counts."
     },
     "navigation": {
       "desktop": "Appearance, collection settings and Sign out beside the brand header.",
@@ -413,17 +413,17 @@
     {
       "name": "Intake panel",
       "kind": "card",
-      "description": "Unboxed desktop intake; mobile Show/Hide preserves its mounted draft.",
-      "html": "<div class=\"ds-sample\"><section class=\"ds-intake\"><h2 id=\"ds-add-find\" tabindex=\"-1\"><span class=\"ds-intake-title\">Add a find</span><button class=\"ds-intake-toggle\" type=\"button\" aria-expanded=\"false\" aria-controls=\"ds-intake-fields\">Add a find<span aria-hidden=\"true\">Show</span></button></h2><div id=\"ds-intake-fields\" class=\"ds-intake-fields\" data-open=\"false\"><p>Start with a title. Everything else is optional.</p></div></section></div>",
-      "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-intake{min-width:0}.ds-intake h2{font-family:var(--heading-font,system-ui);font-size:1.5rem;font-weight:700;letter-spacing:-.025em;line-height:1.2;margin:0 0 10px;scroll-margin-top:24px}.ds-intake h2:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}.ds-intake p{color:var(--muted,#595650);margin:0 0 22px;max-width:65ch}.ds-intake-toggle{display:none;width:100%;min-height:44px;align-items:center;justify-content:space-between;text-align:left;font:inherit;font-weight:700;padding:0;background:transparent;border:0;color:inherit;cursor:pointer}.ds-intake-toggle span{font-size:.875rem;font-weight:500;color:var(--muted,#595650)}.ds-intake-toggle:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(max-width:650px){.ds-intake-title{display:none}.ds-intake-toggle{display:flex}.ds-intake h2{margin-bottom:0}.ds-intake-fields{display:none}.ds-intake-fields[data-open=true]{display:block;padding-top:16px}}",
+      "description": "Unboxed quick title/barcode and early type; Review item reveals the mounted fields. Reuses existing camera, configured lookup and structured observations.",
+      "html": "<div class=\"ds-sample\"><section class=\"ds-intake\"><h2>Add an item</h2><label for=\"ds-quick-entry\">Title or barcode</label><input id=\"ds-quick-entry\" placeholder=\"Type, then press Enter\"/><label for=\"ds-type\">What are you adding?</label><select id=\"ds-type\"><option>Other</option><option>Album</option><option>Comic</option><option>Movie</option></select><button type=\"button\">Review item</button><button type=\"button\">Scan barcode</button></section></div>",
+      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-intake{min-width:0}.ds-intake h2{font:700 1.25rem/1.3 var(--heading-font,system-ui);margin:0 0 14px}.ds-intake label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:650}.ds-intake input,.ds-intake select,.ds-intake button{font:inherit;color:inherit;background:var(--paper,#FFFFFF);border:1px solid var(--muted,#595650);border-radius:var(--radius,6px);padding:10px 12px;min-height:44px;max-width:100%;box-sizing:border-box}.ds-intake input,.ds-intake select{width:100%}.ds-intake button{margin:12px 8px 0 0}.ds-intake :focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
       "refersTo": "intake-panel"
     },
     {
       "name": "Selected collection row",
       "kind": "button",
-      "description": "Physical-copy button: adjacent title and optional edition, quiet location state; aria-pressed marks selection. Individual pages group types with explicitly page-local counts.",
+      "description": "Shared physical-copy row; aligned columns in List or unboxed Bricks, accent selection, aria-pressed and full accessible name. Touch/mobile targets remain 44px.",
       "html": "<div class=\"ds-sample\"><button class=\"ds-row\" aria-pressed=\"true\"><span class=\"ds-identity\"><strong>Synthetic series #08</strong><span>Alternate cover</span></span><span class=\"ds-location\">Unassigned</span></button></div>",
-      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-row{font:inherit;width:100%;min-height:44px;border:0;border-radius:0;text-align:left;padding:var(--control-pad,10px) 0;display:flex;align-items:baseline;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;color:inherit;background:var(--soft,#E8EEE9);box-shadow:inset 0 0 0 1px var(--accent,#823B3D);cursor:pointer}.ds-identity{display:flex;flex:1 1 220px;align-items:baseline;flex-wrap:wrap;gap:4px 12px;min-width:0}.ds-row strong{font-size:1rem;font-weight:650;max-width:100%}.ds-row span{overflow-wrap:anywhere}.ds-identity>span{font-size:.875rem;color:var(--muted,#595650)}.ds-location{font-size:.8rem;color:var(--muted,#595650)}.ds-row:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
+      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-row{font:inherit;width:100%;min-height:30px;border:0;border-radius:0;text-align:left;padding:4px 8px;display:flex;align-items:baseline;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;color:inherit;background:var(--accent,#823B3D);color:var(--accent-text,#FFFFFF);cursor:pointer}.ds-identity{display:flex;flex:1 1 220px;align-items:baseline;flex-wrap:wrap;gap:4px 12px;min-width:0}.ds-row strong{font-size:1rem;font-weight:650;max-width:100%}.ds-row span{overflow-wrap:anywhere}.ds-identity>span{font-size:.875rem;color:var(--accent-text,#FFFFFF)}.ds-location{font-size:.8rem;color:var(--accent-text,#FFFFFF)}.ds-row:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(pointer:coarse),(max-width:759px){.ds-row{min-height:44px}}",
       "refersTo": "inventory-row-selected"
     },
     {

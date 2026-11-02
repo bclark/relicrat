@@ -304,3 +304,16 @@ Movies and Other finds with counts labelled “on this page”; these are not wh
 collection totals. Rows keep title and optional edition together, with Location
 assigned or Unassigned alongside. Notes remain in the selected record. Existing
 server groups, search, type/storage filters and pagination retain their semantics.
+
+## Three-pane workspace
+
+Quick intake sits at left, collection browsing in the middle and the full selected
+copy editor at right. Below 1180px, Back to collection switches between list and
+details; below 760px, details also hide the intake rail. Drafts remain mounted.
+Enter a title and press Enter/Review item, or scan using the existing decoder.
+Typed 12-digit UPC-A and 13-digit EAN-13 codes use configured lookup and explicit
+match/cover review; scan eight-digit codes to preserve their format. No barcode
+is appended to notes and scanning never creates ownership. Save copy remains
+explicit. List and unboxed Bricks change presentation only; server groups, CSV
+import, Movie fields, filters and history retain their existing behavior.
+Category buttons/counts apply only to an individual-copy response page.

@@ -6,12 +6,12 @@ type Props={items:InventoryCopy[];busy:boolean;selected:string|null;open:(id:str
 export default function CollectionRows({items,busy,selected,open,groupByType=false,types}:Props){
  const headingId=useId();
  function rows(copies:InventoryCopy[]){
-  return <ul className="inventory-list">{copies.map(copy=><li key={copy.id}>
-   <button disabled={busy} className="inventory-row copy-row" aria-label={`Open ${copyName(copy)}${copy.edition_label?` · ${copy.edition_label}`:''}`} aria-pressed={copy.id===selected} onClick={()=>open(copy.id)}>
-    <span className="copy-identity"><strong>{copyName(copy)}</strong>{copy.edition_label&&<span className="copy-edition">{copy.edition_label}</span>}</span>
+  return <><div className="copy-columns" aria-hidden="true"><span>Name</span><span>Edition</span><span>Location</span></div><ul className="inventory-list">{copies.map(copy=><li key={copy.id}>
+   <button disabled={busy} className="inventory-row copy-row" id={`copy-row-${copy.id}`} aria-label={`Open ${copyName(copy)}${copy.edition_label?` · ${copy.edition_label}`:''}`} aria-pressed={copy.id===selected} onClick={()=>open(copy.id)}>
+    <span className="copy-identity"><strong title={copyName(copy)}>{copyName(copy)}</strong><span className="copy-edition" title={copy.edition_label||undefined}>{copy.edition_label||''}</span></span>
     <span className="copy-location">{copy.storage_location_id?'Location assigned':'Unassigned'}</span>
    </button>
-  </li>)}</ul>;
+  </li>)}</ul></>;
  }
  if(!groupByType)return rows(items);
  const labels:Record<CollectionTypeId,string>={record:'Albums',comic:'Comics',movie:'Movies',other:'Other finds'};

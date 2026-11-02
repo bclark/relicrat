@@ -14,7 +14,7 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
  const {page,context}=await setup(t);
  for(const [source,count] of [['clz',1450],['discogs',465]]){const raw=encoded(source,count),sha=createHash('sha256').update(raw).digest('hex');const r=await context.request.post(base+`/api/v1/imports/commit?source=${source}&reviewed_sha256=${sha}`,{headers:{Origin:base,'Content-Type':'text/csv'},data:raw});assert.equal(r.status(),200,await r.text());}
  const unknown=await context.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title:'Synthetic unknown artist',collection_type:'record'}});assert.equal(unknown.status(),201);
- await page.goto(base);assert.equal(await page.getByLabel('Browse view',{exact:true}).inputValue(),'groups');
+ await page.goto(base);await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.getByLabel('Browse view',{exact:true}).inputValue(),'groups');
  await page.getByRole('button',{name:/^Comics \d+ copies · Browse collection$/}).click();
  await page.getByRole('button',{name:'Synthetic series 00 27 copies · Open group',exact:true}).click();
  const group=page.getByRole('region',{name:'Synthetic series 00 copies',exact:true});await group.getByRole('status').filter({hasText:'20 copies on this group page'}).waitFor();
@@ -30,7 +30,7 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
  if(process.env.RELICRAT_SCREENSHOTS){const p=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(p,{recursive:true});await page.locator('.collection').screenshot({path:p+'/groups-desktop.png'});}
  await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic album 000');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Synthetic artist 00 1 copy · Open group',exact:true}).waitFor();
  await page.getByRole('button',{name:'Clear search',exact:true}).click();await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic unknown artist');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Artist not recorded 1 copy · Open group',exact:true}).click();await page.getByRole('button',{name:'Open Synthetic unknown artist',exact:true}).waitFor();
- await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.RELICRAT_SCREENSHOTS)await page.locator('.collection').screenshot({path:resolve(process.env.RELICRAT_SCREENSHOTS)+'/groups-mobile.png'});
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.RELICRAT_SCREENSHOTS)await page.locator('.collection').screenshot({path:resolve(process.env.RELICRAT_SCREENSHOTS)+'/groups-mobile.png'});
  await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await page.getByRole('button',{name:'Open Synthetic unknown artist',exact:true}).waitFor();
  const original=await(await context.request.get(base+'/api/v1/inventory/'+(await unknown.json()).id)).json();assert.equal(original.title,'Synthetic unknown artist');
 });
