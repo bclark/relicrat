@@ -1,6 +1,6 @@
 # Design memory
 
-Updated 2026-11-01. Approved direction, not proof of implementation or deployment.
+Updated 2026-11-01. Integration and deployment status are recorded below.
 
 The authoritative sources remain [the shared design brief](docs/design/README.md),
 [the implemented design record](DESIGN.md), [the brand brief](docs/brand/RELICRAT_BRAND.md)
@@ -23,7 +23,7 @@ The owner chose **E: Grouped collection**, then accepted this refinement:
 
 Source: current Design Lab conversation, “i like it,” after the updated preview.
 See [DESIGN_PLAN.md](DESIGN_PLAN.md) for the concrete implementation and checks.
-This refinement is integrated in the isolated implementation branch; deployment is recorded separately.
+This refinement is implemented and deployed from a1b2b16 to the existing private trial. PR63 remains open for main-branch review; see the shared brief and harness for verification and limits.
 
 ## Established preferences to retain
 

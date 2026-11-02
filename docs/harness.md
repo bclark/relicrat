@@ -1926,3 +1926,14 @@ container identities, owner environment, private topology and authentication
 boundaries checked separately. No new recovery capture is claimed for this UI
 change; the prior verified snapshot remains retained. Deployment evidence stays
 private and is never committed with inventory or host configuration.
+
+PR63 rollout completed from a1b2b16: both frontends replaced, API/database
+container identities and all row/media fingerprints preserved. Mac login 200 and
+guest inventory/settings 401 passed; private HTTPS certificate/hostname verification
+and the same access boundaries passed, with Funnel disabled and Symphony stopped.
+Image-source verification differed only in generated web next-env.d.ts. The exact
+owned synthetic stack, source and temporary bridge were removed after success.
+Release build initially stopped at its 8 GiB capacity preflight; removing only this
+run’s completed synthetic resources allowed the unchanged preflight and build to
+pass. Prior recovery resources were preserved. PR63 remains open; this is deployed
+source evidence, not a claim that main already contains the change.

@@ -6,7 +6,7 @@
 - **Target:** shared `CollectionRows`, InventoryClient, GroupedCollection and existing CSS.
 - **Winner:** E, Grouped collection, refined to remove enclosing content boxes and tighten item data.
 - **Approval:** 2026-11-01, owner: “i like it” after the revised preview.
-- **Status:** implemented and synthetically verified. Deployment is recorded separately in the shared brief.
+- **Status:** implemented and synthetically verified. Deployed from a1b2b16 to the existing private trial; PR63 remains open. See the shared brief.
 
 The collector should scan Albums, Comics, Movies and Other finds, recognize each copy by
 its title and edition, and see its location state without reading repetitive
@@ -162,12 +162,12 @@ ship with the application.
 
 ## Out of scope
 
-New category filters, global category totals, sorting APIs, image grids,
+Additional category filters, new global category totals, sorting APIs, image grids,
 valuation, new catalog behavior, automated matching, changing ownership filters,
-new storage-name endpoints, and deployment are deferred. No permanent new mascot
+and new storage-name endpoints are deferred. Deployment was separately authorized by the owner. No permanent new mascot
 or logo asset was approved by this exploration.
 
-## Evidence and lifecycle
+## Historical prototype evidence and lifecycle
 
 The owner selected E, requested unboxed/tighter rows and removal of redundant
 status, then accepted that refinement. The lab's builds/TypeScript and bounded
@@ -183,8 +183,8 @@ On final acceptance, 42 manifest-listed temporary files were removed from
 pre-existing work was preserved. Offline lab links and temporary routes therefore
 no longer exist. The separate Stageshow demo was not part of this cleanup.
 
-Generated following the supplied Design Lab workflow; application implementation
-remains pending.
+The original plan followed the supplied Design Lab workflow. Application integration
+and verified frontend-only deployment were completed subsequently; see below.
 
 Post-cleanup verification: `NEXT_TELEMETRY_DISABLED=1 npm run build` from
 `apps/web` passed production compilation and TypeScript. Its route table no
@@ -200,3 +200,12 @@ checks, initial failures and limits. Checklist items describe the covered regres
 contract, not a claim of physical-phone or assistive-technology manual testing.
 Existing whole-collection server groups and Movie support are preserved from main;
 Other uses its configured plural label (currently Other).
+
+## Deployment record
+
+Owner instruction: implement and deploy it. Commit a1b2b16 was deployed to the
+existing private Mac/phone trial. PR63 remains open for main-branch review. API and
+database container identities, schema, owner environment and all database/media
+fingerprints were preserved. Login/guest boundaries and normal private HTTPS
+certificate validation passed, with public Funnel disabled. Prior recovery copies
+remain retained; no new backup or migration was needed for this frontend update.
