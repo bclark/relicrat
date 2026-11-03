@@ -17,13 +17,22 @@ Confirmed choices:
 For a different collection, first ask up to three short questions about scope,
 what counts toward completion and which optional observations matter. Do not
 repeat these questions when the owner has already answered them. Summarize any
-remaining uncertainty before producing the file.
+remaining uncertainty before producing the file. Include any unconfirmed field-control
+and choice-label decisions within this three-question budget.
 
 Produce one JSON document following the accompanying example's structure. Keep
 reusable type fields separate from this specific collection's checklist. Use
 stable local lowercase identifiers; do not claim they are canonical catalog IDs.
 Only title is required. Optional values must remain unknown until supplied;
 never default condition to good, accessories to complete or packaging to loose.
+Before final JSON, show a field plan: each label, proposed control and exact
+option labels. Confirm unresolved decisions, reusing answers already supplied.
+For example, propose Head Variant as radio buttons with options "Soft Head" and
+"Hard Head" because these are mutually exclusive. Use multiple checkboxes only
+for independent choices such as an agreed accessory list; do not invent one.
+Write the agreed input and options into type_definition.optional_fields.
+Preserve existing choice labels exactly when revising a definition; never
+silently shorten "Soft Head" to "Soft" or convert text to a list.
 Use text where a controlled vocabulary has not been agreed. Keep variant notes
 separate from the required character checklist.
 
@@ -40,8 +49,8 @@ Do not overwrite existing built-in type IDs. Importing a checklist must never
 claim its entries are owned or create catalog/release identities automatically.
 
 For this example, retain the ten agreed characters and confirmed decisions.
-Leave the format marker `relicrat-collection-proposal-1` intact. Return the JSON
-in one code block and explain unresolved questions separately. State clearly that the document is an authoring draft; the owner must review
+Leave the format marker `relicrat-collection-proposal-1` intact. Return one JSON document without Markdown fences. Record unresolved
+factual questions in uncertainties. State clearly that the document is an authoring draft; the owner must review
 and explicitly Create collection in RelicRat, then separately Add figure. Do not claim that generating
 parseable JSON establishes application compatibility or factual accuracy.
 

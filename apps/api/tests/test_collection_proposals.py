@@ -83,3 +83,28 @@ def test_preview_has_no_writes_and_bounds_actual_stream_bytes():
 def test_invalid_control_contract(field):
     value=example();value['type_definition']['optional_fields']=[field]
     with pytest.raises(HTTPException):parse_proposal(json.dumps(value).encode())
+
+
+def test_authoring_contract_confirms_controls_before_json():
+    prompt = authoring_contract()['prompt']
+    assert 'Confirm the field plan before final JSON' in prompt
+    assert 'exact option labels' in prompt
+    assert 'options ["Soft Head", "Hard Head"]' in prompt
+    assert 'within the three-question budget' in prompt
+    assert 'Preserve existing value labels exactly' in prompt
+
+
+def test_preview_preserves_agreed_controls_and_exact_choice_labels():
+    value = example()
+    fields = [
+        {'id':'head_variant','label':'Head Variant','input':'radio','max_length':50,'options':['Soft Head','Hard Head']},
+        {'id':'packaging','label':'Packaging','input':'select','max_length':50,'options':['Loose','Carded']},
+        {'id':'accessories','label':'Accessories','input':'checkboxes','max_length':50,'options':['Sword','Belt']},
+    ]
+    value['type_definition']['optional_fields'] = fields
+    app = FastAPI()
+    app.include_router(router)
+    result = TestClient(app).post('/api/v1/collection-proposals/preview', json=value)
+    assert result.status_code == 200
+    assert result.json()['proposal']['type_definition']['optional_fields'] == fields
+    assert 'Nothing was installed or added to inventory' in result.json()['notice']
