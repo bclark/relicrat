@@ -1,0 +1,149 @@
+{
+  "draft_format": "relicrat-collection-proposal-1",
+  "status": "proposal-not-installable",
+  "type_definition": {
+    "id": "action-figure",
+    "label": "Action figure",
+    "plural_label": "Action figures",
+    "title": {
+      "label": "Figure name",
+      "required": true,
+      "max_length": 500
+    },
+    "optional_fields": [
+      {
+        "id": "accessories",
+        "label": "Accessories",
+        "input": "text",
+        "max_length": 2000
+      },
+      {
+        "id": "condition",
+        "label": "Condition",
+        "input": "text",
+        "max_length": 1000
+      },
+      {
+        "id": "packaging",
+        "label": "Packaging",
+        "input": "text",
+        "max_length": 1000
+      },
+      {
+        "id": "variant_notes",
+        "label": "Variant notes",
+        "input": "text",
+        "max_length": 2000
+      }
+    ],
+    "shared_copy_fields": [
+      "notes",
+      "photos",
+      "storage_location"
+    ],
+    "lookup": null
+  },
+  "collection": {
+    "id": "tmnt-original-1988",
+    "name": "TMNT — Original 1988 figures",
+    "type_id": "action-figure",
+    "scope": {
+      "franchise": "Teenage Mutant Ninja Turtles",
+      "manufacturer": "Playmates",
+      "release_year": 1988,
+      "assortment": "Original basic figures",
+      "later_reissues_included": false
+    },
+    "completion": {
+      "unit": "checklist_entry",
+      "required_entries": 10,
+      "variants_count_separately": false,
+      "accessories_required": false,
+      "packaging_required": false,
+      "eligibility": "Explicit owner review of an original release; unresolved identity does not automatically qualify."
+    },
+    "checklist": [
+      {
+        "id": "leonardo",
+        "title": "Leonardo",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "donatello",
+        "title": "Donatello",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "raphael",
+        "title": "Raphael",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "michelangelo",
+        "title": "Michelangelo",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "splinter",
+        "title": "Splinter",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "april-oneil",
+        "title": "April O’Neil",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "shredder",
+        "title": "Shredder",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "bebop",
+        "title": "Bebop",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "rocksteady",
+        "title": "Rocksteady",
+        "source_ids": [
+          "original-ten"
+        ]
+      },
+      {
+        "id": "foot-soldier",
+        "title": "Foot Soldier",
+        "source_ids": [
+          "original-ten"
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "original-ten",
+      "url": "https://thetoycollectorsguide.com/tmnt-1988/",
+      "supports": "The ten original 1988 basic characters; not individual-copy authenticity or exhaustive variant identification."
+    }
+  ],
+  "uncertainties": [
+    "Exact sculpt, paint, packaging and regional variant identification is outside this checklist.",
+    "Original-release eligibility must be reviewed for each physical copy; character names alone do not establish it."
+  ]
+}

@@ -27,8 +27,8 @@ export async function forwardApi(request, segments) {
   const path = segments.join('/');
   const methods = path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
-      ? ['GET'] : barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
+    : barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-proposals/authoring' || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
+      ? ['GET'] : barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
   let upstream;

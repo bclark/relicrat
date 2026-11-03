@@ -1989,3 +1989,40 @@ physical-phone, manual screen-reader and unselected browser cases were not rerun
 
 This is a PR review, not a deployment. No live inventory, credentials, schema,
 network access, provider default, dependency or canonical brand asset changed.
+
+
+## Collection authoring validation/preview (2026-11-02)
+
+Read-only pilot; no migration or activation endpoint. The owner boundary protects
+both authoring-contract reads and raw JSON previews. The web proxy retains fixed
+paths, same-origin POST and actual-byte limits; API streams are independently
+bounded to 64 KiB. Strict models reject extra fields, duplicate JSON keys/IDs,
+invalid source references, inconsistent counts and built-in replacements. Source
+URLs are displayed as plain text, never fetched. Draft JSON is page-local and is
+not included in a validation error response.
+
+Focused checks: `PYTHONPATH=apps/api python -m pytest -q
+apps/api/tests/test_collection_proposals.py` (26 passed);
+`node --test apps/web/tests/api-proxy.test.mjs` (24 passed);
+`npm run build` in apps/web (passed, including typecheck).
+Browser selection: `node --test apps/web/tests/collection-authoring.browser.mjs`
+uses the standard synthetic owner on a disposable loopback test stack.
+Full PostgreSQL API/migration/recovery suites are not rerun for this read-only
+feature. No claim of activation, installed custom types or live deployment.
+
+The focused browser scenario passed against an isolated local production frontend
+and a synthetic API fixture serving the real proposal router. It exercised prompt
+download, duplicate-key rejection, file upload, five disabled sample controls,
+ten-entry preview and invalidation after editing. Desktop 1440px and phone 390px
+captures were inspected with no horizontal overflow. Other inventory endpoints
+were unavailable in that fixture; this is not a full inventory regression test.
+Initial environment attempts lacked the expected Playwright browser and reused
+a dependency tree with different packages; final checks use this branch's own
+`npm ci` dependencies and installed Chrome. The local Python environment emitted
+a Starlette TestClient/httpx deprecation warning; all 26 checks passed.
+
+Final browser confirmation passed after human-readable shared-field labels and
+heading spacing were adjusted. The targeted design detector returned `[]`.
+The current theme/control system was retained; no DESIGN.md/token contract
+changes were necessary. This scoped visual check is not an accessibility
+certification or a physical-phone test.
