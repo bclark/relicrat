@@ -2220,3 +2220,44 @@ remains the default; the new overview explicitly requests split_custom=true.
 
 This was in-thread review; no independent-agent review was run. API/web rollout
 requires review/merge and a fresh recovery capture; live trial unchanged.
+
+## Missing checklist entry to intake (2026-11-03)
+
+Frontend-only follow-up to shared custom browsing: both checklist locations can
+open an existing custom-figure draft with a reviewed entry's name. Selection is
+by collection UUID and entry ID resolved against a newly loaded definition.
+No click-time ownership or checklist write; explicit Add figure and later match
+qualification remain separate. Dirty custom title/notes/observations and pending
+save payloads cannot be replaced; generic intake/inspector drafts stay separate.
+
+Validation on the production web build and an isolated synthetic PostgreSQL/API
+project using the unchanged, verified PR72 API image:
+
+- `cd apps/web && npm test`: **36 passed**, no skips. `npm run lint` and
+  `npm run build` passed. Initial sandboxed unit-test attempts could not complete
+  their loopback fixtures and were interrupted; the loopback-enabled run passed.
+- `RELICRAT_TEST_WEB_URL=<isolated-loopback> node --test --test-concurrency=1
+  tests/checklist-intake.browser.mjs tests/collection-authoring.browser.mjs
+  tests/custom-browsing.browser.mjs`: **10 passed**, no skips. Cases exercise draft-only entry, both checklist locations, focused
+  prefill, explicit save with no automatic qualification, dirty draft protection,
+  uncertain same-payload retry, pending/collected actions, stale/oversized names
+  and failed-definition-read recovery. Existing custom browsing/authoring and
+  checklist regression scenarios are included in the private browser receipt.
+- The first browser pass needed a textarea selector correction; an existing
+  photo-upload scenario also exposed a missing MEDIA_ROOT in the disposable
+  fixture. Only that test environment was corrected; no live settings changed. A reused
+  fixture and concurrent SSH adapter reads also caused legacy failures; the final
+  regression run uses a fresh synthetic database and serial test files.
+- Desktop1440/phone390 action and prefilled-form inspection and horizontal
+  overflow checks passed; static design detector reported no findings.
+- API/migrations/providers unchanged; the full API suite was not rerun for this
+  UI-only increment. The previous release's exact API image passed418 tests;
+  current browser saves run against a separate synthetic database, never live
+  inventory. No independent-agent review or physical-phone test was performed.
+
+Only the successful run’s exact disposable services were removed; reused release
+images were preserved and private logs/receipts retained. No live resources were
+changed.
+
+No migration or dependency change. Review/merge precedes deployment; live PR72
+remains unchanged. Ownership/checklist identity and server validation stay intact.

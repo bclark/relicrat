@@ -4,7 +4,7 @@ import ObservationInput from './observation-input';
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import CollectionAuthoring from './collection-authoring';
-import CustomCollections from './custom-collections';
+import CustomCollections,{type CollectionIntakeEvent} from './custom-collections';
 import CollectionFilter from './collection-filter';
 import ChecklistProgress from './checklist-progress';
 import Appearance from './appearance';
@@ -73,7 +73,7 @@ export default function InventoryClient() {
     else setSettingsPanel(panel);
     setMenuOpen(false);
   }
-  const [createdCollection,setCreatedCollection]=useState({id:'',sequence:0});
+  const [createdCollection,setCreatedCollection]=useState<CollectionIntakeEvent>({id:'',sequence:0});
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
@@ -265,7 +265,7 @@ export default function InventoryClient() {
             <div className={`inventory-results ${view}`}>
             <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!customCollectionId||typeFilter==='other'}>Grouped collection</option><option value="copies">Individual copies</option></select>
             <CollectionFilter value={browseCollection} change={value=>{setBrowseCollection(value);setPage(0);}} types={types} busy={busy} refresh={createdCollection.sequence} />
-            {customCollectionId&&<><button type="button" disabled={busy||uncertain} onClick={()=>{setCreatedCollection(event=>({id:customCollectionId,sequence:event.sequence+1}));requestAnimationFrame(()=>document.getElementById('saved-collection')?.closest('details')?.querySelector('summary')?.focus());}}>Add a figure to this collection</button><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the copies below.</p></>}
+            {customCollectionId&&<><button type="button" disabled={busy||uncertain} onClick={()=>{setCreatedCollection(event=>({id:customCollectionId,sequence:event.sequence+1}));requestAnimationFrame(()=>document.getElementById('saved-collection')?.closest('details')?.querySelector('summary')?.focus());}}>Add a figure to this collection</button><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} locked={busy||uncertain} addFigure={entryId=>setCreatedCollection(event=>({id:customCollectionId,entryId,sequence:event.sequence+1}))} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the copies below.</p></>}
             <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>

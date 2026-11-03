@@ -216,3 +216,13 @@ shortcut opens the existing figure-intake flow and respects unfinished drafts.
 Existing forms retain their independent save/membership rules. Native optgroups
 and paged choices use existing theme/layout; no new tokens/assets or schema.
 Not deployed. Detailed [browsing contract](../custom-collection-browsing.md).
+
+### Missing checklist entry to figure draft (2026-11-03)
+
+Owner approved an Add this figure action on missing goals. Implemented for review:
+main and saved-collection checklists can open existing custom intake with the
+entry name prefilled and focused. Pending/collected entries retain their review
+path. An unfinished custom draft or uncertain save cannot be replaced. Explicit
+Add figure and later checklist qualification remain separate owner actions.
+Native buttons and existing layout/theme retained; no new tokens or assets.
+Not deployed. See [intake behavior](../checklist-intake.md).
