@@ -4,6 +4,7 @@ import ObservationInput from './observation-input';
 import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import CollectionAuthoring from './collection-authoring';
+import CustomCollections from './custom-collections';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
 import BarcodeInput from './barcode-input';
@@ -70,6 +71,7 @@ export default function InventoryClient() {
     else setSettingsPanel(panel);
     setMenuOpen(false);
   }
+  const [createdCollection,setCreatedCollection]=useState({id:'',sequence:0});
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [entryVersion, setEntryVersion] = useState(0);
   const [title, setTitle] = useState('');
@@ -209,7 +211,8 @@ export default function InventoryClient() {
         {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} open={settingsPanel === 'collection'} close={closeSettings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!quickEntry && !title && !notes && !artist && !format && !mediaFormat && !studio && !barcode && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
-        <CollectionAuthoring />
+        <CollectionAuthoring runSave={runSave} locked={busy||uncertain} onCreated={id=>setCreatedCollection(event=>({id,sequence:event.sequence+1}))} />
+        <CustomCollections createdEvent={createdCollection} runSave={runSave} locked={busy||uncertain} changed={changed} openCopy={openCopy} />
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={openCopy} />
         <div className={`workspace${detailOpen ? ' detail-open' : ''}`}>
           <div className="workbench">

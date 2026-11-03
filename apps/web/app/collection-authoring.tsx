@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import {type RunSave} from '../lib/inventory-client';
 
 type Proposal = {
   type_definition: {label: string; title: {label: string; max_length: number}; optional_fields: {id: string; label: string; max_length: number}[]; shared_copy_fields: string[]};
@@ -10,19 +11,21 @@ type Proposal = {
 type Preview = {proposal: Proposal; notice: string};
 const maximum = 65536;
 
-export default function CollectionAuthoring() {
+export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:RunSave;locked:boolean;onCreated:(id:string)=>void}) {
   const [description, setDescription] = useState('');
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
+  const [acknowledged,setAcknowledged]=useState(false);
+  const [created,setCreated]=useState(false);
   const generation = useRef(0);
   const lock = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  function change(value: string) { generation.current++; setText(value); setPreview(null); setErrors([]); setNotice(''); }
+  function change(value: string) { generation.current++; setText(value); setPreview(null); setAcknowledged(false); setCreated(false); setErrors([]); setNotice(''); }
   async function prompt() {
-    if (lock.current) return;
+    if (lock.current || locked) return;
     lock.current = true; setBusy(true); setErrors([]); setNotice('');
     try {
       const response = await fetch('/api/v1/collection-proposals/authoring', {cache:'no-store', signal:AbortSignal.timeout(30000)});
@@ -37,7 +40,7 @@ export default function CollectionAuthoring() {
     finally { lock.current = false; setBusy(false); }
   }
   async function validate() {
-    if (lock.current) return;
+    if (lock.current || locked) return;
     lock.current = true; const version = generation.current;
     setBusy(true); setErrors([]); setPreview(null); setNotice('');
     try {
@@ -55,30 +58,41 @@ export default function CollectionAuthoring() {
       if (version === generation.current) setErrors([error instanceof Error ? error.message : 'Validation unavailable. Your draft is still here.']);
     } finally { lock.current = false; setBusy(false); }
   }
+  async function createCollection() {
+    if(lock.current||locked||!preview||!acknowledged)return;
+    lock.current=true;setBusy(true);setErrors([]);
+    try {await runSave(async()=>{
+      const response=await fetch('/api/v1/custom-collections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(preview.proposal),signal:AbortSignal.timeout(30000)});
+      const result=await response.json();
+      if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'Create failed. Review the JSON and validate again.');
+      setCreated(true);setNotice('Collection created. No owned copies were added. Add your figures in Your custom collections.');onCreated(result.id);
+    });}catch(error){setErrors([error instanceof Error?error.message:'Creation could not be confirmed. Retrying the same definition is safe.']);}
+    finally{lock.current=false;setBusy(false);}
+  }
   const draft = preview?.proposal;
   return <details className="collection-authoring">
-    <summary>Start a new collection — preview</summary>
+    <summary>Start a new collection</summary>
     <h2>Create a collection definition</h2>
-    <p>Describe a figure collection, ask your agent to build its JSON, then review it here. This pilot validates and previews only; it cannot activate a type or create owned copies.</p>
+    <p>Describe a figure collection, ask your agent to build its JSON, then review it here. Review the preview, then explicitly create an empty collection. Add your owned figures separately.</p>
     <label htmlFor="collection-description">What would you like to collect?</label>
-    <textarea id="collection-description" value={description} maxLength={2000} rows={3} placeholder="The first ten original 1988 Playmates TMNT figures" disabled={busy} onChange={event=>setDescription(event.target.value)} />
-    <button type="button" disabled={busy || !description.trim()} onClick={prompt}>Download agent prompt</button>
+    <textarea id="collection-description" value={description} maxLength={2000} rows={3} placeholder="The first ten original 1988 Playmates TMNT figures" disabled={locked || busy} onChange={event=>setDescription(event.target.value)} />
+    <button type="button" disabled={locked || busy || !description.trim()} onClick={prompt}>Download agent prompt</button>
     <p className="hint">Only this description is included in the downloaded prompt. Your inventory and photos are not included.</p>
     <h3>Bring back the JSON</h3>
     <label htmlFor="collection-json-file">Upload collection JSON (64 KiB maximum)</label>
-    <input id="collection-json-file" type="file" accept=".json,application/json" disabled={busy} onChange={async event=>{
+    <input id="collection-json-file" type="file" accept=".json,application/json" disabled={locked || busy} onChange={async event=>{
       const file = event.target.files?.[0]; event.target.value = '';
       if (!file) return;
-      generation.current++; const version = generation.current; setPreview(null); setErrors([]); setNotice('');
+      generation.current++; const version = generation.current; setPreview(null); setAcknowledged(false); setCreated(false); setErrors([]); setNotice('');
       if (file.size > maximum) { setErrors(['Collection JSON must be at most 64 KiB. Your previous text is still here.']); return; }
       try { const contents = await file.text(); if (version === generation.current) change(contents); }
       catch { if (version === generation.current) setErrors(['Could not read the file. Try again or paste the JSON.']); }
     }} />
     <label htmlFor="collection-json">Or paste collection JSON</label>
-    <textarea id="collection-json" value={text} rows={10} disabled={busy} onChange={event=>change(event.target.value)} spellCheck={false} />
-    <button type="button" disabled={busy || !text.trim()} onClick={validate}>{busy ? 'Working…' : 'Validate and preview'}</button>
+    <textarea id="collection-json" value={text} rows={10} disabled={locked || busy} onChange={event=>change(event.target.value)} spellCheck={false} />
+    <button type="button" disabled={locked || busy || !text.trim()} onClick={validate}>{busy ? 'Working…' : 'Validate and preview'}</button>
     {notice && <p role="status">{notice}</p>}
-    {!!errors.length && <div className="error" role="alert"><p>Collection preview could not be prepared. Your draft is still here.</p><ul>{errors.map((error,index)=><li key={index}>{error}</li>)}</ul></div>}
+    {!!errors.length && <div className="error" role="alert"><p>Collection setup needs attention. Your draft is still here.</p><ul>{errors.map((error,index)=><li key={index}>{error}</li>)}</ul></div>}
     {draft && <section aria-labelledby="collection-preview-heading">
       <h2 id="collection-preview-heading" ref={heading} tabIndex={-1}>{draft.collection.name}</h2>
       <p role="status">{preview.notice}</p>
@@ -99,7 +113,9 @@ export default function CollectionAuthoring() {
       <p>Links are displayed as text. RelicRat has not fetched or verified these sources.</p>
       <ul>{draft.sources.map(source=><li key={source.id}>{source.supports}<p>{source.url}</p></li>)}</ul>
       {!!draft.uncertainties.length && <><h3>Uncertainties</h3><ul>{draft.uncertainties.map((value,index)=><li key={index}>{value}</li>)}</ul></>}
-      <p>Activation is not available in this preview. Existing types and inventory are unchanged.</p>
+      <label><input type="checkbox" checked={acknowledged} disabled={locked||busy||created} onChange={event=>setAcknowledged(event.target.checked)} /> I reviewed the fields, scope and checklist. Creating this collection will not mark anything as owned.</label>
+      <button type="button" disabled={locked||busy||!acknowledged||created} onClick={()=>void createCollection()}>{created?'Collection created':'Create collection'}</button>
+      <p>Saved definitions are immutable in this first version. Importing the exact same definition again reopens its collection; a changed definition needs a new ID.</p>
     </section>}
   </details>;
 }

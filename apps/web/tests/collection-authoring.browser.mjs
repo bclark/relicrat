@@ -17,7 +17,7 @@ test('collection prompt, raw JSON validation and read-only previews preserve dra
   const posts=[];
   page.on('request',request=>{if(request.method()==='POST')posts.push(new URL(request.url()).pathname);});
   await page.goto(base);
-  await page.getByText('Start a new collection — preview',{exact:true}).click();
+  await page.getByText('Start a new collection',{exact:true}).click();
   await page.getByLabel('What would you like to collect?').fill('The first 10 TMNT figures');
   const downloaded=page.waitForEvent('download');
   await page.getByRole('button',{name:'Download agent prompt'}).click();
@@ -39,7 +39,7 @@ test('collection prompt, raw JSON validation and read-only previews preserve dra
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-   if(artifacts)await page.locator('.collection-authoring').screenshot({path:`${artifacts}/authoring-${width}.png`});
+   if(artifacts)await page.locator('details').filter({has:page.getByText('Start a new collection',{exact:true})}).screenshot({path:`${artifacts}/authoring-${width}.png`});
   }
   await page.getByLabel('Or paste collection JSON').fill('{}');
   assert.equal(await page.getByRole('heading',{name:'TMNT — Original 1988 figures',exact:true}).count(),0);
@@ -48,4 +48,62 @@ test('collection prompt, raw JSON validation and read-only previews preserve dra
   assert.ok(posts.every(path=>path==='/api/v1/collection-proposals/preview'));
   await context.close();
  } finally {await browser.close();}
+});
+
+test('explicit activation remains empty; figure retry, custom observations and history persist',async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.RELICRAT_TEST_CHROME||undefined});
+ try{
+  const context=await browser.newContext();
+  assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:new URL(base).origin}})).status(),200);
+  const page=await context.newPage();await page.goto(base);
+  await page.getByText('Start a new collection',{exact:true}).click();
+  const draft=JSON.parse(example),suffix=Date.now().toString(36);draft.type_definition.id='figure-ui-'+suffix;draft.collection.type_id=draft.type_definition.id;draft.collection.id='tmnt-ui-'+suffix;
+  await page.getByLabel('Or paste collection JSON').fill(JSON.stringify(draft));await page.getByRole('button',{name:'Validate and preview'}).click();
+  await page.getByRole('heading',{name:draft.collection.name,exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Create collection',exact:true}).isDisabled(),true);
+  await page.getByRole('checkbox',{name:'I reviewed the fields, scope and checklist.',exact:false}).check();
+  await page.getByRole('button',{name:'Create collection',exact:true}).click();
+  await page.getByRole('button',{name:'Collection created',exact:true}).waitFor();
+  const list=await (await context.request.get(base+'/api/v1/custom-collections')).json();const collection=list.find(c=>c.name===draft.collection.name&&c.id);
+  // Find this exact new ID through its stable slug, without guessing among older trials.
+  const created=(await Promise.all(list.map(c=>context.request.get(base+'/api/v1/custom-collections/'+c.id).then(r=>r.json())))).find(c=>c.proposal.collection.id===draft.collection.id);
+  assert.ok(created);
+  assert.equal((await (await context.request.get(base+'/api/v1/inventory?custom_collection_id='+created.id)).json()).length,0);
+  const form=page.getByRole('region',{name:'Saved collection: '+draft.collection.name,exact:true});
+  await form.getByLabel('Figure name (required)',{exact:true}).fill('Synthetic Leonardo');
+  await form.getByLabel('Accessories (optional)',{exact:true}).fill('Two synthetic swords');
+  let interrupted=false;
+  await page.route('**/api/v1/custom-collections/*/copies',async route=>{if(!interrupted){interrupted=true;await route.fetch();await route.abort('failed');}else await route.continue();});
+  await form.getByRole('button',{name:'Add figure',exact:true}).click();
+  const another=structuredClone(draft);another.collection.id+='-second';another.collection.name+=' — second goal';
+  await page.getByLabel('Or paste collection JSON').fill(JSON.stringify(another));await page.getByRole('button',{name:'Validate and preview'}).click();
+  await page.getByRole('heading',{name:another.collection.name,exact:true}).waitFor();
+  await page.getByRole('checkbox',{name:'I reviewed the fields, scope and checklist.',exact:false}).check();await page.getByRole('button',{name:'Create collection',exact:true}).click();
+  await page.getByText('Your figure draft is still in its original collection',{exact:false}).waitFor();
+  assert.equal(await page.getByLabel('Collection',{exact:true}).inputValue(),created.id);
+  await form.getByRole('button',{name:'Retry same save',exact:true}).click();
+  await form.getByRole('button',{name:'Synthetic Leonardo',exact:true}).waitFor();
+  const copies=await (await context.request.get(base+'/api/v1/inventory?custom_collection_id='+created.id)).json();assert.equal(copies.length,1);assert.equal(copies[0].custom_details.accessories,'Two synthetic swords');
+  await form.getByRole('button',{name:'Synthetic Leonardo',exact:true}).click();
+  const edit=page.getByRole('form',{name:'Edit copy details'});await edit.getByLabel('Condition (optional)',{exact:true}).fill('Synthetic paint wear');
+  await edit.getByRole('button',{name:'Save details',exact:true}).click();
+  await page.getByText('Copy details saved.',{exact:true}).waitFor();
+  await page.getByText('Copy edit history',{exact:true}).click();await page.getByText('Condition: Not entered to Synthetic paint wear',{exact:true}).waitFor();
+  const location=await context.request.post(base+'/api/v1/storage-locations',{data:{name:'Synthetic figure box'},headers:{Origin:new URL(base).origin}});assert.equal(location.status(),201);
+  const moved=await context.request.post(base+'/api/v1/inventory/'+copies[0].id+'/location',{data:{storage_location_id:(await location.json()).id,expected_storage_revision:0},headers:{Origin:new URL(base).origin}});assert.equal(moved.status(),200,await moved.text());
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC','base64');
+  const photo=await context.request.post(base+'/api/v1/inventory/'+copies[0].id+'/photos',{multipart:{file:{name:'synthetic.png',mimeType:'image/png',buffer:png}},headers:{Origin:new URL(base).origin}});assert.equal(photo.status(),201,await photo.text());
+  const image=await context.request.get(base+'/api/v1/inventory/'+copies[0].id+'/photos/'+(await photo.json()).id);assert.equal(image.status(),200);assert.deepEqual(await image.body(),png);
+  const saved=await (await context.request.get(base+'/api/v1/inventory/'+copies[0].id)).json();assert.equal(saved.custom_details.condition,'Synthetic paint wear');
+  const concurrent=await page.evaluate(async id=>{
+   const payload={request_id:crypto.randomUUID(),title:'Synthetic Donatello',custom_details:{}};
+   const results=await Promise.all([1,2].map(()=>fetch('/api/v1/custom-collections/'+id+'/copies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>({status:r.status,copy:await r.json()}))));return results;
+  },created.id);
+  assert.deepEqual(concurrent.map(r=>r.status),[200,200]);assert.equal(concurrent[0].copy.id,concurrent[1].copy.id);
+  await page.reload();
+  await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(created.id);await page.getByRole('button',{name:'Synthetic Leonardo',exact:true}).waitFor();
+  const artifacts=process.env.RELICRAT_TEST_ARTIFACTS;if(artifacts)await mkdir(artifacts,{recursive:true});
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(artifacts)await page.locator('details').filter({has:page.getByText('Your custom collections',{exact:true})}).screenshot({path:`${artifacts}/saved-collection-${width}.png`});}
+  await context.close();
+ }finally{await browser.close();}
 });

@@ -151,3 +151,18 @@ no theme/brand/layout contract change. The bounded figure-style contract and nex
 storage work are documented in
 [the pilot](../../packages/collection-packs/proposals/tmnt-original-1988/README.md).
 Not deployed.
+
+
+### Explicit collection creation and figures (2026-11-02)
+
+Owner approved Create collection after the successful TMNT preview and requested
+plain-URL guidance after an agent returned Markdown links. Implemented for review:
+acknowledged activation creates only immutable definition/checklist records; a
+saved-collection selector offers explicit Add figure with configured optional text
+fields. Figures retain ordinary inventory photos/storage/search and one shared
+Save details with custom observation history. Exact retries are safe; unfinished
+figure drafts and uncertain saves remain in their original collection when a
+second collection is created. Reuses existing theme/native controls. No token,
+brand or layout contract change. Migration0014 and boundaries are authoritative
+in [ADR0011](../decisions/0011-custom-collections.md). Not deployed; completion,
+definition revision and existing-copy membership changes remain deferred.

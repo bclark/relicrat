@@ -1,6 +1,6 @@
 """Read-only browsing groups and filters; never establish catalog identity."""
 from fastapi import HTTPException
-from sqlalchemy import Numeric,cast,func,or_,select
+from sqlalchemy import Text,Numeric,cast,func,or_,select
 from relicrat.models import OwnedCopy,CatalogItem,Release
 from relicrat.collection_types import COLLECTION_TYPES
 
@@ -28,6 +28,7 @@ def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned
         stmt=stmt.outerjoin(CatalogItem,OwnedCopy.catalog_item_id==CatalogItem.id).outerjoin(Release,OwnedCopy.release_id==Release.id).where(or_(
             OwnedCopy.provisional_title.icontains(term,autoescape=True),
             OwnedCopy.description.icontains(term,autoescape=True),
+            cast(OwnedCopy.custom_details,Text).icontains(term,autoescape=True),
             OwnedCopy.barcode['value'].astext.icontains(term,autoescape=True),
             OwnedCopy.record_details['artist'].astext.icontains(term,autoescape=True),
             OwnedCopy.record_details['format'].astext.icontains(term,autoescape=True),
