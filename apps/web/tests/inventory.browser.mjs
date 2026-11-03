@@ -58,6 +58,7 @@ async function fixture(t, initial = {}) {
     } else if (path === 'collection-settings/artist-suggestions') {
       if(state.failSuggestions) {status=502;result={detail:'Suggestions unavailable'};}
       else {const q=(url.searchParams.get('q') || '').trim().toLowerCase();if(state.slowSuggestions && q==='ra') await new Promise(resolve=>setTimeout(resolve,500));result=[...new Set(state.copies.filter(copy=>copy.collection_type==='record').map(copy=>copy.record_details?.artist).filter(Boolean))].filter(artist=>artist.toLowerCase().startsWith(q)).slice(0,20);}
+    } else if (path === 'custom-collections' && request.method() === 'GET') { result = [];
     } else if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
       if(state.failSettings==='read' && method==='GET') {status=502;result={detail:'Collection settings unavailable'};}
       else if(method==='GET') result=state.settings;
@@ -1219,7 +1220,7 @@ test('collection type filters the entire list, scopes search/pages and preserves
   await page.getByRole('status').filter({hasText:'5 copies on this page'}).waitFor();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});
   await intake.getByLabel('Title',{exact:true}).fill('Keep my intake draft');
-  const filter=page.getByLabel('Show collection type',{exact:true});
+  const filter=page.getByLabel('Show collection',{exact:true});
   await filter.selectOption({label:'Comics'});
   await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
   assert.equal(await page.getByText('Page 1',{exact:true}).count(),1);
@@ -1243,7 +1244,7 @@ test('collection type filters the entire list, scopes search/pages and preserves
 
 test('saving outside the visible type filter keeps the find type and explains where to see it',async t=>{
   const {page,state}=await fixture(t,{copies:[copy(1,'A comic',{collection_type:'comic'})]});
-  const filter=page.getByLabel('Show collection type',{exact:true});await filter.selectOption('comic');
+  const filter=page.getByLabel('Show collection',{exact:true});await filter.selectOption('comic');
   await page.getByRole('button',{name:'Open A comic',exact:true}).waitFor();
   const form=page.getByRole('form',{name:'Add a find',exact:true});await form.getByLabel('Title',{exact:true}).fill('A generic find');
   await form.getByRole('button',{name:'Save copy',exact:true}).click();

@@ -204,3 +204,15 @@ stays pending. Duplicates count once; inactive/nonowned copies do not count.
 Existing native controls/theme, intake drafts, copy details and catalog/storage
 boundaries remain. No new assets or tokens. Not deployed;
 [ADR0013](../decisions/0013-checklist-progress.md) defines data and recovery rules.
+
+### Custom collections in shared browsing (2026-11-03)
+
+Owner requested moving forward after checklist progress. Implemented for review:
+custom goal collections appear alongside built-in types in the main filter and
+whole-inventory grouped overview. Search, storage, pagination and the selected
+copy inspector are shared. Custom names/UUIDs stay separate from Other finds;
+main progress covers the whole collection, unaffected by browse filters. A
+shortcut opens the existing figure-intake flow and respects unfinished drafts.
+Existing forms retain their independent save/membership rules. Native optgroups
+and paged choices use existing theme/layout; no new tokens/assets or schema.
+Not deployed. Detailed [browsing contract](../custom-collection-browsing.md).

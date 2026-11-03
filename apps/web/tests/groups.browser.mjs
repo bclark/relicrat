@@ -24,7 +24,7 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
  const editor=page.getByRole('form',{name:'Edit copy details',exact:true});await editor.getByLabel('Series/title',{exact:true}).fill('Keep this edit draft');
  const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel(/^(Title|Series\/title|Album title|Movie or box-set title)$/).fill('Keep this intake draft');
  await page.getByRole('button',{name:'Next groups',exact:true}).click();await page.getByRole('button',{name:'Synthetic series 20 27 copies · Open group',exact:true}).waitFor();
- await page.getByLabel('Show collection type',{exact:true}).selectOption('record');await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).waitFor();
+ await page.getByLabel('Show collection',{exact:true}).selectOption('record');await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).waitFor();
  assert.equal(await editor.getByLabel('Series/title',{exact:true}).inputValue(),'Keep this edit draft');assert.equal(await intake.getByLabel(/^(Title|Series\/title|Album title|Movie or box-set title)$/).inputValue(),'Keep this intake draft');
  await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).click();await page.getByRole('button',{name:'Open Synthetic artist 00 — Synthetic album 000',exact:true}).waitFor();
  if(process.env.RELICRAT_SCREENSHOTS){const p=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(p,{recursive:true});await page.locator('.collection').screenshot({path:p+'/groups-desktop.png'});}

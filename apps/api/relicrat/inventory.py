@@ -36,6 +36,7 @@ class InventoryCopy(BaseModel):
     description: str | None
     collection_type: Literal['other', 'record', 'comic', 'movie']
     custom_collection_id: UUID | None
+    custom_collection_name: str | None = None
     custom_details: dict[str,StrictStr | StrictBool | list[StrictStr]]
     barcode: dict[str, str]
     record_details: dict[str, str]
@@ -88,11 +89,11 @@ def list_copies(
     storage_location_id: UUID | None = None,
     unassigned: bool = False,
     custom_collection_id: UUID | None = None,
+    exclude_custom: bool = False,
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     db: Session = Depends(get_db),
 ) -> list[OwnedCopy]:
-    stmt=copies_query(q,collection_type,storage_location_id,unassigned,group)
-    if custom_collection_id is not None:stmt=stmt.where(OwnedCopy.custom_collection_id==custom_collection_id)
+    stmt=copies_query(q,collection_type,storage_location_id,unassigned,group,custom_collection_id=custom_collection_id,exclude_custom=exclude_custom)
     stmt=stmt.order_by(*copy_order(collection_type,group)).limit(limit).offset(offset)
     return list(db.scalars(stmt).all())
 
