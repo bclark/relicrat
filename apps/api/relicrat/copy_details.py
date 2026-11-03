@@ -15,7 +15,7 @@ class DetailError(Exception):
 def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
                  expected_details_revision: int, expected_identification_revision: int, *,
                  collection_type: str | None = None, record_details: dict | None = None, comic_details: dict | None = None, movie_details: dict | None = None,
-                 barcode: dict | None = None, catalog_cover=None, custom_details: dict | None = None) -> OwnedCopy:
+                 barcode: dict | None = None, catalog_cover=None, custom_details: dict | None = None, expected_type_revision: int | None = None) -> OwnedCopy:
     try:
         copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
                          .with_for_update().execution_options(populate_existing=True))
@@ -31,7 +31,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         next_movie = copy.movie_details if movie_details is None else movie_details
         from relicrat.custom_collections import validate_observations
         next_custom = copy.custom_details if custom_details is None else custom_details
-        validate_observations(db,copy.custom_collection_id,title,next_custom)
+        validate_observations(db,copy.custom_collection_id,title,next_custom,expected_type_revision)
         if copy.custom_collection_id is not None and next_type != 'other':
             raise DetailError(422,'This figure belongs to a custom collection; its type cannot be replaced here.')
         next_barcode = copy.barcode if barcode is None else barcode

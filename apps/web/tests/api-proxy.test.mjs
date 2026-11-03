@@ -333,3 +333,16 @@ test('collection authoring only allows authenticated contract reads and bounded 
   const guest = new Request(origin+'/api/v1/collection-proposals/authoring', {headers:{host:new URL(origin).host}});
   assert.equal((await forwardApi(guest, ['collection-proposals','authoring'])).status, 401);
 });
+
+
+test('custom definition revision routes retain fixed owner/method/origin boundaries',async()=>{
+ for(const action of ['definition','definition-preview']){
+  const path=`custom-collections/${id}/${action}`;
+  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,201);
+  assert.equal((await forwardApi(request(path),path.split('/'))).status,405);
+  assert.equal((await forwardApi(request(path,post('{}',{origin:'https://evil.test'})),path.split('/'))).status,403);
+ }
+ const path=`custom-collections/${id}/definition-history`;
+ assert.equal((await forwardApi(request(path),path.split('/'))).status,200);
+ assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,405);
+});

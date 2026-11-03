@@ -21,7 +21,7 @@ def test_example_and_generated_contract():
     assert authoring_contract()['schema'] == CollectionProposal.model_json_schema()
     assert 'plain HTTPS string' in authoring_contract()['prompt']
     assert 'never [label]' in authoring_contract()['prompt']
-    assert value.model_dump() == example()
+    assert value.model_dump(exclude_defaults=True) == example()
     published = Path(__file__).resolve().parent / '../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json'
     if published.exists():
         assert json.loads(published.read_text()) == example()
@@ -72,3 +72,14 @@ def test_preview_has_no_writes_and_bounds_actual_stream_bytes():
     assert client.post('/api/v1/collection-proposals/preview', content=b' ' * 65537, headers={'content-type':'application/json'}).status_code == 413
     assert client.post('/api/v1/collection-proposals/preview', content=b'{}', headers={'content-type':'text/plain'}).status_code == 415
     assert client.get('/api/v1/collection-proposals/authoring').status_code == 200
+
+
+@pytest.mark.parametrize('field', [
+ {'id':'head','label':'Head','input':'radio','max_length':50,'options':[]},
+ {'id':'head','label':'Head','input':'select','max_length':50,'options':['Soft','soft']},
+ {'id':'head','label':'Head','input':'checkbox','max_length':50,'options':['Yes']},
+ {'id':'head','label':'Head','input':'text','max_length':50,'options':['Text']},
+])
+def test_invalid_control_contract(field):
+    value=example();value['type_definition']['optional_fields']=[field]
+    with pytest.raises(HTTPException):parse_proposal(json.dumps(value).encode())

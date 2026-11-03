@@ -2085,3 +2085,33 @@ Ignored evidence: `.harness-results/custom-collections/`. Live migration,
 deployment, owner credentials, public networking and real collection trials were
 not part of these checks. Rollout needs a fresh recovery plan and the matching
 API/web release; downgrade refuses saved custom collection data.
+
+## Custom field controls and compatible revisions — 2026-11-03
+
+Implemented for review, not deployed; contract in
+[ADR0012](decisions/0012-custom-field-controls.md). Synthetic checks used a separate
+worker project and disposable database/media, never the owner's collection.
+
+- Full API suite with PostgreSQL and empty `alembic downgrade base` / `upgrade head`
+  round trip: **394 passed**, no skips (89 existing dependency/deprecation warnings).
+  Focused custom schema/activation/control checks: **45 passed**. Includes direct
+  SQL rejection, immutable revisions, legacy import/intake retries, typed history,
+  stale versions and incompatible changes; populated downgrade refusal is checked.
+- `cd apps/web && npm test`: **35 passed**, no skips, including fixed protected
+  definition routes and write-origin boundaries. `npm run lint` and production
+  `npm run build` passed.
+- `node --test apps/web/tests/collection-authoring.browser.mjs` against the
+  disposable production app: **3 passed**. Covers legacy authoring/activation,
+  uncertain intake retry, photos/storage, Head Variant text-to-radio review/apply,
+  dropdown/boolean/multiple choices, unknown versus No versus None selected,
+  readable history, concurrent definition updates and stale edit draft recovery.
+  Desktop 1440 and phone 390 captures and overflow checks use synthetic records.
+- Fresh `scripts/backup.py` capture with the matching migration-0015 API image
+  restored into a new offline disposable project: every table/row fingerprint,
+  migration and media matched, including definition revisions and typed history.
+  Its API/web servers were never started. Exact successful test resources were
+  removed after verification; private receipts remain in ignored harness evidence.
+
+No live deployment, migration, credentials, provider settings or collection data
+changed. This was an in-thread review; no independent-agent review was run.
+Physical phone/device testing remains an owner trial after deployment.
