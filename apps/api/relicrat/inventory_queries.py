@@ -12,12 +12,16 @@ def group_value(collection_type):
     return func.nullif(func.btrim(field),'')
 
 
-def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned=False,group=None):
+def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned=False,group=None,*,custom_collection_id=None,exclude_custom=False):
     if storage_location_id is not None and unassigned:
         raise HTTPException(422,'Choose a storage location or unassigned copies, not both')
     if group is not None and collection_type not in ('comic','record','movie'):
         raise HTTPException(422,'Choose Albums, Comics or Movies before filtering a group')
+    if custom_collection_id is not None and exclude_custom:
+        raise HTTPException(422,'Choose a custom collection or exclude custom collections, not both')
     stmt=select(OwnedCopy).where(OwnedCopy.deleted_at.is_(None))
+    if custom_collection_id is not None:stmt=stmt.where(OwnedCopy.custom_collection_id==custom_collection_id)
+    if exclude_custom:stmt=stmt.where(OwnedCopy.custom_collection_id.is_(None))
     if collection_type is not None:stmt=stmt.where(OwnedCopy.collection_type==collection_type)
     if storage_location_id is not None:stmt=stmt.where(OwnedCopy.storage_location_id==storage_location_id)
     if unassigned:stmt=stmt.where(OwnedCopy.storage_location_id.is_(None))

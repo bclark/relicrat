@@ -58,7 +58,7 @@ test('Blu-ray.com preview, 389 synthetic imports, warnings, source evidence, ret
  await imports.getByRole('button',{name:'Reload import history',exact:true}).click();await imports.getByRole('button',{name:/Blu-ray.com Movies · 389 copies/}).first().click();
  await imports.getByRole('button',{name:'Open copy from row 2, copy 1',exact:true}).waitFor();await imports.getByRole('button',{name:'Open copy from row 2, copy 1',exact:true}).click();
  await page.getByRole('heading',{name:moviePrefix+' 0',exact:true}).waitFor();
- await imports.getByRole('button',{name:'Close imports',exact:true}).click();await page.getByLabel('Show collection type',{exact:true}).selectOption('movie');await page.getByLabel('Browse view',{exact:true}).selectOption('groups');
+ await imports.getByRole('button',{name:'Close imports',exact:true}).click();await page.getByLabel('Show collection',{exact:true}).selectOption('movie');await page.getByLabel('Browse view',{exact:true}).selectOption('groups');
  await page.getByLabel('Find a copy',{exact:true}).fill(moviePrefix+' 0');await page.getByRole('button',{name:'Search',exact:true}).click();
  const collection=page.getByRole('region',{name:'Your collection',exact:true});await collection.getByRole('button',{name:new RegExp(moviePrefix+' 0.*Open group')}).click();
  await collection.getByRole('button',{name:'Open '+moviePrefix+' 0 · SteelBook',exact:true}).waitFor();await capture(page,'movie-collection');

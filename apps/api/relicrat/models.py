@@ -5,9 +5,9 @@ import uuid
 import json
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, column_property
 from relicrat.barcodes import BARCODE_CHECK
 from relicrat.theme_values import DEFAULT_THEME, THEME_CHECK
 
@@ -123,6 +123,8 @@ class OwnedCopy(Timestamps, Base):
     catalog_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("catalog_items.id", ondelete="RESTRICT"), index=True)
     release_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     custom_collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('custom_collections.id', ondelete='RESTRICT'), index=True)
+    # Read-only display metadata; no stored column or catalog/type inference.
+    custom_collection_name: Mapped[str | None] = column_property(select(CustomCollection.proposal['collection']['name'].astext).where(CustomCollection.id == custom_collection_id).correlate_except(CustomCollection).scalar_subquery())
     custom_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
     custom_intake_hash: Mapped[str | None] = mapped_column(String(64))
     provisional_title: Mapped[str | None] = mapped_column(String(500))

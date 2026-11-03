@@ -2184,3 +2184,39 @@ No independent-agent review or physical-device test was run. This is owner
 confirmation of eligibility, not automatic edition authentication. A merged
 release still needs a fresh pre-upgrade backup and reviewed0016 rollout; no
 live data, credentials, network access or deployment changed during development.
+
+## Custom collections in main browsing — 2026-11-03
+
+Implemented for review, not deployed; [contract](custom-collection-browsing.md).
+No migration, dependency, credential or network change. Custom goal UUIDs remain
+separate from built-in types, even when names coincide. Read-only name metadata
+is computed in the inventory query, never persisted. Old grouped API behavior
+remains the default; the new overview explicitly requests split_custom=true.
+
+- Focused PostgreSQL checks: **72 passed**. Full disposable API and empty migration
+  round trip: **418 passed**, no skips, 89 existing dependency/deprecation warnings.
+  Ran the standard harness Alembic/pytest commands in an isolated worker project
+  with explicit nonoverlapping IPAM because automatic address pools are exhausted.
+  Tests cover same-name goals, legacy grouping compatibility, composed literal
+  search/storage/pagination, Other exclusion, read-only labels and no catalog/
+  membership/history mutation. No live collection was a functional fixture.
+- `cd apps/web && npm test`: **36 passed**; `npm run lint` and production
+  `npm run build` passed. The existing owner/origin/method/byte-bound gateway
+  protections apply to unchanged read endpoints.
+- **12 affected browser scenarios passed across targeted runs:** four existing
+  collection authoring/field-control/checklist scenarios; three new shared-browser
+  scenarios; three existing large Comics/Albums grouping/storage scenarios; two
+  existing type-filter/save-target scenarios. New cases cover23-copy pagination,
+  whole-collection progress, independent drafts, guarded entry navigation,53
+  paged choices with failed-page retry/retained selection, long-name wrapping and
+  explicit generic-save behavior outside a viewed goal. The long-name case was
+  rerun using the configured built-in label. Desktop1440/phone390 visual and
+  overflow checks passed with the incumbent theme/native controls. Full unrelated
+  Movie/import/barcode browser suites and physical-device testing were not rerun.
+- Fresh synthetic copied restore with the matching0016 API image verified every
+  row/migration/media checksum, including checklist history and synthetic CSV
+  inventory. Its API/web servers never started. Exact successful owned projects,
+  volumes and test image were removed; private receipts retained.
+
+This was in-thread review; no independent-agent review was run. API/web rollout
+requires review/merge and a fresh recovery capture; live trial unchanged.

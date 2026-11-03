@@ -5,6 +5,8 @@ import SignOut from './sign-out';
 import CollectionSetup from './collection-setup';
 import CollectionAuthoring from './collection-authoring';
 import CustomCollections from './custom-collections';
+import CollectionFilter from './collection-filter';
+import ChecklistProgress from './checklist-progress';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
 import BarcodeInput from './barcode-input';
@@ -116,7 +118,10 @@ export default function InventoryClient() {
   const titleInput = useRef<HTMLInputElement>(null);
   const [browseView,setBrowseView]=useState<'groups'|'copies'>('groups');
   const [storageFilter,setStorageFilter]=useState('');
-  const [typeFilter, setTypeFilter] = useState<CollectionTypeId | ''>('');
+  const [browseCollection,setBrowseCollection]=useState('');
+  const customCollectionId=browseCollection.startsWith('custom:')?browseCollection.slice(7):'';
+  const typeFilter:CollectionTypeId|''=customCollectionId?'':browseCollection as CollectionTypeId|'';
+  function setTypeFilter(value:CollectionTypeId|''){setBrowseCollection(value);}
   const [draftQuery, setDraftQuery] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -143,8 +148,8 @@ export default function InventoryClient() {
   }, []);
   const changed = useCallback(() => setRefresh(value => value + 1), []);
 
-  const grouped=browseView==='groups' && (!typeFilter || !!types?.[typeFilter].grouping);
-  const filters=`&q=${encodeURIComponent(query)}${typeFilter?`&collection_type=${typeFilter}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
+  const grouped=!customCollectionId && browseView==='groups' && (!typeFilter || !!types?.[typeFilter].grouping);
+  const filters=`&q=${encodeURIComponent(query)}${customCollectionId?`&custom_collection_id=${encodeURIComponent(customCollectionId)}`:typeFilter?`&collection_type=${typeFilter}${typeFilter==='other'?'&exclude_custom=true':''}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
   useEffect(()=>setPageCategory('all'),[filters,browseView]);
   useEffect(() => {
     if(grouped){setLoading(false);return;}
@@ -173,7 +178,7 @@ export default function InventoryClient() {
         const copy = await api<InventoryCopy>('inventory', jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, movie_details:collectionType==='movie' ? {media_format:mediaFormat.trim() || null,studio:studio.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
         setQuickEntry('');setQuickReading(null);lastQuick.current='';setEntryOpen(false);setDetailOpen(true);setPageCategory('all');setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setMediaFormat('');setStudio('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
-        setNotice(typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
+        setNotice(customCollectionId ? 'Copy saved outside the selected custom collection. Choose All types to see it; use Add a figure to this collection for a collection member.' : typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
       });
     } catch (error) {
       setSaveError(errorText(error));
@@ -258,22 +263,20 @@ export default function InventoryClient() {
             <div className="section-heading collection-heading"><h1 id="collection-title" tabIndex={-1} ref={collectionHeading}>Your collection</h1><div className="view-controls" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Bricks</button></div></div>
             <button className="quiet" disabled={busy||loading} onClick={reloadInventory}>Reload inventory</button>
             <div className={`inventory-results ${view}`}>
-            <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={browseView} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups">Grouped collection</option><option value="copies">Individual copies</option></select>
-            <label htmlFor="collection-type-filter">Show collection type</label>
-            <select id="collection-type-filter" value={typeFilter} disabled={busy || !types} onChange={event=>{setTypeFilter(event.target.value as CollectionTypeId | '');setPage(0);}}>
-              <option value="">All types</option>{types && Object.values(types).map(type=><option key={type.id} value={type.id}>{type.plural_label}</option>)}
-            </select>
+            <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!customCollectionId||typeFilter==='other'}>Grouped collection</option><option value="copies">Individual copies</option></select>
+            <CollectionFilter value={browseCollection} change={value=>{setBrowseCollection(value);setPage(0);}} types={types} busy={busy} refresh={createdCollection.sequence} />
+            {customCollectionId&&<><button type="button" disabled={busy||uncertain} onClick={()=>{setCreatedCollection(event=>({id:customCollectionId,sequence:event.sequence+1}));requestAnimationFrame(()=>document.getElementById('saved-collection')?.closest('details')?.querySelector('summary')?.focus());}}>Add a figure to this collection</button><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the copies below.</p></>}
             <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>
               <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Title, artist, studio or barcode" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
               {query && <button className="text-button" type="button" disabled={busy} onClick={() => { setDraftQuery(''); setQuery(''); setPage(0); }}>Clear search</button>}
             </form>
-            {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={openCopy} chooseType={value=>{setTypeFilter(value);setPage(0);}}/>:<>
-            <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${typeFilter ? ` · ${types?.[typeFilter].plural_label || typeFilter}` : ''}${query ? ` matching “${query}”` : ''}`}</div>
+            {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={openCopy} chooseType={(value,customId)=>{setBrowseCollection(customId?'custom:'+customId:value);setPage(0);}}/>:<>
+            <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${customCollectionId?' · Custom collection':typeFilter ? ` · ${types?.[typeFilter].plural_label || typeFilter}` : ''}${query ? ` matching “${query}”` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
-              : items.length === 0 ? <div className="empty"><h3>{query || typeFilter ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{typeFilter ? 'Try another collection type or choose All types. You can also clear the search.' : query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
+              : items.length === 0 ? <div className="empty"><h3>{query || typeFilter || customCollectionId ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{typeFilter || customCollectionId ? 'Try another collection or choose All types. You can also clear the search.' : query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
               : <CollectionRows groupByType types={types} items={pageCategory==='all'?items:items.filter(copy=>copy.collection_type===pageCategory)} busy={busy} selected={selected} open={openCopy}/>}
 
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
