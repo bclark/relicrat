@@ -41,6 +41,6 @@ claim its entries are owned or create catalog/release identities automatically.
 
 For this example, retain the ten agreed characters and confirmed decisions.
 Leave the format marker `relicrat-collection-proposal-1` intact. Return the JSON
-in one code block and explain unresolved questions separately. State clearly
-that RelicRat cannot install this proposal yet. Do not claim that generating
+in one code block and explain unresolved questions separately. State clearly that the document is an authoring draft; the owner must review
+and explicitly Create collection in RelicRat, then separately Add figure. Do not claim that generating
 parseable JSON establishes application compatibility or factual accuracy.

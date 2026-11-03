@@ -70,9 +70,32 @@ class StorageLocation(Timestamps, Base):
     description: Mapped[str | None] = mapped_column(Text)
 
 
+class CustomCollectionType(Timestamps, Base):
+    __tablename__ = 'custom_collection_types'
+    __table_args__ = (
+        CheckConstraint("id ~ '^[a-z][a-z0-9_-]{0,59}$' AND id NOT IN ('other','record','comic','movie')", name='custom_type_id_valid'),
+        CheckConstraint("(jsonb_typeof(definition) = 'object' AND definition->>'id' = id AND jsonb_typeof(definition->'optional_fields') = 'array' AND jsonb_array_length(definition->'optional_fields') <= 12 AND (definition->'title'->>'max_length')::int BETWEEN 1 AND 500) IS TRUE", name='custom_type_definition_valid'),
+    )
+    id: Mapped[str] = mapped_column(String(60), primary_key=True)
+    definition: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class CustomCollection(Timestamps, Base):
+    __tablename__ = 'custom_collections'
+    __table_args__ = (
+        CheckConstraint("slug ~ '^[a-z][a-z0-9_-]{0,59}$'", name='custom_collection_slug_valid'),
+        CheckConstraint("(jsonb_typeof(proposal) = 'object' AND proposal->'collection'->>'id' = slug AND proposal->'collection'->>'type_id' = type_id) IS TRUE", name='custom_collection_proposal_valid'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(60), nullable=False, unique=True)
+    type_id: Mapped[str] = mapped_column(ForeignKey('custom_collection_types.id', ondelete='RESTRICT'), nullable=False)
+    proposal: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
 class OwnedCopy(Timestamps, Base):
     __tablename__ = "owned_copies"
     __table_args__ = (
+        CheckConstraint("jsonb_typeof(custom_details) = 'object' AND ((custom_collection_id IS NULL AND custom_details = '{}'::jsonb AND custom_intake_hash IS NULL) OR (custom_collection_id IS NOT NULL AND collection_type = 'other' AND custom_intake_hash ~ '^[0-9a-f]{64}$'))", name='custom_copy_valid'),
         CheckConstraint("jsonb_typeof(movie_details) = 'object' AND movie_details - 'media_format' - 'studio' = '{}'::jsonb AND (NOT movie_details ? 'media_format' OR (jsonb_typeof(movie_details->'media_format') = 'string' AND char_length(movie_details->>'media_format') BETWEEN 1 AND 100)) AND (NOT movie_details ? 'studio' OR (jsonb_typeof(movie_details->'studio') = 'string' AND char_length(movie_details->>'studio') BETWEEN 1 AND 250))", name="movie_details_valid"),
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         CheckConstraint("storage_revision >= 0", name="storage_revision_nonnegative"),
@@ -90,6 +113,9 @@ class OwnedCopy(Timestamps, Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     catalog_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("catalog_items.id", ondelete="RESTRICT"), index=True)
     release_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    custom_collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('custom_collections.id', ondelete='RESTRICT'), index=True)
+    custom_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    custom_intake_hash: Mapped[str | None] = mapped_column(String(64))
     provisional_title: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
     # NULL follows a linked release; empty text explicitly leaves the edition unknown.
@@ -115,7 +141,7 @@ class CopyDetailEvent(Base):
         UniqueConstraint('owned_copy_id', 'after_revision'),
         CheckConstraint('before_revision >= 0 AND after_revision = before_revision + 1', name='detail_revision_step'),
         CheckConstraint('identification_revision >= 0', name='detail_identification_revision'),
-        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode OR before_movie_details IS DISTINCT FROM after_movie_details', name='details_changed'),
+        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode OR before_movie_details IS DISTINCT FROM after_movie_details OR before_custom_details IS DISTINCT FROM after_custom_details', name='details_changed'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
@@ -129,6 +155,8 @@ class CopyDetailEvent(Base):
     after_record_details: Mapped[dict | None] = mapped_column(JSONB)
     before_barcode: Mapped[dict | None] = mapped_column(JSONB)
     after_barcode: Mapped[dict | None] = mapped_column(JSONB)
+    before_custom_details: Mapped[dict | None] = mapped_column(JSONB)
+    after_custom_details: Mapped[dict | None] = mapped_column(JSONB)
     before_movie_details: Mapped[dict | None] = mapped_column(JSONB)
     after_movie_details: Mapped[dict | None] = mapped_column(JSONB)
     before_comic_details: Mapped[dict | None] = mapped_column(JSONB)

@@ -800,7 +800,7 @@ footer {
 @media(max-width:759px) { .quick-intake #quick-entry { grid-column:1 / -1; } }
 
 /* Read-only collection authoring uses the existing form and theme controls. */
-.collection-authoring { margin-block: 1.5rem; max-width: 75ch; }
+.collection-authoring { margin-block: 1.5rem; max-width: 75ch; overflow-wrap: anywhere; }
 .collection-authoring summary { cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .collection-authoring label { display: block; margin-top: 1rem; }
 .collection-authoring textarea { display: block; width: 100%; max-width: 100%; box-sizing: border-box; }

@@ -19,7 +19,8 @@ def test_example_and_generated_contract():
     value = parse_proposal(EXAMPLE.read_bytes())
     assert len(value.collection.checklist) == 10
     assert authoring_contract()['schema'] == CollectionProposal.model_json_schema()
-    assert 'This is validation and preview only' in authoring_contract()['prompt']
+    assert 'plain HTTPS string' in authoring_contract()['prompt']
+    assert 'never [label]' in authoring_contract()['prompt']
     assert value.model_dump() == example()
     published = Path(__file__).resolve().parent / '../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json'
     if published.exists():

@@ -33,6 +33,9 @@ def test_upgrade_initializes_existing_copy_and_roundtrip():
             assert after.pop('barcode') == {}
             assert after.pop('comic_details') == {}
             assert after.pop('movie_details') == {}
+            assert after.pop('custom_collection_id') is None
+            assert after.pop('custom_details') == {}
+            assert after.pop('custom_intake_hash') is None
             assert after.pop('edition_label') is None
             assert after.pop('details_revision') == 0
             assert after == before

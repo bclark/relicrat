@@ -326,6 +326,9 @@ test('collection authoring only allows authenticated contract reads and bounded 
   assert.equal((await forwardApi(request('collection-proposals/preview', post()), ['collection-proposals','preview'])).status, 201);
   assert.equal((await forwardApi(request('collection-proposals/preview'), ['collection-proposals','preview'])).status, 405);
   assert.equal((await forwardApi(request('collection-proposals/activate', post()), ['collection-proposals','activate'])).status, 404);
+  assert.equal((await forwardApi(request('custom-collections', post()), ['custom-collections'])).status, 201);
+  assert.equal((await forwardApi(request(`custom-collections/${id}/copies`, post()), ['custom-collections',id,'copies'])).status, 201);
+  assert.equal((await forwardApi(request(`custom-collections/${id}/delete`, post()), ['custom-collections',id,'delete'])).status, 404);
   assert.equal((await forwardApi(request('collection-proposals/preview', post('{}', {origin:'https://evil.test'})), ['collection-proposals','preview'])).status, 403);
   const guest = new Request(origin+'/api/v1/collection-proposals/authoring', {headers:{host:new URL(origin).host}});
   assert.equal((await forwardApi(guest, ['collection-proposals','authoring'])).status, 401);

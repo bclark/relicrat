@@ -1,4 +1,4 @@
-"""Read-only custom collection authoring. No installation or inventory writes."""
+"""Bounded collection authoring, shared by preview and explicit activation."""
 import json
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -101,7 +101,7 @@ class Source(StrictModel):
     def evidence_url(cls, value):
         parsed = urlsplit(value)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() or ord(c) < 32 for c in value):
-            raise ValueError('Evidence links must be HTTPS URLs without credentials')
+            raise ValueError('Evidence links must be plain HTTPS URLs without credentials or Markdown link syntax')
         return value
 
 
@@ -170,15 +170,14 @@ def authoring_contract():
         'One checklist entry is one completion goal; variants, accessories and packaging do not add requirements in this pilot. '
         'Keep type definitions separate from checklist entries. Research factual claims and cite sources actually read; flag uncertainty. '
         'Never include ownership, quantities, private records, scripts, SQL, credentials, arbitrary lookup providers or executable content. '
-        'Source URLs are evidence only; the app never fetches them. '
+        'Source URLs are evidence only; the app never fetches them. Each url must be a plain HTTPS string, such as https://example.com/checklist, never [label](https://example.com/checklist), backticks or escaped Markdown. '
         'Return one JSON document matching the schema exactly, without Markdown fences. '
-        'This is validation and preview only: it cannot activate a type or create inventory.\n\n'
+        'The JSON is an authoring draft, not an ownership record. The owner must validate, review and explicitly Create collection in RelicRat; that creates an empty collection, never owned copies.\n\n'
     )
     return {'schema': schema, 'prompt': instructions + json.dumps(schema, indent=2)}
 
 
-@router.post('/preview')
-async def preview(request: Request):
+async def read_proposal(request: Request) -> CollectionProposal:
     if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'application/json':
         raise HTTPException(415, 'Expected collection JSON')
     content = bytearray()
@@ -186,5 +185,10 @@ async def preview(request: Request):
         if len(content) + len(chunk) > 65536:
             raise HTTPException(413, 'Collection JSON must be at most 64 KiB')
         content.extend(chunk)
-    proposal = parse_proposal(bytes(content))
+    return parse_proposal(bytes(content))
+
+
+@router.post('/preview')
+async def preview(request: Request):
+    proposal = await read_proposal(request)
     return {'proposal': proposal.model_dump(), 'notice': 'Structure validated. Facts and original-release eligibility need human review. Nothing was installed or added to inventory.'}

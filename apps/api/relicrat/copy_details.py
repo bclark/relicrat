@@ -15,7 +15,7 @@ class DetailError(Exception):
 def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
                  expected_details_revision: int, expected_identification_revision: int, *,
                  collection_type: str | None = None, record_details: dict | None = None, comic_details: dict | None = None, movie_details: dict | None = None,
-                 barcode: dict | None = None, catalog_cover=None) -> OwnedCopy:
+                 barcode: dict | None = None, catalog_cover=None, custom_details: dict | None = None) -> OwnedCopy:
     try:
         copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
                          .with_for_update().execution_options(populate_existing=True))
@@ -29,12 +29,18 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         next_record = copy.record_details if record_details is None else record_details
         next_comic = copy.comic_details if comic_details is None else comic_details
         next_movie = copy.movie_details if movie_details is None else movie_details
+        from relicrat.custom_collections import validate_observations
+        next_custom = copy.custom_details if custom_details is None else custom_details
+        validate_observations(db,copy.custom_collection_id,title,next_custom)
+        if copy.custom_collection_id is not None and next_type != 'other':
+            raise DetailError(422,'This figure belongs to a custom collection; its type cannot be replaced here.')
         next_barcode = copy.barcode if barcode is None else barcode
-        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.movie_details, copy.barcode) == (title, edition_label, next_type, next_record, next_comic, next_movie, next_barcode):
+        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.movie_details, copy.barcode, copy.custom_details) == (title, edition_label, next_type, next_record, next_comic, next_movie, next_barcode, next_custom):
             with stage_cover(db,copy,next_type,catalog_cover):
                 db.commit()
             return copy
         db.add(CopyDetailEvent(owned_copy_id=copy.id,
+            before_custom_details=copy.custom_details if copy.custom_collection_id else None, after_custom_details=next_custom if copy.custom_collection_id else None,
             before_barcode=copy.barcode, after_barcode=next_barcode,
             before_title=copy.provisional_title, after_title=title,
             before_collection_type=copy.collection_type, after_collection_type=next_type,
@@ -44,6 +50,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
             before_edition_label=copy.edition_label, after_edition_label=edition_label,
             identification_revision=copy.identification_revision,
             before_revision=copy.details_revision, after_revision=copy.details_revision + 1))
+        copy.custom_details = next_custom
         copy.barcode = next_barcode
         copy.collection_type = next_type
         copy.record_details = next_record

@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -35,6 +35,8 @@ class InventoryCopy(BaseModel):
     title: str | None = Field(validation_alias="provisional_title")
     description: str | None
     collection_type: Literal['other', 'record', 'comic', 'movie']
+    custom_collection_id: UUID | None
+    custom_details: dict[str,str]
     barcode: dict[str, str]
     record_details: dict[str, str]
     movie_details: dict[str, str]
@@ -85,10 +87,12 @@ def list_copies(
     collection_type: Literal['other', 'record', 'comic', 'movie'] | None = Query(default=None),
     storage_location_id: UUID | None = None,
     unassigned: bool = False,
+    custom_collection_id: UUID | None = None,
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     db: Session = Depends(get_db),
 ) -> list[OwnedCopy]:
     stmt=copies_query(q,collection_type,storage_location_id,unassigned,group)
+    if custom_collection_id is not None:stmt=stmt.where(OwnedCopy.custom_collection_id==custom_collection_id)
     stmt=stmt.order_by(*copy_order(collection_type,group)).limit(limit).offset(offset)
     return list(db.scalars(stmt).all())
 
@@ -100,6 +104,7 @@ class EditCopyDetails(BaseModel):
     record_details: RecordDetails = Field(default_factory=RecordDetails)
     comic_details: ComicDetails = Field(default_factory=ComicDetails)
     movie_details: MovieDetails = Field(default_factory=MovieDetails)
+    custom_details: dict[str, StrictStr] = Field(default_factory=dict,max_length=12)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     title: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
     edition_label: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
@@ -115,6 +120,8 @@ class DetailEventInfo(BaseModel):
     after_collection_type: str | None
     before_barcode: dict | None
     after_barcode: dict | None
+    before_custom_details: dict | None
+    after_custom_details: dict | None
     before_movie_details: dict | None
     after_movie_details: dict | None
     before_comic_details: dict | None
@@ -137,6 +144,7 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
     try:
         return save_details(db, copy_id, payload.title or None, payload.edition_label,
                             payload.expected_details_revision, payload.expected_identification_revision,
+                            custom_details=payload.custom_details if 'custom_details' in payload.model_fields_set else None,
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
                             record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,
                             comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None,

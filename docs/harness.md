@@ -2026,3 +2026,62 @@ heading spacing were adjusted. The targeted design detector returned `[]`.
 The current theme/control system was retained; no DESIGN.md/token contract
 changes were necessary. This scoped visual check is not an accessibility
 certification or a physical-phone test.
+
+
+## Custom collection activation and figures (2026-11-02)
+
+Implemented for review, not deployed. See ADR0011 for the migration0014 contract.
+Activation stores immutable definitions/checklists and creates zero owned copies.
+Add figure is explicit, transactional and UUID-retry-safe. Custom observations
+share the existing Save details revision/history path; omitted old-client fields
+are preserved. UI never infers checklist completion or original-release eligibility.
+
+Validation on generated synthetic data only:
+
+- Disposable PostgreSQL Docker harness: `alembic downgrade base`,
+  `alembic upgrade head`, `python -m pytest -q`, then another complete empty
+  downgrade/upgrade passed: **385 tests**, zero failures/skips. The harness used
+  an explicitly verified nonoverlapping internal subnet because worker automatic
+  address pools are exhausted. The standard remote wrapper was not used; the
+  same API runtime/dependencies and isolated test DB were used via an explicit
+  Compose test configuration. Tests include empty activation, exact retry, shared
+  type reuse, conflicting definitions, direct-SQL field/membership checks,
+  observations/history/search/filter, invalid input and populated downgrade refusal.
+- Initial full run: 379 passed / six failures in legacy metadata/migration tests
+  expecting the older column/table set. Those assertions now explicitly verify
+  new nullable/empty defaults before comparing all old values; the complete rerun
+  passed. No deployed migration history was changed.
+- `node --test apps/web/tests/*.test.mjs`: **34 passed**, zero failures/skips.
+  Production `npm run build` and TypeScript checks passed.
+- `node --test apps/web/tests/collection-authoring.browser.mjs`: **two passed**
+  with installed Chrome and an isolated production frontend talking through a
+  loopback SSH test adapter to the real changed FastAPI/PostgreSQL services.
+  Covers plain-URL prompt guidance, upload/parse errors, acknowledgement, empty
+  activation, persisted figure, lost-response retry, second collection creation
+  during an uncertain save, concurrent same-UUID creates, shared Save details
+  history, storage, exact PNG upload/download and reload persistence. Desktop
+  1440px/phone390px captures showed no horizontal overflow. First attempt had
+  one obsolete screenshot selector after a second disclosure was added; corrected
+  selection passed. Unselected inventory/browser suites and physical devices were
+  not rerun. An inherited wrap rule was added for long imported collection labels.
+- Matching new API image: all runtime Python source hashes matched; the **26**
+  focused proposal checks also passed inside that image without source mounts.
+- Copied recovery: a fresh synthetic database/media capture restored into a fresh
+  offline project; every row/migration/media fingerprint matched, including
+  custom definitions, checklist proposals, observations, edit history, locations
+  and a photo. No API/web server started on restore. An initial check using the
+  older dependency image correctly refused the new migration head; that failed
+  restore remains private/stopped. A fresh capture/restore with the matching image
+  passed. Successful source/restore projects, volumes, image tag and local test
+  listeners were removed by exact ownership; earlier recovery resources and the
+  live private app were untouched.
+- Scoped design detector returned `[]`. Independent review found and verified a
+  fix for uncertain-save target switching, then returned ship for PR review after
+  desktop/mobile captures and documentation comparison. Existing DESIGN.md and
+  token sidecar remain unchanged. This is scoped review, not accessibility
+  certification. Existing TestClient/httpx and Alembic path warnings remain.
+
+Ignored evidence: `.harness-results/custom-collections/`. Live migration,
+deployment, owner credentials, public networking and real collection trials were
+not part of these checks. Rollout needs a fresh recovery plan and the matching
+API/web release; downgrade refuses saved custom collection data.
