@@ -136,3 +136,18 @@ stop, rescan and close controls preserve intake drafts and keyboard focus. No
 new brand assets, layout system, theme schema or type-config fields are needed.
 Implementation and synthetic camera verification precede physical-phone testing;
 private HTTPS access and phone/browser selection remain separate setup work.
+
+
+### Collection authoring preview (2026-11-02)
+
+Owner approved a TMNT pilot: original 1988 Playmates ten basic characters, one
+per character, optional accessories/condition/packaging and separate variant notes.
+Implemented for review: native expandable Start a new collection flow, description,
+downloadable external-agent prompt, JSON paste/upload, strict server validation,
+read-only entry form/checklist/source preview. The API-generated schema is the
+prompt authority. This does not activate custom types, write inventory, evaluate
+ownership/completion or fetch evidence URLs. Uses existing theme and form controls;
+no theme/brand/layout contract change. The bounded figure-style contract and next
+storage work are documented in
+[the pilot](../../packages/collection-packs/proposals/tmnt-original-1988/README.md).
+Not deployed.
