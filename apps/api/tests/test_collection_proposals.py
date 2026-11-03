@@ -108,3 +108,54 @@ def test_preview_preserves_agreed_controls_and_exact_choice_labels():
     assert result.status_code == 200
     assert result.json()['proposal']['type_definition']['optional_fields'] == fields
     assert 'Nothing was installed or added to inventory' in result.json()['notice']
+
+
+@pytest.mark.parametrize('destination', [
+    'https://example.com/checklist',
+    'https://example.com/List_of_figures_(1988_series)',
+])
+def test_single_markdown_evidence_link_has_canonical_plain_url(destination):
+    value = example()
+    value['sources'][0]['url'] = destination
+    plain = parse_proposal(json.dumps(value).encode()).model_dump(exclude_defaults=True)
+    value['sources'][0]['url'] = f'[Checklist]({destination})'
+    corrected = parse_proposal(json.dumps(value).encode())
+    assert corrected.model_dump(exclude_defaults=True) == plain
+    assert corrected.sources[0]._markdown_link_corrected
+    assert '_markdown_link_corrected' not in json.dumps(corrected.model_dump())
+
+
+@pytest.mark.parametrize('url', [
+    '[Checklist](http://example.com/checklist)',
+    '[Checklist](javascript:alert(1))',
+    '[Checklist](https://owner:secret@example.com/checklist)',
+    '[One](https://example.com/one) [Two](https://example.com/two)',
+    '[One](https://example.com/one)[Two](https://example.com/two)',
+    'See [Checklist](https://example.com/checklist)',
+    '[Checklist](https://example.com/unbalanced(foo)',
+    '[Checklist](https://example.com/one)(https://example.com/two)',
+    '[Checklist](https://example.com/with space)',
+    '<a href="https://example.com/checklist">Checklist</a>',
+])
+def test_ambiguous_or_unsafe_markdown_evidence_stays_rejected(url):
+    value = example()
+    value['sources'][0]['url'] = url
+    with pytest.raises(HTTPException) as error:
+        parse_proposal(json.dumps(value).encode())
+    assert error.value.status_code == 422
+    assert 'secret' not in str(error.value.detail)
+
+
+def test_preview_reports_markdown_corrections_and_retains_raw_input():
+    value = example()
+    value['sources'] = [dict(value['sources'][0], id=f'source_{i}', url=f'[Checklist](https://example.com/checklist_{i})') for i in range(3)]
+    for entry in value['collection']['checklist']:
+        entry['source_ids'] = ['source_0']
+    original = json.dumps(value)
+    app = FastAPI()
+    app.include_router(router)
+    result = TestClient(app).post('/api/v1/collection-proposals/preview', content=original, headers={'content-type':'application/json'})
+    assert result.status_code == 200
+    assert 'Converted 3 Markdown evidence link(s)' in result.json()['notice']
+    assert [s['url'] for s in result.json()['proposal']['sources']] == [f'https://example.com/checklist_{i}' for i in range(3)]
+    assert json.dumps(value) == original

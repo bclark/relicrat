@@ -2130,3 +2130,19 @@ contract checks and radio/dropdown/multiple-choice JSON preview preserving exact
 labels without writes. Full database/browser suites were not rerun for this
 prompt-only change. Agent compliance with instructions still requires human
 review; automated checks verify delivery/schema/preview, not external-agent output.
+
+## Evidence-link correction — 2026-11-03
+
+Whole single Markdown evidence links can be canonicalized to their validated
+HTTPS destination; the existing preview notice reports correction count and
+retains pasted text. Preview/activation share the parser, so canonical saved
+proposal/retry values remain plain URLs. No fetching, Markdown rendering, schema
+migration or frontend change.
+
+`python -m pytest -q tests/test_collection_proposals.py` in a network-isolated
+container with current release dependencies and changed source: **45 passed**,
+no skips, one existing TestClient deprecation warning. Cases cover canonical
+equality, balanced URL parentheses, three-link preview correction, secret-free
+errors and rejection of credentials, unsafe schemes, multiple links, prose and
+ambiguous wrappers. Full database/browser suites were not rerun for this bounded
+parser change; existing activation uses the same canonical parser. Not deployed.
