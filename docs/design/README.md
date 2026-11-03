@@ -176,3 +176,12 @@ all collections sharing a type, and retained definition history. Missing, No and
 None selected stay distinct; stale forms preserve drafts. Reuses incumbent theme
 tokens and layout. No new brand assets or theme contract. Not deployed;
 [ADR0012](../decisions/0012-custom-field-controls.md) defines data/recovery rules.
+
+### Authoring field plan (2026-11-03)
+
+Owner requested that field controls be settled during agent/JSON authoring.
+Implemented for review: generated and static prompts propose controls, confirm
+exact choice labels within the existing question budget, and emit agreed input
+and options in JSON. Existing preview already renders these controls before
+creation. Preserve existing labels during revisions; no automatic conversion.
+No UI, schema or live definition changes. Not deployed.

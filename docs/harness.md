@@ -2115,3 +2115,18 @@ worker project and disposable database/media, never the owner's collection.
 No live deployment, migration, credentials, provider settings or collection data
 changed. This was an in-thread review; no independent-agent review was run.
 Physical phone/device testing remains an owner trial after deployment.
+
+## Authoring field plan — 2026-11-03
+
+Generated/static prompts now settle controls and exact choice labels before JSON,
+using the existing three-question budget. Existing definition labels stay exact;
+no implicit text/list conversion. Preview already uses the shared configured
+renderer. No UI, schema, migration or live definition change.
+
+`python -m pytest -q tests/test_collection_proposals.py` in a network-isolated
+container using the current release dependencies and changed source: **32 passed**,
+no skips, one existing FastAPI TestClient deprecation warning. Includes prompt
+contract checks and radio/dropdown/multiple-choice JSON preview preserving exact
+labels without writes. Full database/browser suites were not rerun for this
+prompt-only change. Agent compliance with instructions still requires human
+review; automated checks verify delivery/schema/preview, not external-agent output.

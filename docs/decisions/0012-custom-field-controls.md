@@ -20,7 +20,7 @@ Each optional field declares `input` and, for choice controls, `options`:
 For example, Head Variant is mutually exclusive:
 
 ```json
-{"id":"head_variant","label":"Head Variant","input":"radio","max_length":50,"options":["Soft","Hard"]}
+{"id":"head_variant","label":"Head Variant","input":"radio","max_length":50,"options":["Soft Head","Hard Head"]}
 ```
 
 Unknown is an absent property, shown as Not recorded. It is distinct from
@@ -28,7 +28,10 @@ Unknown is an absent property, shown as Not recorded. It is distinct from
 Choices are 1–20 unique nonempty strings, bounded by the field's max_length;
 text and a single boolean checkbox cannot declare options. Field IDs remain
 stable; title is still the only required observation. The external-agent prompt
-embeds the generated validator schema and explains these choices. No executable
+embeds the generated validator schema and explains these choices. The authoring
+agent proposes a field/control/choice-label plan, confirms unresolved decisions
+within its question budget, then writes agreed controls into JSON. Exact existing
+labels are preserved when revising a definition; no silent normalization. No executable
 code, new lookup provider or ownership record is installed by configuration.
 
 The same native-control renderer serves preview, intake and Save details.
