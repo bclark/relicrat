@@ -145,3 +145,36 @@ test('field controls revise compatible legacy values and preserve unknown, No an
   await context.close();
  }finally{await browser.close();}
 });
+
+test('owner-reviewed checklist progress counts distinct active entries and recovers uncertain saves',async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.RELICRAT_TEST_CHROME||undefined});
+ try{
+  const context=await browser.newContext();assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:new URL(base).origin}})).status(),200);
+  const raw=JSON.parse(example),suffix=Date.now().toString(36);raw.type_definition.id='checklist-'+suffix;raw.collection.type_id=raw.type_definition.id;raw.collection.id='goal-'+suffix;raw.collection.name='Synthetic checklist progress';
+  const response=await context.request.post(base+'/api/v1/custom-collections',{data:raw,headers:{Origin:new URL(base).origin}});assert.equal(response.status(),200,await response.text());const collection=await response.json();
+  async function add(title){const r=await context.request.post(base+`/api/v1/custom-collections/${collection.id}/copies`,{data:{request_id:crypto.randomUUID(),title,custom_details:{}},headers:{Origin:new URL(base).origin}});assert.equal(r.status(),200);return (await r.json()).id;}
+  const first=await add('Unrelated synthetic name'),second=await add('Leonardo');
+  const page=await context.newPage();await page.goto(base);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(collection.id);
+  const region=page.getByRole('region',{name:'Saved collection: '+raw.collection.name,exact:true}),progress=region.getByRole('region',{name:'Checklist progress',exact:true});
+  await progress.getByText('0 of 10 collected',{exact:true}).waitFor();await region.getByRole('button',{name:'Unrelated synthetic name',exact:true}).click();
+  const match=page.getByRole('region',{name:'Checklist match',exact:true}),form=match.getByRole('form',{name:'Review checklist match'}),entry=form.getByLabel('Checklist entry',{exact:true}),confirm=form.getByRole('checkbox');
+  const detailsDraft=page.locator('#copy-title');await detailsDraft.fill('Unsaved synthetic details draft');
+  await entry.selectOption('leonardo');assert.equal(await confirm.isChecked(),false);await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await match.getByText('Checklist link saved for review. It does not count yet.',{exact:true}).waitFor();await progress.getByText('0 of 10 collected',{exact:true}).waitFor();
+  await confirm.check();await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await progress.getByText('1 of 10 collected',{exact:true}).waitFor();
+  const duplicate=await context.request.post(base+`/api/v1/custom-collections/${collection.id}/copies/${second}/checklist-match`,{data:{entry_id:'leonardo',confirmed:true,expected_revision:0},headers:{Origin:new URL(base).origin}});assert.equal(duplicate.status(),200);
+  await progress.getByRole('button',{name:'Refresh checklist progress'}).click();await progress.getByText('1 of 10 collected',{exact:true}).waitFor();await progress.getByText('View checklist and missing entries',{exact:true}).click();await progress.getByText('Collected · Qualifying figures: 2',{exact:false}).waitFor();
+  await entry.selectOption('donatello');assert.equal(await confirm.isChecked(),false);await confirm.check();await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await progress.getByText('2 of 10 collected',{exact:true}).waitFor();
+  await entry.selectOption('');await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await progress.getByText('1 of 10 collected',{exact:true}).waitFor();
+  let interrupted=false;await page.route('**/checklist-match',async route=>{if(route.request().method()==='POST'&&!interrupted){interrupted=true;await route.fetch();await route.abort('failed');}else await route.continue();});
+  await entry.selectOption('raphael');await confirm.check();await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await match.getByText('The save needs review.',{exact:false}).waitFor();assert.equal(await form.getByRole('button',{name:'Save checklist match',exact:true}).isDisabled(),true);
+  await match.getByRole('button',{name:'Reload saved checklist match',exact:true}).click();await entry.waitFor();await page.waitForFunction(()=>document.querySelector('#checklist-entry')?.value==='raphael');assert.equal(await confirm.isChecked(),true);
+  const concurrent=await page.evaluate(async ({cid,id})=>Promise.all([1,2].map(()=>fetch(`/api/v1/custom-collections/${cid}/copies/${id}/checklist-match`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry_id:null,confirmed:false,expected_revision:5})}).then(r=>r.status))),{cid:collection.id,id:first});assert.deepEqual(concurrent.sort(),[200,409]);
+  await match.getByRole('button',{name:'Reload saved checklist match',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#checklist-entry')?.value==='');
+  await progress.getByRole('button',{name:'Refresh checklist progress'}).click();await progress.getByText('1 of 10 collected',{exact:true}).waitFor();await progress.getByRole('checkbox',{name:'Show only entries without a confirmed figure'}).check();assert.equal(await progress.getByText('Leonardo',{exact:true}).count(),0);assert.equal(await progress.getByText('Donatello',{exact:true}).count(),1);
+  await match.getByText('Checklist match history',{exact:true}).click();await match.getByText('Revision 6',{exact:false}).waitFor();
+  assert.equal(await detailsDraft.inputValue(),'Unsaved synthetic details draft');assert.equal((await (await context.request.get(base+'/api/v1/inventory/'+first)).json()).title,'Unrelated synthetic name');
+  const history=await (await context.request.get(base+`/api/v1/custom-collections/${collection.id}/copies/${first}/checklist-history`)).json();assert.deepEqual(history.map(e=>e.revision),[6,5,4,3,2,1]);
+  const artifacts=process.env.RELICRAT_TEST_ARTIFACTS;if(artifacts)await mkdir(artifacts,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(artifacts){await progress.screenshot({path:`${artifacts}/checklist-progress-${width}.png`});await match.screenshot({path:`${artifacts}/checklist-match-${width}.png`});}}
+  await context.close();
+ }finally{await browser.close();}
+});

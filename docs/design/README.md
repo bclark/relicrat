@@ -193,3 +193,14 @@ Implemented for review: API canonicalizes a whole single safe HTTPS Markdown
 link and reports corrections through the existing preview notice; sources remain
 plain text for review, never fetched. Draft text and ownership stay unchanged.
 No frontend, theme or layout change; not deployed. See ADR0011 extension.
+
+### Reviewed checklist progress (2026-11-03)
+
+Owner approved explicit figure-to-entry matches, distinct-entry progress and
+visible missing goals. Implemented for review: saved collections show whole-goal
+progress and a missing filter; the figure inspector has an independent reviewed
+checklist save and paginated history. A link without eligibility confirmation
+stays pending. Duplicates count once; inactive/nonowned copies do not count.
+Existing native controls/theme, intake drafts, copy details and catalog/storage
+boundaries remain. No new assets or tokens. Not deployed;
+[ADR0013](../decisions/0013-checklist-progress.md) defines data and recovery rules.

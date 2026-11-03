@@ -212,7 +212,7 @@ export default function InventoryClient() {
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
         <CollectionAuthoring runSave={runSave} locked={busy||uncertain} onCreated={id=>setCreatedCollection(event=>({id,sequence:event.sequence+1}))} />
-        <CustomCollections createdEvent={createdCollection} runSave={runSave} locked={busy||uncertain} changed={changed} openCopy={openCopy} />
+        <CustomCollections refresh={refresh} createdEvent={createdCollection} runSave={runSave} locked={busy||uncertain} changed={changed} openCopy={openCopy} />
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={openCopy} />
         <div className={`workspace${detailOpen ? ' detail-open' : ''}`}>
           <div className="workbench">

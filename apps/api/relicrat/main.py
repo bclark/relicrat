@@ -21,6 +21,7 @@ from relicrat.import_storage import router as import_storage_router
 
 from relicrat.collection_proposals import router as proposals_router
 from relicrat.custom_collections import router as custom_collections_router
+from relicrat.checklist import router as checklist_router
 
 app = FastAPI(title="RelicRat API", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(OwnerBoundary)
@@ -37,6 +38,7 @@ app.include_router(groups_router)
 app.include_router(import_storage_router)
 app.include_router(proposals_router)
 app.include_router(custom_collections_router)
+app.include_router(checklist_router)
 
 
 @app.get("/health", tags=["system"])

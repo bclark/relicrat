@@ -323,3 +323,36 @@ class ImportCopy(Base):
     row_number: Mapped[int] = mapped_column(Integer, nullable=False)
     copy_number: Mapped[int] = mapped_column(Integer, nullable=False)
     source_row: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class ChecklistMatch(Base):
+    __tablename__ = 'checklist_matches'
+    __table_args__ = (
+        CheckConstraint('revision >= 1', name='checklist_match_revision'),
+        CheckConstraint('entry_id IS NOT NULL OR NOT confirmed', name='checklist_match_confirmation'),
+        Index('ix_checklist_matches_collection_entry', 'collection_id', 'entry_id'),
+    )
+    owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), primary_key=True)
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('custom_collections.id', ondelete='RESTRICT'), nullable=False)
+    entry_id: Mapped[str | None] = mapped_column(String(60))
+    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ChecklistMatchEvent(Base):
+    __tablename__ = 'checklist_match_events'
+    __table_args__ = (
+        UniqueConstraint('owned_copy_id', 'revision', name='checklist_event_revision'),
+        CheckConstraint('revision >= 1', name='checklist_event_positive'),
+        CheckConstraint('(before_entry_id IS NOT NULL OR NOT before_confirmed) AND (after_entry_id IS NOT NULL OR NOT after_confirmed)', name='checklist_event_confirmation'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('custom_collections.id', ondelete='RESTRICT'), nullable=False)
+    before_entry_id: Mapped[str | None] = mapped_column(String(60))
+    after_entry_id: Mapped[str | None] = mapped_column(String(60))
+    before_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    after_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

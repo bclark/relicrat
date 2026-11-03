@@ -5,6 +5,7 @@ import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type 
 
 import Identification from './identification';
 import CopyDetailsForm from './copy-details-form';
+import ChecklistMatch from './checklist-match';
 
 type Props = { movieFields: MovieField[]; types: CollectionTypes | null; copyId: string; runSave: RunSave; busy: boolean; blocked: boolean; changed: () => void; recordFields: RecordField[]; comicFields: ComicField[] };
 const mergeLocations = (before: Location[], after: Location[]) => [...new Map([...before, ...after].map(item => [item.id, item])).values()];
@@ -140,6 +141,7 @@ export default function CopyDetail({ types, copyId, runSave, busy, blocked, chan
     {loading ? <p role="status">Loading copy, photos, and storage…</p> : !copy ? <p>Reload this copy to try again, or open another copy.</p> : <>
       <div className="record-state"><span>{locationName(copy.storage_location_id)}</span></div>
       {copy.description && <p className="copy-notes">{copy.description}</p>}
+      {copy.custom_collection_id&&<ChecklistMatch key={copy.id} collectionId={copy.custom_collection_id} copyId={copy.id} locked={locked} runSave={runSave} changed={changed} />}
       <CopyDetailsForm types={types} fields={recordFields} movieFields={movieFields} comicFields={comicFields} copy={copy} runSave={runSave} locked={locked} saved={(record,artwork) => { setCopy(record); changed(); if(artwork)void api<Photo[]>(`inventory/${copyId}/photos`).then(setPhotos).catch(()=>setError('Details saved, but artwork could not reload. Reload this copy.')); }} failed={failed} />
         {photos.some(photo=>photo.role==='catalog_cover')&&<section aria-label="Catalog artwork"><h3>Catalog artwork</h3><p className="hint">Imported artwork, not photographs of your physical copy.</p><div className="photos">{photos.filter(photo=>photo.role==='catalog_cover').map(photo=><div key={photo.id}><a href={`/api/v1/inventory/${copyId}/photos/${photo.id}`} target="_blank" rel="noreferrer"><img src={`/api/v1/inventory/${copyId}/photos/${photo.id}`} alt={`Catalog cover for ${copyName(copy)}`} loading="lazy"/></a><p>{photo.source_url&&<a href={photo.source_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Source: {photo.source_provider}</a>}</p></div>)}</div></section>}
       <h3>Photos</h3>

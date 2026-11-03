@@ -346,3 +346,18 @@ test('custom definition revision routes retain fixed owner/method/origin boundar
  assert.equal((await forwardApi(request(path),path.split('/'))).status,200);
  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,405);
 });
+
+test('checklist progress and reviewed matching retain fixed owner/method/origin boundaries',async()=>{
+ const copy='22222222-2222-2222-2222-222222222222';
+ for(const path of [`custom-collections/${id}/progress`,`custom-collections/${id}/copies/${copy}/checklist-history`]){
+  assert.equal((await forwardApi(request(path),path.split('/'))).status,200);
+  assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,405);
+  const guest=new Request(origin+'/api/v1/'+path,{headers:{host:new URL(origin).host}});
+  assert.equal((await forwardApi(guest,path.split('/'))).status,401);
+ }
+ const path=`custom-collections/${id}/copies/${copy}/checklist-match`;
+ assert.equal((await forwardApi(request(path),path.split('/'))).status,200);
+ assert.equal((await forwardApi(request(path,post()),path.split('/'))).status,201);
+ assert.equal((await forwardApi(request(path,post('{}',{origin:'https://evil.test'})),path.split('/'))).status,403);
+ assert.equal((await forwardApi(request(path+'/delete',post()),(path+'/delete').split('/'))).status,404);
+});

@@ -19,6 +19,9 @@ const barcodeCover = /^barcode-lookups\/(record|comic|movie|other)\/[A-Za-z0-9_-
 const customCollection = new RegExp(`^custom-collections/${uuid}$`);
 const customDefinition = new RegExp(`^custom-collections/${uuid}/(definition|definition-preview)$`);
 const customHistory = new RegExp(`^custom-collections/${uuid}/definition-history$`);
+const checklistProgress = new RegExp(`^custom-collections/${uuid}/progress$`);
+const checklistMatch = new RegExp(`^custom-collections/${uuid}/copies/${uuid}/checklist-match$`);
+const checklistHistory = new RegExp(`^custom-collections/${uuid}/copies/${uuid}/checklist-history$`);
 const customIntake = new RegExp(`^custom-collections/${uuid}/copies$`);
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
@@ -29,9 +32,9 @@ export async function forwardApi(request, segments) {
   const token = sessionToken(request.headers);
   if (!token) return error(401, 'Sign in to continue');
   const path = segments.join('/');
-  const methods = path === 'custom-collections' || path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
+  const methods = checklistMatch.test(path) || path === 'custom-collections' || path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
-    : customHistory.test(path) || customCollection.test(path) || barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-proposals/authoring' || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
+    : checklistProgress.test(path) || checklistHistory.test(path) || customHistory.test(path) || customCollection.test(path) || barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-proposals/authoring' || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || locationPath.test(path) || catalogItem.test(path) || release.test(path)
       ? ['GET'] : customDefinition.test(path) || customIntake.test(path) || barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');

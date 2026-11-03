@@ -51,7 +51,9 @@ retry-safe Add figure and revision-checked custom observations/history. See
 [ADR0011](../../../../docs/decisions/0011-custom-collections.md) for storage,
 compatibility, immutability, recovery and remaining limits. Compatible definition revisions and native text, dropdown, radio and checkbox
 controls are now implemented for review; see [ADR0012](../../../../docs/decisions/0012-custom-field-controls.md).
-Checklist membership/completion evaluation and executable controls remain deferred. Reject executable content, arbitrary URLs/provider installation,
+Owner-reviewed checklist matching/progress is now implemented for review; see
+[ADR0013](../../../../docs/decisions/0013-checklist-progress.md). Automatic original-edition
+authentication, overlapping membership and executable controls remain deferred. Reject executable content, arbitrary URLs/provider installation,
 ownership data, unknown fields, duplicate keys/IDs and conflicting definitions.
 Imports require explicit confirmation and safe retry behavior. Definitions used
 by existing copies need revision handling rather than destructive replacement.
