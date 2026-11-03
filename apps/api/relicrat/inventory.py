@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, StrictBool
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -36,7 +36,7 @@ class InventoryCopy(BaseModel):
     description: str | None
     collection_type: Literal['other', 'record', 'comic', 'movie']
     custom_collection_id: UUID | None
-    custom_details: dict[str,str]
+    custom_details: dict[str,StrictStr | StrictBool | list[StrictStr]]
     barcode: dict[str, str]
     record_details: dict[str, str]
     movie_details: dict[str, str]
@@ -104,7 +104,8 @@ class EditCopyDetails(BaseModel):
     record_details: RecordDetails = Field(default_factory=RecordDetails)
     comic_details: ComicDetails = Field(default_factory=ComicDetails)
     movie_details: MovieDetails = Field(default_factory=MovieDetails)
-    custom_details: dict[str, StrictStr] = Field(default_factory=dict,max_length=12)
+    expected_type_revision: int | None = Field(default=None,ge=0,le=2147483646,strict=True)
+    custom_details: dict[str, StrictStr | StrictBool | list[StrictStr]] = Field(default_factory=dict,max_length=12)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     title: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
     edition_label: str | None = Field(max_length=500, pattern=r'^[^\x00]*$')
@@ -144,6 +145,7 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
     try:
         return save_details(db, copy_id, payload.title or None, payload.edition_label,
                             payload.expected_details_revision, payload.expected_identification_revision,
+                            expected_type_revision=payload.expected_type_revision,
                             custom_details=payload.custom_details if 'custom_details' in payload.model_fields_set else None,
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
                             record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,

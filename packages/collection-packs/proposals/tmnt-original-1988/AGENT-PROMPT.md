@@ -44,3 +44,11 @@ Leave the format marker `relicrat-collection-proposal-1` intact. Return the JSON
 in one code block and explain unresolved questions separately. State clearly that the document is an authoring draft; the owner must review
 and explicitly Create collection in RelicRat, then separately Add figure. Do not claim that generating
 parseable JSON establishes application compatibility or factual accuracy.
+
+Field-control extension: the current API-generated schema accepts text, select,
+radio, checkbox and checkboxes. Use radio/select with options for exclusive
+choices such as Soft/Hard head; checkboxes with options for independent accessory
+choices. Do not put Unknown in options: leaving the observation absent means
+unknown. A boolean false means No; an empty selection array means None selected.
+Use stable field IDs and review compatible changes through Configure field
+controls rather than replacing a saved definition. See ADR0012.

@@ -808,3 +808,6 @@ footer {
 .collection-authoring fieldset { margin-block: 1rem; }
 .collection-authoring input { max-width: 100%; box-sizing: border-box; }
 .collection-authoring h2, .collection-authoring h3 { margin-top: 1.75rem; }
+
+.custom-choice, .collection-authoring label:has(input[type=checkbox]), .collection-authoring label:has(input[type=radio]) { display:flex; align-items:center; gap:12px; min-height:44px; margin-top:0; }
+.custom-choice input, .collection-authoring input[type=checkbox], .collection-authoring input[type=radio] { accent-color:var(--accent); width:20px; min-height:20px; height:20px; flex:0 0 20px; margin:0; padding:0; }

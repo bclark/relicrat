@@ -80,6 +80,15 @@ class CustomCollectionType(Timestamps, Base):
     definition: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
 
+class CustomTypeRevision(Base):
+    __tablename__ = 'custom_type_revisions'
+    __table_args__ = (CheckConstraint('revision >= 1',name='custom_revision_positive'),)
+    type_id: Mapped[str] = mapped_column(ForeignKey('custom_collection_types.id',ondelete='RESTRICT'),primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer,primary_key=True)
+    definition: Mapped[dict] = mapped_column(JSONB,nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
+
+
 class CustomCollection(Timestamps, Base):
     __tablename__ = 'custom_collections'
     __table_args__ = (

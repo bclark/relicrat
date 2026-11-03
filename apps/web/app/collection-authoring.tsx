@@ -1,10 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import CustomField,{type CustomTypeDefinition} from './custom-field';
 import {type RunSave} from '../lib/inventory-client';
 
 type Proposal = {
-  type_definition: {label: string; title: {label: string; max_length: number}; optional_fields: {id: string; label: string; max_length: number}[]; shared_copy_fields: string[]};
+  type_definition: CustomTypeDefinition;
   collection: {name: string; scope: {franchise: string; manufacturer: string; release_year: number; assortment: string; later_reissues_included: boolean}; completion: {eligibility: string}; checklist: {id: string; title: string; source_ids: string[]}[]};
   sources: {id: string; url: string; supports: string}[]; uncertainties: string[];
 };
@@ -103,7 +104,7 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
       <p className="hint">Illustrative controls only. Nothing entered here is saved.</p>
       <fieldset disabled><legend>Sample entry fields</legend>
         <label>{draft.type_definition.title.label} (required)<input maxLength={draft.type_definition.title.max_length} /></label>
-        {draft.type_definition.optional_fields.map(field=><label key={field.id}>{field.label} (optional)<input maxLength={field.max_length} /></label>)}
+        {draft.type_definition.optional_fields.map(field=><CustomField key={field.id} field={field} value={undefined} change={()=>{}} />)}
       </fieldset>
       <p>Shared copy facilities: {draft.type_definition.shared_copy_fields.map(field=>({notes:'Notes',photos:'Photos',storage_location:'Storage location'}[field] || field)).join(', ') || 'none selected'}.</p>
       <h3>Checklist: {draft.collection.checklist.length} entries</h3>
@@ -115,7 +116,7 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
       {!!draft.uncertainties.length && <><h3>Uncertainties</h3><ul>{draft.uncertainties.map((value,index)=><li key={index}>{value}</li>)}</ul></>}
       <label><input type="checkbox" checked={acknowledged} disabled={locked||busy||created} onChange={event=>setAcknowledged(event.target.checked)} /> I reviewed the fields, scope and checklist. Creating this collection will not mark anything as owned.</label>
       <button type="button" disabled={locked||busy||!acknowledged||created} onClick={()=>void createCollection()}>{created?'Collection created':'Create collection'}</button>
-      <p>Saved definitions are immutable in this first version. Importing the exact same definition again reopens its collection; a changed definition needs a new ID.</p>
+      <p>Importing the original definition again reopens its collection. Use Configure field controls to review compatible changes with retained definition history.</p>
     </section>}
   </details>;
 }

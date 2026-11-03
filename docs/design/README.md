@@ -166,3 +166,13 @@ second collection is created. Reuses existing theme/native controls. No token,
 brand or layout contract change. Migration0014 and boundaries are authoritative
 in [ADR0011](../decisions/0011-custom-collections.md). Not deployed; completion,
 definition revision and existing-copy membership changes remain deferred.
+
+### Configurable custom fields (2026-11-03)
+
+Owner approved single-choice Head Variant controls and compatible definition
+updates. Implemented for review: shared native text/dropdown/radio/checkbox
+controls in preview/intake/edit, explicit Review and Apply for changes affecting
+all collections sharing a type, and retained definition history. Missing, No and
+None selected stay distinct; stale forms preserve drafts. Reuses incumbent theme
+tokens and layout. No new brand assets or theme contract. Not deployed;
+[ADR0012](../decisions/0012-custom-field-controls.md) defines data/recovery rules.
