@@ -2146,3 +2146,41 @@ equality, balanced URL parentheses, three-link preview correction, secret-free
 errors and rejection of credentials, unsafe schemes, multiple links, prose and
 ambiguous wrappers. Full database/browser suites were not rerun for this bounded
 parser change; existing activation uses the same canonical parser. Not deployed.
+
+## Owner-reviewed checklist progress — 2026-11-03
+
+Implemented for review, not deployed; [ADR0013](decisions/0013-checklist-progress.md).
+All test data is synthetic. Worker tests used a dedicated project/database and
+an explicit nonoverlapping internal subnet because automatic address pools are
+exhausted. The standard API harness's Alembic/pytest commands ran in that isolated
+configuration; no live collection was used as a test fixture.
+
+- Focused PostgreSQL proposal/custom-field/checklist checks: **66 passed**. Full
+  `alembic downgrade base && alembic upgrade head && python -m pytest -q &&
+  alembic downgrade base && alembic upgrade head`: **415 passed**, no skips,
+  89 existing dependency/deprecation warnings. Six checklist tests with additional
+  no-op/direct-SQL inactive-copy assertions also passed on a separate fresh
+  disposable database. Database guards, retained history, stale revisions,
+  duplicates, pagination-independent counts, inactive ownership and populated
+  downgrade refusal were exercised.
+- `cd apps/web && npm test`: **36 passed**, no skips. Includes new fixed-route,
+  method, owner and origin gateway checks. `npm run lint` and production
+  `npm run build` passed. No new dependencies.
+- Production synthetic browser: `node --test
+  apps/web/tests/collection-authoring.browser.mjs`: **4 passed**. Covers existing
+  authoring/intake/field-control flows plus explicit pending/confirmed matching,
+  duplicates, reassignment/clear, missing filtering, concurrent requests,
+  lost-response recovery/history and preserving a separate unsaved details draft.
+  The affected checklist scenario passed again after final history/loading copy
+  and layout corrections. Desktop1440/phone390 captures and overflow checks passed;
+  visual review reused the existing theme and history styling.
+- Fresh backup with the matching0016 API image restored every table/row, migration
+  and media checksum into a new offline disposable project, including current
+  checklist matches and immutable history. Restore API/web servers were never
+  started. Private receipts are retained in ignored harness evidence. Exact
+  successful test resources were removed after verification.
+
+No independent-agent review or physical-device test was run. This is owner
+confirmation of eligibility, not automatic edition authentication. A merged
+release still needs a fresh pre-upgrade backup and reviewed0016 rollout; no
+live data, credentials, network access or deployment changed during development.
