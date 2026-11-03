@@ -21,7 +21,7 @@ def test_example_and_generated_contract():
     assert authoring_contract()['schema'] == CollectionProposal.model_json_schema()
     assert 'This is validation and preview only' in authoring_contract()['prompt']
     assert value.model_dump() == example()
-    published = Path(__file__).resolve().parents[3] / 'packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json'
+    published = Path(__file__).resolve().parent / '../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json'
     if published.exists():
         assert json.loads(published.read_text()) == example()
 
