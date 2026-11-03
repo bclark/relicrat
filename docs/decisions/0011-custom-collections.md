@@ -63,3 +63,14 @@ custom definition, collection, copy or retained custom history; use verified
 recovery rather than dropping it. Verify empty upgrade/downgrade and populated
 copied restore on disposable data before rollout. Deploy API before/with web;
 keep existing owner settings and backup/network isolation rules unchanged.
+
+## Evidence-link correction extension — 2026-11-03
+
+Implemented for review: when an agent returns a whole single Markdown link in
+a source URL, preview/activation extract its HTTPS destination and run the same
+credential/whitespace validation. Balanced URL parentheses are retained. Multiple
+links, surrounding prose, ambiguous wrappers and unsafe destinations remain
+rejected. This is bounded URL correction, not Markdown rendering or source
+fetching. The preview reports the correction count and displays canonical
+destinations for owner review; the pasted draft remains unchanged. Canonical
+activation/retry comparisons use plain URLs without correction metadata.

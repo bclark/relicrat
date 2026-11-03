@@ -185,3 +185,11 @@ exact choice labels within the existing question budget, and emit agreed input
 and options in JSON. Existing preview already renders these controls before
 creation. Preserve existing labels during revisions; no automatic conversion.
 No UI, schema or live definition changes. Not deployed.
+
+### Evidence-link import recovery (2026-11-03)
+
+Owner encountered Markdown-wrapped source URLs despite authoring guidance.
+Implemented for review: API canonicalizes a whole single safe HTTPS Markdown
+link and reports corrections through the existing preview notice; sources remain
+plain text for review, never fetched. Draft text and ownership stay unchanged.
+No frontend, theme or layout change; not deployed. See ADR0011 extension.

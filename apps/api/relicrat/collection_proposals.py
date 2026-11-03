@@ -1,10 +1,11 @@
 """Bounded collection authoring, shared by preview and explicit activation."""
 import json
+import re
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, PrivateAttr, model_validator
 
 router = APIRouter(prefix='/api/v1/collection-proposals', tags=['collection proposals'])
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500, pattern=r'^[^\x00-\x1f\x7f]+$')]
@@ -106,13 +107,32 @@ class Source(StrictModel):
     url: Annotated[str, Field(max_length=2000)]
     supports: Text
 
-    @field_validator('url')
-    @classmethod
-    def evidence_url(cls, value):
+    _markdown_link_corrected: bool = PrivateAttr(default=False)
+
+    @model_validator(mode='after')
+    def evidence_url(self):
+        value = self.url
+        # Only a whole, single inline link. This is not a Markdown renderer.
+        link = re.fullmatch(r'\[[^\[\]\r\n]*\]\((https://[^\s<>]+)\)', value)
+        if link:
+            destination = link.group(1)
+            depth = 0
+            for character in destination:
+                if character == '(':
+                    depth += 1
+                elif character == ')':
+                    depth -= 1
+                if depth < 0:
+                    break
+            if depth == 0 and not any(c in destination for c in '[]\\`'):
+                value = destination
         parsed = urlsplit(value)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() or ord(c) < 32 for c in value):
-            raise ValueError('Evidence links must be plain HTTPS URLs without credentials or Markdown link syntax')
-        return value
+            raise ValueError('Evidence links must be plain HTTPS URLs without credentials, or a single Markdown link to one')
+        self._markdown_link_corrected = value != self.url
+        self.url = value
+        return self
+
 
 
 class CollectionProposal(StrictModel):
@@ -211,4 +231,6 @@ async def read_proposal(request: Request) -> CollectionProposal:
 @router.post('/preview')
 async def preview(request: Request):
     proposal = await read_proposal(request)
-    return {'proposal': proposal.model_dump(exclude_defaults=True), 'notice': 'Structure validated. Facts and original-release eligibility need human review. Nothing was installed or added to inventory.'}
+    corrected = sum(source._markdown_link_corrected for source in proposal.sources)
+    correction = f'Converted {corrected} Markdown evidence link(s) to plain HTTPS URLs. Review the destinations below. ' if corrected else ''
+    return {'proposal': proposal.model_dump(exclude_defaults=True), 'notice': correction + 'Structure validated. Facts and original-release eligibility need human review. Nothing was installed or added to inventory.'}
