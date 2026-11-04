@@ -318,3 +318,8 @@ extends the current palette/components and uses fictional in-memory examples.
 It brings the destination first and reviews suggestions in the final form;
 current provider/cover capabilities and separate custom ownership/checklist rules
 remain explicit. Status: proposed for owner review; no app or deployment change.
+
+Owner refinement (2026-11-04): selecting a collection already establishes the
+intake destination. The concept now says “Add to Movies” (or the selected name)
+and removes the repeated picker. Only Add from All items asks for a destination.
+Applies equally to named custom collections and phone entry. Proposed; app unchanged.
