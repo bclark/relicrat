@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { chromium, webkit } from 'playwright';
 
 const base = process.env.RELICRAT_TEST_WEB_URL || 'http://127.0.0.1:63112';
-assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:', 'Use an isolated loopback test server');
+assert.ok(['127.0.0.1', 'localhost'].includes(new URL(base).hostname) && new URL(base).protocol === 'http:' && new URL(base).port !== '56742', 'Use an isolated loopback test server, never the private owner trial');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 const id = number => `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`;
 const copy = (number, title, extra = {}) => ({ id: id(number), title, description: 'Synthetic test notes', collection_type:'other', record_details:{}, comic_details:{}, catalog_item_id: null, release_id: null, identification_status: 'unidentified', identification_revision: 0, edition_label: null, details_revision: 0, storage_location_id: null, storage_revision: 0, ownership_status: 'owned', created_at: '2026-10-28T12:00:00Z', updated_at: '2026-10-28T12:00:00Z', ...extra });
@@ -17,6 +17,15 @@ async function signIn(context) {
 }
 before(async () => { browser = await (process.env.RELICRAT_BROWSER==='webkit'?webkit:chromium).launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined }); });
 after(async () => { await browser?.close(); });
+// Follow the progressive entry flow; saving deliberately closes the draft.
+async function reviewItem(page) {
+  const back = page.getByRole('button', { name: 'Back to collection', exact: true });
+  if (await back.isVisible()) await back.click();
+  const form = page.getByRole('form', { name: 'Add a find', exact: true });
+  if (!(await form.isVisible())) await page.getByRole('button', { name: 'Review item', exact: true }).click();
+  await form.waitFor();
+  return form;
+}
 async function fixture(t, initial = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
   t.after(() => context.close());
@@ -528,6 +537,7 @@ test('real browser preserves three physical copies across shared editions, photo
   const page = await context.newPage(); await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   const initial = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.deepEqual(initial, [], 'Refusing to write to a nonempty live inventory');
+  await reviewItem(page);
   let title = 'Synthetic browser trial comic';
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(title);
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
@@ -604,6 +614,7 @@ test('real browser preserves three physical copies across shared editions, photo
   await page.getByRole('status').filter({ hasText: 'Catalog match saved.' }).waitFor();
   const added = [];
   for (const [index, copyTitle] of ['Synthetic second physical copy', 'Synthetic variant physical copy'].entries()) {
+    await reviewItem(page);
     await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(copyTitle);
     await page.getByLabel('Notes (optional)', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
@@ -837,7 +848,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   t.after(() => context.close());
   const page = await context.newPage(); await page.goto(base);
   await page.waitForURL('**/login');
-  assert.equal(await page.getByRole('heading', { name: 'Add a find', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('form', { name: 'Start adding an item', exact: true }).count(), 0);
   for (const path of ['inventory', 'catalog/items', 'storage-locations']) assert.equal((await context.request.get(`${base}/api/v1/${path}`)).status(), 401);
   await page.getByLabel('Owner password', { exact: true }).fill('incorrect-synthetic-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -851,7 +862,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   }
   await page.getByLabel('Owner password', { exact: true }).fill(ownerPassword);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('heading', { name: 'Add a find', exact: true }).waitFor();
+  await page.getByRole('form', { name: 'Start adding an item', exact: true }).waitFor();
   await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   assert.equal(new URL(page.url()).pathname, '/');
   const cookies = await context.cookies();
@@ -879,7 +890,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   const replay = await browser.newContext(); t.after(() => replay.close()); await replay.addCookies(cookies);
   assert.equal((await replay.request.get(`${base}/api/v1/inventory`)).status(), 401);
   await page.goto(base); await page.waitForURL('**/login');
-  assert.equal(await page.getByRole('heading', { name: 'Add a find', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('form', { name: 'Start adding an item', exact: true }).count(), 0);
 });
 
 const freshSettings = () => ({status:'not_started',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0});
@@ -969,8 +980,9 @@ for(const failure of ['conflict','uncertain']) test(`setup ${failure} requires r
 });
 
 test('unavailable settings allow explicit generic entry without replacing preferences',async t=>{
-  const {page,state}=await fixture(t,{failSettings:'read'});
+  const {page,state}=await fixture(t,{failSettings:'read',quickIntake:true});
   await page.getByRole('button',{name:'Use generic entry',exact:true}).click();
+  await reviewItem(page);
   const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Title',{exact:true}).fill('Generic fallback');
   await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Generic fallback',exact:true}).waitFor();
   assert.equal(state.writes.filter(w=>w.path==='collection-settings').length,0);assert.equal(state.copies[0].collection_type,'other');
@@ -979,10 +991,10 @@ test('unavailable settings allow explicit generic entry without replacing prefer
 test('real Records setup and artist search survive browser reload with a title-only option',{skip:!process.env.RELICRAT_REAL_UI_TEST},async t=>{
   const context=await browser.newContext();t.after(()=>context.close());await signIn(context);const page=await context.newPage();await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await startRecordSetup(page);await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
-  const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Album title',{exact:true}).fill('Synthetic setup album');
+  const intake=await reviewItem(page);await intake.getByLabel('Album title',{exact:true}).fill('Synthetic setup album');
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup band');await intake.getByLabel('Format (optional)',{exact:true}).selectOption('Vinyl');
   await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic setup band — Synthetic setup album',exact:true}).waitFor();
-  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await intake.getByLabel('Album title',{exact:true}).waitFor();
+  await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await reviewItem(page);await intake.getByLabel('Album title',{exact:true}).waitFor();
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('Synthetic setup');
   await page.locator('#find-artist-suggestions option[value="Synthetic setup band"]').waitFor({state:'attached'});
   await intake.getByLabel('Artist or band (optional)',{exact:true}).fill('');
@@ -994,6 +1006,7 @@ test('real Records setup and artist search survive browser reload with a title-o
   await intake.getByLabel('Artist or band (optional)',{exact:true}).waitFor({state:'detached'});
   assert.equal(await intake.getByLabel('Artist or band (optional)',{exact:true}).count(),0);
   assert.equal(await page.getByRole('form',{name:'Edit copy details',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Synthetic setup band');
+  await reviewItem(page);
   await intake.getByLabel('Album title',{exact:true}).fill('Synthetic title-only album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Synthetic title-only album',exact:true}).waitFor();
 });
@@ -1016,6 +1029,7 @@ test('bundled type definitions drive entry and setup labels, ordering and sugges
   assert.equal(await page.getByRole('checkbox',{name:'Format',exact:true}).isChecked(),false);
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('button',{name:'Save setup',exact:true}).click();
+  await reviewItem(page);
   await page.getByLabel('Record title',{exact:true}).fill('Example album');
   await page.getByLabel('Performer (optional)',{exact:true}).fill('Example artist');
   assert.equal(await page.locator('#find-format').count(),0);
@@ -1031,7 +1045,7 @@ test('Record entry suggests saved artists, orders artist before title and accept
   const form=page.getByRole('form',{name:'Add a find',exact:true});
   await form.getByLabel('Artist or band (optional)',{exact:true}).fill('Ra');
   await page.locator('#find-artist-suggestions option[value="Ramones"]').waitFor({state:'attached'});
-  assert.deepEqual((await form.locator('label').allTextContents()).slice(1,3),['Artist or band (optional)','Album title']);
+  assert.deepEqual((await form.locator('label').allTextContents()).slice(0,2),['Artist or band (optional)','Album title']);
   await form.getByLabel('Artist or band (optional)',{exact:true}).fill('Ramones');
   await form.getByLabel('Album title',{exact:true}).fill('Another example album');
   await form.getByLabel('Format (optional)',{exact:true}).selectOption('__other__');
@@ -1046,7 +1060,9 @@ test('Record entry suggests saved artists, orders artist before title and accept
     const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});
     await page.getByRole('form',{name:'Edit copy details',exact:true}).screenshot({path:`${output}/record-controls-desktop.png`});
     await page.setViewportSize({width:390,height:844});await page.getByRole('form',{name:'Edit copy details',exact:true}).screenshot({path:`${output}/record-controls-mobile.png`});
+    await page.setViewportSize({width:1440,height:1050});
   }
+  await reviewItem(page);
   assert.equal(await form.getByLabel('Format (optional)',{exact:true}).inputValue(),'');
   const edit=page.getByRole('form',{name:'Edit copy details',exact:true});
   assert.equal(await edit.getByLabel('Other format',{exact:true}).inputValue(),'Reel-to-reel');
@@ -1109,10 +1125,11 @@ test('Comics setup previews without writes; series-only and issue/publisher entr
   await form.getByLabel('Issue number (optional)',{exact:true}).fill('001½');
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('Example Press');
   await form.getByLabel('Edition or cover (optional)',{exact:true}).fill('Copper cover');
-  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await form.screenshot({path:`${output}/comic-desktop.png`});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Add a find',exact:true}).click();await form.screenshot({path:`${output}/comic-mobile.png`});}
+  if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await form.screenshot({path:`${output}/comic-desktop.png`});await page.setViewportSize({width:390,height:844});await form.screenshot({path:`${output}/comic-mobile.png`});await page.setViewportSize({width:1440,height:1050});}
   await form.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Example heroes #001½',exact:true}).waitFor();
   assert.equal(state.copies.length,1);assert.equal(state.items.length,0);
+  await reviewItem(page);
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('Ex');
   await page.locator('#find-publisher-suggestions option[value="Example Press"]').waitFor({state:'attached'});
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('');
@@ -1141,7 +1158,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('button',{name:'Save setup',exact:true}).click();
-  const intake=page.getByRole('form',{name:'Add a find',exact:true});
+  const intake=await reviewItem(page);
   await intake.getByLabel('Series/title',{exact:true}).fill(title);
   await intake.getByLabel('Issue number (optional)',{exact:true}).fill('423');
   await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic Press');
@@ -1163,6 +1180,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await page.getByRole('button',{name:'Open '+display,exact:true}).click();
   await page.getByAltText('Photo 1 of '+display).waitFor();
   assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
+  await reviewItem(page);
   await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic');
   await page.locator('#find-publisher-suggestions option[value="Synthetic Comic Press"]').waitFor({state:'attached'});
   const restored=await page.evaluate(async id=>await (await fetch('/api/v1/inventory/'+id)).json(),original.id);
@@ -1380,6 +1398,7 @@ test('approved factory palette matches login and the initial inventory appearanc
   await page.getByLabel('What are you adding?',{exact:true}).waitFor();
   await page.waitForFunction(()=>document.querySelector('.themed-app')?.style.getPropertyValue('--page')==='#F7F3E9');
   assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(247, 243, 233)');
+  await reviewItem(page);
   assert.equal(await page.getByRole('button',{name:'Save copy',exact:true}).evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(130, 59, 61)');
   if(shots){
     await page.screenshot({path:`${resolve(shots)}/default-desktop.png`,fullPage:true});

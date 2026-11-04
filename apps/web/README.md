@@ -187,14 +187,32 @@ running API/session database even for fixture cases. Never use a collection app.
 RELICRAT_TEST_WEB_URL=http://127.0.0.1:TEST_PORT RELICRAT_REAL_UI_TEST=1 npm run test:browser
 ```
 
+`npm run test:browser` runs the core inventory file. The cross-type acceptance
+matrix also includes the other `tests/*.browser.mjs` files; run each file serially
+against its own fresh disposable database/media, resetting between files. Reusing
+a fixture database across files can collide with deliberately fixed identifiers.
+The [private-beta checklist](../../docs/private-beta-acceptance.md) maps coverage
+to the hands-on acceptance tasks.
+
+For `tests/barcode.browser.mjs`, start only the disposable API with
+`RELICRAT_SYNTHETIC_SMOKE=1 python tests/browser_server.py` from the API directory
+(the test image includes that file). Its database name must end in `_test`.
+This bootstrap returns generated cover bytes for the one synthetic successful
+candidate and rejects other candidates. Browser lookup/preview interception
+alone cannot supply the server-side fetch during final save. Real media
+validation, transactions, provenance and download endpoints still run. The
+ordinary API startup remains unchanged; never use this bootstrap for an owner
+app. Keep the disposable network internal and use only synthetic credentials.
+
 By default, domain API calls in fixture scenarios are intercepted with clearly
 synthetic in-memory fixtures. These cover empty/error/no-match states, title and
 notes intake, duplicate in-flight submission, photo failure/size validation,
 immediate nested storage/movement, pagination, stale revisions, delayed reads,
 unreadable/network errors, escaped text, keyboard focus and mobile overflow.
-The separately guarded real-stack scenario is skipped unless
-RELICRAT_REAL_UI_TEST=1. It refuses writes to a nonempty inventory. Run it only
-against the dedicated disposable stack, never a collection app. Set
+The core suite's guarded real-stack scenarios are skipped unless
+RELICRAT_REAL_UI_TEST=1. Its three-copy journey refuses a nonempty inventory;
+that check supplements the disposable-stack requirement, not permission to use
+any other app. Run all scenarios only against the dedicated disposable stack. Set
 RELICRAT_TEST_WEB_URL to its loopback bridge when using the remote worker.
 
 For the verified operator run, a temporary loopback bridge relayed only test

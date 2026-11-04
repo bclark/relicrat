@@ -112,6 +112,7 @@ test('use a scan explicitly, save one copy, find it by barcode and retain remova
  const copies=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();
  assert.equal(copies.length,1);const copy=copies[0];assert.equal(copy.barcode.value,'012345678905');
  assert.equal(await page.getByText('Barcode in this draft',{exact:true}).count(),0);
+ await page.getByRole('button',{name:'Back to collection',exact:true}).click();
  await page.selectOption('#collection-browse-view','copies');await page.locator('#query').fill(copy.barcode.value);
  await page.getByRole('form',{name:'Search inventory'}).getByRole('button',{name:'Search',exact:true}).click();
  await page.locator('.inventory-list').getByRole('button').filter({hasText:title}).waitFor();
@@ -167,7 +168,7 @@ test('type configuration can disable new scans or reject a format without changi
   for(const type of Object.values(types))type.barcode_formats=formats;
   await route.fulfill({json:types});
  });
- await page.reload();await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).waitFor();
+ await page.reload();await page.getByRole('form',{name:'Start adding an item',exact:true}).waitFor();
  await page.waitForFunction(()=>!!document.querySelector('#find-type') && !document.querySelector('#find-type').closest('fieldset').disabled);
  assert.equal(await scanner.getByRole('button',{name:'Scan barcode',exact:true}).isDisabled(),true);
  assert.equal(await page.evaluate(()=>window.__cameraRequests.length),0);

@@ -246,3 +246,14 @@ edits. Owned figures/progress are not copied. An uncertain creation response kee
 its reviewed proposal for same-identity retry. Native controls, existing theme
 and layout retained; no new assets/tokens/API/schema. Not deployed.
 [Copy-import contract](../import-collection-copy.md).
+
+### Private-beta acceptance audit (2026-11-03)
+
+Owner requested the remaining phase-one work. The current progressive intake,
+three-pane desktop layout, phone Back navigation and theme contract remain the
+approved behavior. Older browser journeys now follow Review item
+and the intake closing after Save copy. This is acceptance/harness work, not a
+layout or branding change. Physical-phone usability remains an owner acceptance
+step; automated viewport checks do not establish it. See the
+[phase-one checklist](../private-beta-acceptance.md) and
+[verification record](../harness.md#private-beta-acceptance-audit-2026-11-03).
