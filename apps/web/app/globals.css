@@ -818,7 +818,6 @@ footer {
 .collection-journey .workspace.detail-open { grid-template-columns:200px minmax(0,1fr) 380px; }
 .collection-sidebar { min-width:0; }
 .collection-navigation h2 { font-size:.85rem; margin:0 0 12px; color:var(--muted); }
-.collection-navigation h3 { font-size:.85rem; margin:28px 0 12px; color:var(--muted); }
 .collection-link { display:block; width:100%; padding:10px 12px; border:0; text-align:left; background:transparent; color:var(--ink); font-weight:400; overflow-wrap:anywhere; }
 .collection-link:hover,.collection-link[aria-current=page] { background:var(--soft); color:var(--ink); }
 .collection-link[aria-current=page] { font-weight:700; outline:1px solid var(--accent); outline-offset:-1px; }

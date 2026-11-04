@@ -25,7 +25,7 @@ export default function CsvImport({runSave,locked,changed,openCopy}:{runSave:Run
  async function commit(){if(!file||!preview||!reviewed||preview.errors.length||preview.existing_batch)return;
   await task(async()=>{try{await runSave(async()=>{
    const result=await api<{batch:Batch;already_imported:boolean}>(`imports/commit?source=${source}&reviewed_sha256=${preview.sha256}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:file!});
-   setPreview(null);setReviewed(false);setNotice(result.already_imported?'This exact file was already imported. No additional copies were created.':`Imported ${result.batch.copy_count} physical copies into ${collections[source]}. Choose that type or All types in Your collection to see them.`);changed();
+   setPreview(null);setReviewed(false);setNotice(result.already_imported?'This exact file was already imported. No additional copies were created.':`Imported ${result.batch.copy_count} physical copies into ${collections[source]}. Open that collection or All items to see them.`);changed();
   });}catch(e){setPreview(null);setReviewed(false);throw e;}
   // History loading is separate from the committed import. A failed read must
   // never imply that the write failed or invite a duplicate retry.

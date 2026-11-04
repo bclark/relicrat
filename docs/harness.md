@@ -2568,3 +2568,17 @@ API/web images were removed, then removed its owned temporary worker source.
 The task-owned Mac preview bridge is closed. Prior resources and the active
 owner trial were preserved; no deployment, live migration or live credential/network
 change was made. Durable private logs and final synthetic captures were retained.
+
+## One Collections list (2026-11-04, implemented for review)
+
+Removed the desktop subheading and phone optgroups so built-in and named
+collections share one list, with All items first. Scope IDs, paging and ownership
+behavior are unchanged. `npm test` passed 36 tests; `npm run lint` and the worker
+production build passed (the existing CSS compatibility warning remains).
+Five distinct focused browser cases passed across the complete custom-browsing
+run and focused reruns: unified desktop/390px choices, both scope kinds, retained
+drafts, pagination/off-page selection, failure recovery and All items guidance.
+An initial assertion ran before type choices loaded; it now waits for readiness.
+The desktop/phone component captures were inspected together. Synthetic stack,
+bridge and owned temporary source were removed; live app images stayed running.
+No API suite was rerun for this UI-only change. No deployment is claimed.

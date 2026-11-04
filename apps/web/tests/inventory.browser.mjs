@@ -1291,7 +1291,7 @@ test('saving outside the visible type filter keeps the find type and explains wh
   await page.getByRole('button',{name:'Open A comic',exact:true}).waitFor();
   const form=page.getByRole('form',{name:'Add a find',exact:true});await form.getByLabel('Title',{exact:true}).fill('A generic find');
   await form.getByRole('button',{name:'Save copy',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Choose All types to see it in the list.'}).waitFor();
+  await page.getByRole('status').filter({hasText:'Choose All items to see it in the list.'}).waitFor();
   assert.equal(await filter.inputValue(),'comic');assert.equal(state.copies[0].collection_type,'other');
   assert.equal(await page.getByRole('button',{name:'Open A generic find',exact:true}).count(),0);
   await chooseCollection(page,'');await page.getByRole('button',{name:'Open A generic find',exact:true}).waitFor();
