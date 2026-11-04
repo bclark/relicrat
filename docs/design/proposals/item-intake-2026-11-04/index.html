@@ -1,0 +1,366 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RelicRat — Add an item concept</title><style>
+:root{--page:#F7F3E9;--paper:#fff;--ink:#302B28;--muted:#595650;--rule:#C6C9C3;--accent:#823B3D;--soft:#E8EEE9;--error:#8d2433}*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--page);font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select,textarea{font:inherit;color:inherit}button,a,input,select,textarea,summary{outline-offset:4px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent)}::selection{background:var(--accent);color:white}input,textarea{caret-color:var(--accent)}button{min-height:44px;padding:10px 18px;border:1px solid var(--muted);border-radius:6px;background:var(--paper);cursor:pointer;font-weight:600}button:hover{background:var(--soft)}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border-color:var(--accent);color:white}.text{border:0;background:none;padding:6px 0;color:var(--accent);text-decoration:underline;text-underline-offset:4px}.concept{padding:10px 24px;background:var(--soft);font-size:13px;text-align:center}.site-header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:20px 32px;border-bottom:1px solid var(--rule)}.brand{font-size:24px;font-weight:750;letter-spacing:-.03em}.site-header p{margin:0;color:var(--muted);font-size:14px}.shell{max-width:1180px;display:grid;grid-template-columns:180px minmax(0,1fr);gap:52px;padding:40px 32px 80px;margin:auto}nav{padding-top:8px}nav h2{font-size:15px;margin:0 0 12px}nav button{display:block;text-align:left;width:100%;padding:10px 12px;border:0;background:none;font-size:15px;font-weight:400}nav button[aria-current]{background:var(--soft);font-weight:650}nav .text{margin-top:20px}main{min-width:0;max-width:760px;width:100%}h1{font-size:32px;letter-spacing:-.03em;line-height:1.2;margin:18px 0 12px}h2{font-size:20px;line-height:1.3;letter-spacing:-.015em;margin:0 0 12px}h3{font-size:17px;margin:0 0 12px}p{max-width:68ch}.lede{color:var(--muted);margin:0 0 28px}.paper{background:var(--paper);padding:28px 32px;border-radius:12px}.field{margin:0 0 20px}label,legend{display:block;font-size:14px;font-weight:650;margin-bottom:8px}.optional{font-weight:400;color:var(--muted)}input:not([type=checkbox]):not([type=radio]),select,textarea{width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--muted);border-radius:6px;background:var(--paper)}input::placeholder,textarea::placeholder{color:var(--muted)}textarea{resize:vertical}.collection-field{padding-bottom:24px;border-bottom:1px solid var(--rule);margin-bottom:24px}.start-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.start-row p{font-size:14px;color:var(--muted);margin:0}.hint{font-size:14px;color:var(--muted);margin:8px 0 16px}.barcode{display:flex;gap:12px;justify-content:space-between;align-items:center;background:var(--soft);padding:12px 16px;margin-bottom:20px;font-size:14px}.barcode .text{font-size:14px;min-height:32px}.row{display:grid;grid-template-columns:1fr 1fr;gap:20px}fieldset{border:0;padding:0;margin:0 0 20px;min-width:0}.choice{display:flex;gap:10px;align-items:center;min-height:38px;font-weight:400}.choice input{width:18px;height:18px;flex-shrink:0;accent-color:var(--accent)}details{border-top:1px solid var(--rule);padding-top:18px;margin:12px 0 24px}summary{cursor:pointer;color:var(--accent);font-weight:600;min-height:36px}details .field:first-of-type{margin-top:16px}.actions{border-top:1px solid var(--rule);padding-top:22px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}.actions .primary{min-width:170px}.actions p{font-size:13px;color:var(--muted);margin:0}.lookup{margin:0 0 24px;padding-bottom:24px;border-bottom:1px solid var(--rule)}.candidate{width:100%;display:flex;justify-content:space-between;gap:16px;text-align:left;margin-top:12px}.candidate span{display:block;font-size:14px;font-weight:400;color:var(--muted)}.candidate b{font-weight:650}.cover-review{display:grid;grid-template-columns:112px 1fr;gap:20px;align-items:start;margin-bottom:24px}.sleeve{width:112px;height:112px;display:block}.cover-review p{font-size:13px;color:var(--muted);margin:4px 0}.suggestion-note{font-size:14px;color:var(--muted);margin-bottom:16px}.field-review{display:flex;gap:10px;align-items:center;margin-top:8px;font-weight:400;font-size:13px}.field-review input{width:16px;height:16px;accent-color:var(--accent)}.message{padding:14px 16px;background:var(--soft);margin:16px 0}.message p{margin:6px 0}.message.error{color:var(--error);background:#fff1f2;border:1px solid var(--error);border-radius:6px}.success{padding-top:20px}.success h1{max-width:19ch}.saved-location{color:var(--muted);margin:16px 0 28px}.proof{border-top:1px solid var(--rule);margin-top:32px;padding-top:16px;color:var(--muted);font-size:13px}.demo-tools{max-width:1116px;margin:0 auto 48px;padding:0 24px}.demo-tools summary{font-size:14px}.demo-tools label{font-size:13px}.demo-tools p{font-size:13px;color:var(--muted)}.demo-controls{display:grid;grid-template-columns:1fr 1fr;gap:20px}.browse-list{list-style:none;padding:0}.browse-list li{padding:18px 0;border-bottom:1px solid var(--rule)}.browse-list small{display:block;color:var(--muted)}[hidden]{display:none!important}@media(max-width:760px){.shell{display:block;padding:20px 16px 48px}nav{display:none}.site-header{padding:16px 20px}.site-header p{display:none}.paper{padding:22px 20px}.concept{font-size:12px;padding:10px 16px}h1{font-size:28px}.row,.demo-controls{grid-template-columns:1fr}.start-row{align-items:flex-start;flex-direction:column;gap:10px}.start-row button{width:100%}.actions .primary{width:100%}.cover-review{grid-template-columns:96px 1fr;gap:16px}.sleeve{width:96px;height:96px}.demo-tools{padding:0 20px}.barcode{align-items:flex-start}.candidate{font-size:15px}.actions{gap:10px}}@media(prefers-reduced-motion:no-preference){button{transition:background-color .15s ease-out}}
+</style></head><body><div class="concept">Interactive visual concept · Fictional records · Camera and catalog responses are simulated · Nothing is saved to RelicRat</div><header class="site-header"><div class="brand">RelicRat</div><p>Your collection, one copy at a time.</p></header><div class="shell"><nav aria-label="Collection preview"><h2>Collections</h2><div id="nav"></div></nav><main id="main"></main></div><details class="demo-tools"><summary>Concept controls and boundaries</summary><div class="demo-controls"><label>Simulated scan outcome<select id="scan-outcome"><option value="match">Possible catalog match</option><option value="empty">No match</option><option value="unavailable">Provider unavailable</option><option value="permission">Camera permission denied</option></select></label><label>Simulated save outcome<select id="save-outcome"><option value="success">Confirmed success</option><option value="error">Known rejection — keep draft</option><option value="uncertain">Connection lost — outcome unknown</option></select></label></div><p>This is a proposed flow, not the shipping app. Try each collection, a simulated scan, a title-only save, and Back with a draft. Custom fields come from a fictional saved definition. Checklist qualification, photos and storage remain separate actions after creation.</p></details><script>
+const configs={
+  "album": {
+    "schema_version": 1,
+    "id": "record",
+    "label": "Album",
+    "plural_label": "Albums",
+    "title": {
+      "key": "title",
+      "label": "Album title",
+      "max_length": 500,
+      "placeholder": "e.g. Album title",
+      "suggested": true
+    },
+    "fields": [
+      {
+        "key": "artist",
+        "label": "Artist or band",
+        "max_length": 500,
+        "placeholder": "",
+        "suggested": true,
+        "input": "autocomplete"
+      },
+      {
+        "key": "format",
+        "label": "Format",
+        "max_length": 100,
+        "placeholder": "e.g. Vinyl, CD or cassette",
+        "suggested": true,
+        "input": "select",
+        "options": [
+          "Vinyl",
+          "CD",
+          "Cassette"
+        ]
+      },
+      {
+        "key": "edition",
+        "label": "Edition or pressing",
+        "max_length": 500,
+        "placeholder": "",
+        "suggested": true
+      },
+      {
+        "key": "notes",
+        "label": "Notes",
+        "max_length": 10000,
+        "placeholder": "Distinctive details, condition, or where you found it",
+        "suggested": true
+      }
+    ],
+    "entry_order": [
+      "artist",
+      "title",
+      "format",
+      "edition",
+      "notes"
+    ],
+    "grouping": {
+      "field": "artist",
+      "plural_label": "Artists",
+      "unknown_label": "Artist not recorded",
+      "order": "title"
+    },
+    "barcode_formats": [
+      "UPC_A",
+      "UPC_E",
+      "EAN_8",
+      "EAN_13"
+    ],
+    "lookup": {
+      "provider": "musicbrainz",
+      "action_label": "Find album details",
+      "max_results": 5,
+      "field_mappings": {
+        "title": "title",
+        "artist": "artist",
+        "format": "format"
+      },
+      "value_maps": {
+        "format": {
+          "7\" Vinyl": "Vinyl",
+          "10\" Vinyl": "Vinyl",
+          "12\" Vinyl": "Vinyl"
+        }
+      },
+      "cover_art": true
+    }
+  },
+  "comic": {
+    "schema_version": 1,
+    "id": "comic",
+    "label": "Comic",
+    "plural_label": "Comics",
+    "title": {
+      "key": "title",
+      "label": "Series/title",
+      "max_length": 500,
+      "placeholder": "e.g. Batman",
+      "suggested": true
+    },
+    "fields": [
+      {
+        "key": "issue_number",
+        "label": "Issue number",
+        "max_length": 100,
+        "placeholder": "e.g. 423, \u00bd or Annual 1",
+        "suggested": true
+      },
+      {
+        "key": "publisher",
+        "label": "Publisher",
+        "max_length": 250,
+        "placeholder": "",
+        "suggested": true,
+        "input": "autocomplete"
+      },
+      {
+        "key": "edition",
+        "label": "Edition or cover",
+        "max_length": 500,
+        "placeholder": "",
+        "suggested": true
+      },
+      {
+        "key": "notes",
+        "label": "Notes",
+        "max_length": 10000,
+        "placeholder": "",
+        "suggested": true
+      }
+    ],
+    "entry_order": [
+      "title",
+      "issue_number",
+      "publisher",
+      "edition",
+      "notes"
+    ],
+    "grouping": {
+      "field": "title",
+      "plural_label": "Series",
+      "unknown_label": "Series not recorded",
+      "order": "issue_number"
+    },
+    "barcode_formats": [
+      "UPC_A",
+      "UPC_E",
+      "EAN_8",
+      "EAN_13"
+    ]
+  },
+  "movie": {
+    "schema_version": 1,
+    "id": "movie",
+    "label": "Movie",
+    "plural_label": "Movies",
+    "title": {
+      "key": "title",
+      "label": "Movie or box-set title",
+      "max_length": 500,
+      "placeholder": "e.g. Movie title",
+      "suggested": true
+    },
+    "fields": [
+      {
+        "key": "media_format",
+        "label": "Format",
+        "max_length": 100,
+        "placeholder": "",
+        "suggested": true,
+        "input": "select",
+        "options": [
+          "Blu-ray",
+          "4K UHD",
+          "DVD",
+          "Blu-ray + DVD",
+          "VHS",
+          "LaserDisc"
+        ]
+      },
+      {
+        "key": "studio",
+        "label": "Studio",
+        "max_length": 250,
+        "placeholder": "",
+        "suggested": true,
+        "input": "autocomplete"
+      },
+      {
+        "key": "edition",
+        "label": "Edition or packaging",
+        "max_length": 500,
+        "placeholder": "e.g. SteelBook",
+        "suggested": true
+      },
+      {
+        "key": "notes",
+        "label": "Notes",
+        "max_length": 10000,
+        "placeholder": "Distinctive details, condition, or where you found it",
+        "suggested": true
+      }
+    ],
+    "entry_order": [
+      "title",
+      "media_format",
+      "studio",
+      "edition",
+      "notes"
+    ],
+    "grouping": {
+      "field": "title",
+      "plural_label": "Titles",
+      "unknown_label": "Title not recorded",
+      "order": "title"
+    },
+    "barcode_formats": [
+      "UPC_A",
+      "UPC_E",
+      "EAN_8",
+      "EAN_13"
+    ],
+    "lookup": {
+      "provider": "upcitemdb",
+      "action_label": "Find movie details",
+      "max_results": 5,
+      "field_mappings": {
+        "title": "title"
+      },
+      "value_maps": {},
+      "cover_art": false
+    }
+  },
+  "other": {
+    "schema_version": 1,
+    "id": "other",
+    "label": "Other",
+    "plural_label": "Other",
+    "title": {
+      "key": "title",
+      "label": "Title",
+      "max_length": 500,
+      "placeholder": "e.g. A find to identify later",
+      "suggested": true
+    },
+    "fields": [
+      {
+        "key": "notes",
+        "label": "Notes",
+        "max_length": 10000,
+        "placeholder": "Distinctive details, condition, or where you found it",
+        "suggested": true
+      }
+    ],
+    "entry_order": [
+      "title",
+      "notes"
+    ],
+    "barcode_formats": [
+      "UPC_A",
+      "UPC_E",
+      "EAN_8",
+      "EAN_13"
+    ]
+  },
+  "figures": {
+    "id": "demo_figures",
+    "label": "Action figure",
+    "plural_label": "Orbit Rangers \u2014 Original Figures",
+    "title": {
+      "key": "title",
+      "label": "Character name",
+      "max_length": 100
+    },
+    "entry_order": [
+      "title",
+      "head_variant",
+      "condition",
+      "accessories",
+      "notes"
+    ],
+    "fields": [
+      {
+        "key": "head_variant",
+        "label": "Head variant",
+        "input": "radio",
+        "options": [
+          "Soft",
+          "Hard"
+        ],
+        "max_length": 50
+      },
+      {
+        "key": "condition",
+        "label": "Condition",
+        "input": "select",
+        "options": [
+          "Excellent",
+          "Good",
+          "Fair"
+        ],
+        "max_length": 50
+      },
+      {
+        "key": "accessories",
+        "label": "Accessories",
+        "input": "checkboxes",
+        "options": [
+          "Helmet",
+          "Backpack",
+          "Blaster"
+        ],
+        "max_length": 100
+      },
+      {
+        "key": "notes",
+        "label": "Notes",
+        "max_length": 10000
+      }
+    ],
+    "custom": true
+  }
+}
+;
+const names=Object.fromEntries(Object.entries(configs).map(([k,v])=>[k,v.plural_label]));let destination='album',pendingDestination=null,drafts={},view='entry',saved=null,request=0;
+function fresh(){return {values:{},barcode:'',result:'',candidate:false,includeCover:false,checks:{},notice:'',error:'',uncertain:false}}
+function draft(){return drafts[destination]??=(fresh())}const main=document.querySelector('#main');
+const samples={album:{title:'North Window',artist:'Tideline',format:'Vinyl'},movie:{title:'The Last Observatory'},comic:{title:'Star Patrol',issue_number:'7'},figures:{title:'Captain Nova'},other:{title:'Blue enamel pin'}};
+function el(tag,props={},...children){const n=document.createElement(tag);for(const[k,v]of Object.entries(props)){if(k.startsWith('on'))n.addEventListener(k.slice(2),v);else if(k==='class')n.className=v;else if(k==='checked'||k==='disabled'||k==='hidden'||k==='required'||k==='open')n[k]=v;else n.setAttribute(k,v)}for(const c of children.flat())if(c!=null)n.append(c instanceof Node?c:document.createTextNode(String(c)));return n}
+function btn(text,fn,cls='',disabled=false){return el('button',{type:'button',class:cls,onclick:fn,disabled:disabled||!!draft().saving},text)}
+function focusHeading(){main.querySelector('h1')?.focus()}
+function dirty(d){return Object.values(d.values).some(v=>Array.isArray(v)?v.length:!!v)||!!d.barcode}
+function navigate(next){if(next===destination)return;if(draft().uncertain){draft().error='Check the collection to confirm the previous save before starting another item.';render();return}if(dirty(draft())){pendingDestination=next;render();return}destination=next;view='entry';render();focusHeading()}
+function nav(){const n=document.querySelector('#nav');n.replaceChildren(...Object.keys(configs).map(k=>{const b=btn(names[k],()=>navigate(k));if(k===destination)b.setAttribute('aria-current','page');return b}))}
+function field(c,key,d){const f=key==='title'?{...c.title,key}:c.fields.find(v=>v.key===key);if(!f)return null;let value=d.values[key]??'',node;const optional=key==='title'?'':' (optional)';let label=el('label',{for:'field-'+key},f.label,el('span',{class:'optional'},optional));
+const update=v=>{d.values[key]=v;if(d.candidate){d.checks[key]=false;d.before??={};d.before[key]=v;const toggle=document.querySelector('#suggest-check-'+key);if(toggle)toggle.checked=false}d.error='';document.querySelector('#save-item').disabled=!String(d.values.title||'').trim()||d.uncertain};
+if(['radio','checkboxes'].includes(f.input)){node=el('fieldset',{},el('legend',{},f.label,el('span',{class:'optional'},' (optional)')));const opts=f.input==='radio'?['Not recorded',...f.options]:f.options;for(const option of opts){const selected=f.input==='radio'?(option==='Not recorded'?!value:value===option):(Array.isArray(value)&&value.includes(option));node.append(el('label',{class:'choice'},el('input',{type:f.input==='radio'?'radio':'checkbox',name:key,checked:selected,onchange:e=>update(f.input==='radio'?(option==='Not recorded'?'':option):(e.target.checked?[...(Array.isArray(d.values[key])?d.values[key]:[]),option]:(d.values[key]||[]).filter(v=>v!==option)))}),option))}return node}
+if(f.input==='select'){node=el('select',{id:'field-'+key,onchange:e=>{if(e.target.value==='__other__'){update('');d.values[key+'__other']=true;render()}else{update(e.target.value);d.values[key+'__other']=false}}},el('option',{value:''},'Not recorded'),...f.options.map(o=>el('option',{value:o},o)),...(c.custom?[]:[el('option',{value:'__other__'},'Other…')]));node.value=d.values[key+'__other']?'__other__':value}
+else if(key==='notes'){node=el('textarea',{id:'field-'+key,rows:'3',maxlength:f.max_length,oninput:e=>update(e.target.value)});node.value=value}
+else{node=el('input',{id:'field-'+key,type:'text',maxlength:f.max_length||500,required:key==='title',autocomplete:'off',oninput:e=>update(e.target.value)});node.value=value;if(f.input==='autocomplete'){node.setAttribute('list','suggest-'+key)}}
+const wrap=el('div',{class:'field'},label,node);if(f.input==='autocomplete')wrap.append(el('datalist',{id:'suggest-'+key},el('option',{value:key==='artist'?'Tideline':key==='publisher'?'Northstar Press':'Beacon Pictures'})));
+if(d.values[key+'__other']){const other=el('input',{id:'field-'+key+'-other',maxlength:f.max_length,oninput:e=>update(e.target.value)});other.value=value;wrap.append(el('label',{for:'field-'+key+'-other'},'Other format'),other)}
+if(d.candidate&&samples[destination][key])wrap.append(el('label',{class:'field-review'},el('input',{type:'checkbox',id:'suggest-check-'+key,checked:!!d.checks[key],onchange:e=>{d.checks[key]=e.target.checked;if(e.target.checked){d.values[key]=samples[destination][key]}else{d.values[key]=d.before?.[key]||''}render()}}),'Use catalog suggestion: '+samples[destination][key]));return wrap}
+function scan(){const d=draft(),c=configs[destination];if(document.querySelector('#scan-outcome').value==='permission'){d.error='Camera access is off. Allow it in your browser, or type the barcode below.';d.manualBarcode=true;render();return}d.barcode=destination==='movie'?'000000000002':destination==='comic'?'000000000003':'000000000001';d.result=c.lookup?'loading':'unsupported';d.error='';render();const id=++request;setTimeout(()=>{if(id!==request||!c.lookup)return;d.result=document.querySelector('#scan-outcome').value;render()},450)}
+function choose(){const d=draft();d.before={...d.values};d.candidate=true;d.result='';for(const[k,v]of Object.entries(samples[destination])){d.checks[k]=!String(d.values[k]||'').trim();if(d.checks[k])d.values[k]=v}d.notice='Review the suggested details below. Only Save item adds a physical copy.';render();main.querySelector('#field-title')?.focus()}
+function results(d,c){if(!d.result)return null;let body=el('section',{class:'lookup','aria-label':'Barcode result'});if(d.result==='loading')body.append(el('p',{role:'status'},'Looking for a possible match…'));if(d.result==='match'){body.append(el('h2',{},'Possible match'),el('p',{class:'hint'},'From '+(destination==='album'?'MusicBrainz':'UPCitemdb')+'. A shared barcode can cover several editions.'),btn('',choose));body.lastChild.replaceChildren(el('div',{},el('b',{},samples[destination].title),el('span',{},destination==='album'?'Tideline · Vinyl · Fictional release':'Movie title · Fictional release')),el('span',{},'Review details'));body.lastChild.className='candidate'}else if(d.result==='empty')body.append(el('h2',{},'No catalog match'),el('p',{class:'hint'},'The barcode is kept. Enter a title and save; you can add details later.'));else if(d.result==='unavailable')body.append(el('h2',{},'Catalog lookup is unavailable'),el('p',{class:'hint'},'Your draft is still here. Try again or enter details yourself.'),btn('Try lookup again',scan));else if(d.result==='unsupported')body.append(el('p',{class:'hint'},'Barcode kept. No catalog lookup is configured for '+names[destination]+'. Enter the details below.'));return body}
+function cover(d){if(!d.candidate||!configs[destination].lookup?.cover_art)return null;const art=el('div',{});art.innerHTML='<svg class="sleeve" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 112" role="img" aria-label="Fictional album catalog cover"><rect width="112" height="112" fill="#254D3D"/><text x="10" y="28" fill="#F7F3E9" font-family="sans-serif" font-size="11">TIDELINE</text><rect x="10" y="44" width="92" height="1" fill="#F7F3E9"/><text x="10" y="66" fill="#F7F3E9" font-family="sans-serif" font-size="10">NORTH WINDOW</text><text x="10" y="96" fill="#F7F3E9" font-family="sans-serif" font-size="8">FICTIONAL COVER</text></svg>';return el('section',{class:'cover-review'},art,el('div',{},el('label',{class:'choice'},el('input',{type:'checkbox',checked:d.includeCover,onchange:e=>d.includeCover=e.target.checked}),'Include catalog cover'),el('p',{},'Optional artwork from MusicBrainz / Cover Art Archive. It is not a photo of your physical copy.')))}
+function save(e){e.preventDefault();const d=draft();if(!String(d.values.title||'').trim()||d.uncertain||d.saving)return;d.saving=true;render();setTimeout(()=>{d.saving=false;const outcome=document.querySelector('#save-outcome').value;if(outcome==='error'){d.error='This item could not be saved. Your details are still here. Try again when ready.';render();return}if(outcome==='uncertain'){d.uncertain=true;d.error='The connection ended before saving was confirmed. Check the collection before trying again.';render();return}saved={destination,values:{...d.values},cover:d.includeCover};drafts[destination]=fresh();view='success';render();focusHeading()},500)}
+function render(){nav();main.replaceChildren();const c=configs[destination],d=draft();
+if(view==='success'){main.append(btn('Back to '+names[destination],()=>{view='browse';render();focusHeading()},'text'),el('section',{class:'success'},el('h1',{tabindex:'-1'},saved.values.title+' added.'),el('p',{class:'saved-location'},'Saved in '+names[destination]+'.'),el('div',{class:'actions'},btn('Add another item',()=>{view='entry';render();focusHeading()},'primary'),btn('View item',()=>{view='item';render();focusHeading()})),el('p',{class:'hint'},c.custom?'You can review its checklist match, photos and storage from the saved item.':'You can add photos or storage from the saved item.')));return}
+if(view==='item'){main.append(btn('Back to '+names[destination],()=>{view='browse';render()},'text'),el('h1',{tabindex:'-1'},saved.values.title),el('p',{},names[destination]),el('p',{class:'message'},'Saved-item destination shown for the concept. Photos, storage and checklist matching keep their existing separate save actions.'),btn('Add another item',()=>{view='entry';render()},'primary'));return}
+if(view==='browse'){main.append(el('h1',{tabindex:'-1'},names[destination]),btn(dirty(d)?'Continue adding your item':'Add an item',()=>{view='entry';render();focusHeading()},'primary'));if(dirty(d))main.append(el('p',{class:'message',role:'status'},'Your unfinished item is still here.'));const list=el('ul',{class:'browse-list'},el('li',{},'Fictional collection preview',el('small',{},'Browse filters and your position are preserved in the proposed app journey.')));if(saved?.destination===destination)list.prepend(el('li',{},saved.values.title,el('small',{},'Physical copy · '+names[destination])));main.append(list);return}
+main.append(btn('Back to '+names[destination],()=>{view='browse';render();focusHeading()},'text'),el('h1',{tabindex:'-1'},'Add an item'),el('p',{class:'lede'},'Start with a title. Everything else is optional.'));
+const paper=el('div',{class:'paper'}),selector=el('select',{id:'destination',disabled:d.uncertain||d.saving,onchange:e=>navigate(e.target.value)},...Object.entries(names).map(([k,v])=>el('option',{value:k},v)));selector.value=destination;paper.append(el('div',{class:'collection-field'},el('label',{for:'destination'},'Collection'),selector));
+if(pendingDestination){paper.append(el('div',{class:'message',role:'alert'},el('p',{},'This unfinished item belongs to '+names[destination]+'. Discard it to start in '+names[pendingDestination]+'?'),btn('Keep editing',()=>{pendingDestination=null;render()}),btn('Discard and switch',()=>{drafts[destination]=fresh();destination=pendingDestination;pendingDestination=null;request++;render()})));main.append(paper);return}
+if(c.barcode_formats?.length)paper.append(el('div',{class:'start-row'},btn('Scan barcode',scan,'',d.uncertain),el('p',{},'Or enter the details below.')),btn('Type a barcode instead',()=>{d.manualBarcode=!d.manualBarcode;render()},'text',d.uncertain));else paper.append(el('p',{class:'hint'},'Enter a '+c.title.label.toLowerCase()+'. Barcode scanning is not configured for this collection.'));
+if(d.manualBarcode){const code=el('input',{id:'manual-barcode',inputmode:'numeric',maxlength:'14'});code.value=d.barcode;paper.append(el('div',{class:'field'},el('label',{for:'manual-barcode'},'Barcode'),code,btn('Use barcode',()=>{d.barcode=code.value;d.manualBarcode=false;d.result=c.lookup?document.querySelector('#scan-outcome').value:'unsupported';render()})))}
+if(d.barcode)paper.append(el('div',{class:'barcode'},el('span',{},'Barcode '+d.barcode+' · Demo value'),btn('Remove',()=>{d.barcode='';d.result='';request++;render()},'text',d.uncertain)));
+const result=results(d,c);if(result)paper.append(result);if(d.notice)paper.append(el('p',{class:'suggestion-note',role:'status'},d.notice));const art=cover(d);if(art)paper.append(art);
+const form=el('form',{onsubmit:save,'aria-label':'Add an item'}),fields=el('fieldset',{disabled:d.uncertain||d.saving});const primaryKeys=c.entry_order.filter(k=>!['edition','notes','accessories'].includes(k));for(const key of primaryKeys)fields.append(field(c,key,d));const extraKeys=c.entry_order.filter(k=>['edition','notes','accessories'].includes(k));if(extraKeys.length)fields.append(el('details',{},el('summary',{},'More details (optional)'),...extraKeys.map(k=>field(c,k,d))));fields.append(el('div',{class:'actions'},el('button',{id:'save-item',type:'submit',class:'primary',disabled:!String(d.values.title||'').trim()||d.uncertain||d.saving},d.saving?'Saving…':'Save item'),el('p',{},'Adds one physical copy to '+names[destination]+'.')));form.append(fields);paper.append(form);
+if(d.error)paper.append(el('div',{class:'message error',role:'alert'},d.error));if(d.uncertain)paper.append(btn('Check collection',()=>{saved={destination,values:{...d.values},cover:d.includeCover};drafts[destination]=fresh();view='browse';render();main.prepend(el('p',{class:'message',role:'status'},'Demo check: the original item was found. No second copy was created.'))}));paper.append(el('p',{class:'hint'},'Photos and storage can be added after saving.'));main.append(paper,el('p',{class:'proof'},'Concept: one entry point, configured fields, reviewed suggestions and a single final save. No automatic checklist match or catalog identification.'))}
+render();
+</script></body></html>

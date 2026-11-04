@@ -308,3 +308,13 @@ The phone chooser has the same flat choices and All items label, without type
 or custom collection optgroups. Scope IDs, ownership, grouping, paging, errors
 and draft preservation remain unchanged. No theme, schema or API change.
 Status: implemented for review; not deployed.
+
+### Add-item journey — proposed visual concept (2026-11-04)
+
+Owner requested collection → scan or title → review optional details/cover → one
+clear Save across built-in and custom collections, with a visual concept before
+implementation. The [interactive proposal](proposals/item-intake-2026-11-04/README.md)
+extends the current palette/components and uses fictional in-memory examples.
+It brings the destination first and reviews suggestions in the final form;
+current provider/cover capabilities and separate custom ownership/checklist rules
+remain explicit. Status: proposed for owner review; no app or deployment change.
