@@ -5,7 +5,11 @@ primary_target: "apps/web/app/page.tsx"
 related_targets: ["apps/web/app/inventory-client.tsx","apps/web/app/copy-detail.tsx","apps/web/app/globals.css"]
 ---
 
-# Inventory intake screen
+# Collection workspace and journey
+
+Current authority: the approved November 4 collection journey below. Earlier
+direction contracts and finish verdicts are retained as historical evidence;
+they do not describe the current layout or validate this increment.
 
 Primary target: apps/web/app/page.tsx. Related: inventory-client.tsx, copy-detail.tsx,
 globals.css. Mode: Operate. Owner confirmed add-first and direct working-interface
@@ -167,3 +171,46 @@ drafts, explicit saves, semantic focus and camera shutdown. Adapted onto current
 main rather than replacing current Movie, CSV, storage, group and barcode flows.
 This review prepares a PR; it does not deploy the layout. Validation and remaining
 limits are recorded in docs/harness.md.
+
+
+## Approved collection journey — 2026-11-04
+
+Status: implemented for review; not deployed. Supersedes the earlier intake-rail,
+List/Bricks and full working-editor composition. Mode: Operate. Theme roles,
+colors and fonts stay incumbent. The owner approved the [concept direction](../../docs/design/proposals/collection-journey-2026-11-04/README.md),
+not pixel masters, fictional inventory, new logos or brand assets.
+
+THESIS: Navigate a collection, browse physical copies, inspect before editing.
+
+OWN-WORLD: Retain ivory/white paper, charcoal ink, burgundy actions, bounded
+owner themes and native labeled controls. Do not promote concept imagery into data.
+
+STORY: Choose Albums, Comics, Movies, Other or a named custom collection; use
+existing server search/grouping and exact physical-location filtering; open a
+read-first summary. Edit details explicitly reveals the configured editor.
+Confirmed Save details returns to summary; Cancel confirms dirty-draft discard.
+Back keeps the editor mounted and restores browse focus/position. Replacement,
+uncertain writes and conflicts remain guarded. Independent saves stay independent.
+
+FIRST VIEWPORT: Desktop collection rail, flexible List/Covers browser and an
+optional read-first inspector. Below 1280px the record replaces browsing; below
+760px a native chooser replaces rail links and details hide it. Custom choices
+remain paged and preserve off-page selection. Add a find is an explicit disclosure,
+not a permanently expanded intake rail; closing it keeps its draft and stops scanning.
+
+FORM: Approved concepts adapted to current API/configuration contracts. Bounded
+thumbnail/location projections avoid per-row metadata requests. Artwork and copy
+photos remain distinct; no-art fallback is explicit. Notes remain read-only where
+API editing is unavailable. Core/API/web remain in this repository; future native
+and immersive clients use the API rather than duplicating authoritative rules.
+See docs/collection-journey.md and docs/architecture/overview.md.
+
+FINISH: 422 API, 36 Node and 111 distinct browser scenarios passed across full
+files and focused reruns. See docs/harness.md for the exact attempts and limits.
+Five valid final captures are `.harness-results/journey/final-captures/desktop-browse.png`,
+`desktop-view.png`, `phone-view.png`, `phone-edit.png` and `phone-320.png`.
+They show synthetic implementation evidence; they are not production inventory.
+The finish reviewer returned ship for the scored focus/documentation fixes.
+Configured custom observations are readable before Edit. This does not claim
+deployment or a single all-green browser invocation. No new shipping illustration,
+icon, dependency or migration.

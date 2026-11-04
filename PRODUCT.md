@@ -23,7 +23,7 @@ The repository uses FastAPI, PostgreSQL, Alembic and Next.js. Development runs o
 
 The API supports provisional copy intake, photos, catalog category/item/release creation and lookup, manual revision-checked catalog/release reconciliation with retained identification history, nested storage locations, revision-checked copy movements with retained history, and literal text search across provisional information and linked catalog/release names.
 
-The working web screen supports add-first provisional intake with a title or notes, photo upload/viewing after saving, nested location creation, location assignment/unassignment saved immediately on selection, movement history, and paginated search/browsing of physical copies. The selected record now supports explicit catalog search/selection, an optional release, separate category/item/release creation, revision-checked Save catalog match under Advanced, and retained identification history. Similar names remain separate. Catalog-only identification removes a previous release while preserving the physical copy UUID, provisional information, photos, storage and history. Manual identification is not a verified match. The earlier add-first and direct-build choices applied to that screen task; they do not establish a standing build-path or configuration preference.
+The earlier web screen supported add-first provisional intake with a title or notes, photo upload/viewing after saving, nested location creation, location assignment/unassignment saved immediately on selection, movement history, and paginated search/browsing of physical copies. The selected record now supports explicit catalog search/selection, an optional release, separate category/item/release creation, revision-checked Save catalog match under Advanced, and retained identification history. Similar names remain separate. Catalog-only identification removes a previous release while preserving the physical copy UUID, provisional information, photos, storage and history. Manual identification is not a verified match. The earlier add-first and direct-build choices applied to that screen task; they do not establish a standing build-path or configuration preference.
 
 Copy, photo, catalog creation, identification, location creation and copy movement save separately. Creating a catalog entry or release only selects it for a later explicit identification save; it never creates ownership or silently links a copy. Creating a location does not move the copy. Choosing a location immediately saves a revision-checked move and confirms the destination beside the selector; pending or failed moves never appear as confirmed. Drafts remain page-local; reloads can lose them. Saves are never retried automatically. Unconfirmed writes and revision conflicts require reload and review. Catalog editing/deleting/merging, automatic matching and production recovery remain unfinished. An offline operator backup/restore workflow exists for synthetic data on the dedicated worker. That workflow and the disposable database/media recovery rehearsal are development evidence, not production recovery support. The complete first vertical slice is not yet delivered.
 
@@ -62,7 +62,7 @@ Permanent branding and production deployment choices remain open. Catalog editin
 ## Copy-first detail editing refinement (2026-10-29)
 
 The owner completed the catalog exercise but still found the same-item/shared-
-edition model confusing. The selected physical copy now starts with a prefilled
+edition model confusing. In the 2026-10-29 refinement, the selected physical copy started with a prefilled
 Title and optional Edition form. One Save details request updates those personal
 labels atomically, preserving the copy UUID, creation time, media, storage,
 disposition and all earlier history. Copy edits use independent revisions and
@@ -166,3 +166,43 @@ provider. Existing draft details remain intact. New decoder dependencies are
 lazy-loaded and compatible with the current Node 22 runtime. There is no API or
 schema migration. Private HTTPS phone access and real-phone camera verification
 are pending; see [the trial guide](docs/barcode-scanning.md).
+
+
+## Approved collection journey (implemented for review, 2026-11-04)
+
+The owner approved collection navigation beside a bounded List/Covers browser and
+read-first inspector. Phone uses a native collection chooser and Back to collection.
+Add a find explicitly opens intake; closing it preserves the draft and stops its
+scanner. This supersedes the earlier add-first and quick-intake-rail compositions.
+Albums, Comics, Movies, Other and named custom collections retain their identities,
+configured fields, server grouping/search and exact physical-storage filtering.
+Custom navigation choices stay paged; an off-page selected collection stays visible.
+Browsing, inspecting and Back preserve the current search, group, page and position.
+Display thumbnails and named locations use bounded API projections; missing images
+have explicit fallbacks and catalog artwork remains distinct from personal photos.
+
+Copy details open as a summary, including configured custom observations.
+Edit details reveals the configured editor;
+confirmed Save details returns to summary. Cancel requires confirmation before
+discarding dirty details. Back retains the mounted editor; replacement, conflicting
+operations and uncertain writes retain explicit guards. Reload can lose local
+drafts and receives an unsaved-change warning. This is session-local preservation,
+not saved routes or offline sync. Notes unsupported by the current editing API stay
+read-only. Independent photo, catalog, checklist and location saves remain separate.
+See [the current journey contract](docs/collection-journey.md).
+
+The owner also approved the [core/API/web repository boundary](docs/architecture/overview.md#core-repository-and-client-boundary-approved-november-4-2026).
+Separate native and immersive clients may use the authenticated API in future;
+the core/database remain authoritative for ownership, provenance and storage.
+Those clients, native authentication and offline sync are not implemented here.
+Proposed concept images are direction references, not pixel masters, production
+inventory or new brand assets. Existing theme roles, palette and fonts remain.
+
+Current reported synthetic validation: 422 API checks, 36 Node checks and four
+focused journey browser scenarios passed. Broader legacy-browser adaptation is
+ongoing; this record does not claim that suite complete. Five valid final captures
+are under `.harness-results/journey/final-captures/`: desktop-browse.png,
+desktop-view.png, phone-view.png, phone-edit.png and phone-320.png. Older captures
+and verdicts above remain historical evidence for their original changes.
+This increment adds no dependency or migration. It is implemented for review,
+not deployed; no production-readiness or recovery completion is implied.

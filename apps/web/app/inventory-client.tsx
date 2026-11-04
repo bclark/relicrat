@@ -22,17 +22,20 @@ const PAGE = 20;
 export default function InventoryClient() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<'appearance' | 'collection' | null>(null);
+  const [intakeVisible,setIntakeVisible]=useState(false);
+  const detailGuard=useRef<()=>boolean>(()=>true);
+  const browseScroll=useRef(0);
+  const [collectionName,setCollectionName]=useState('');
   const [entryOpen, setEntryOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [detailOpen,setDetailOpen]=useState(false);
   const [quickEntry,setQuickEntry]=useState('');
   const [quickReading,setQuickReading]=useState<BarcodeReading|null>(null);
-  const [pageCategory,setPageCategory]=useState<CollectionTypeId|'all'>('all');
   const [view,setView]=useState<'list'|'bricks'>('list');
   const quickInput=useRef<HTMLInputElement>(null),collectionHeading=useRef<HTMLHeadingElement>(null),lastQuick=useRef('');
-  const categoryTypes:CollectionTypeId[]=['record','comic','movie','other'];
-  function openCopy(id:string){setSelected(id);setDetailOpen(true);setNotice('');requestAnimationFrame(()=>document.getElementById('record-title')?.focus());}
-  function backToCollection(){setDetailOpen(false);requestAnimationFrame(()=>{(document.getElementById(`copy-row-${selected}`)||collectionHeading.current)?.focus();});}
+  const browseTitle=collectionName || 'Your collection';
+  function openCopy(id:string){if(id!==selected&&!detailGuard.current())return; if(!detailOpen)browseScroll.current=window.scrollY;setIntakeVisible(false);setSelected(id);setDetailOpen(true);setNotice('');if(id===selected)requestAnimationFrame(()=>document.getElementById('record-title')?.focus());}
+  function backToCollection(){setDetailOpen(false);requestAnimationFrame(()=>{(document.getElementById(`copy-row-${selected}`)||collectionHeading.current)?.focus({preventScroll:true});window.scrollTo({top:browseScroll.current});});}
   function beginEntry(value:string){
     const text=value.trim();setSaveError('');
     if(/^\d{8}$/.test(text)){setSaveError('Eight-digit barcodes can be UPC-E or EAN-8. Scan it to preserve the format, or enter the expanded UPC/EAN.');return;}
@@ -50,6 +53,7 @@ export default function InventoryClient() {
     update(); query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
+  const toolsPanel=useRef<HTMLDetailsElement>(null);
   const accountNav = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -121,6 +125,9 @@ export default function InventoryClient() {
   const [browseCollection,setBrowseCollection]=useState('');
   const customCollectionId=browseCollection.startsWith('custom:')?browseCollection.slice(7):'';
   const typeFilter:CollectionTypeId|''=customCollectionId?'':browseCollection as CollectionTypeId|'';
+  useEffect(()=>{const c=new AbortController();setCollectionName(customCollectionId?'Custom collection':types&&typeFilter?types[typeFilter].plural_label:'Your collection');if(customCollectionId)api<{name:string}>(`custom-collections/${customCollectionId}`,{signal:c.signal}).then(v=>{if(!c.signal.aborted)setCollectionName(v.name);}).catch(()=>{});return()=>c.abort();},[browseCollection,types]);
+  function beginFigure(entryId?:string){if(toolsPanel.current)toolsPanel.current.open=true;setCreatedCollection(event=>({id:customCollectionId,entryId,sequence:event.sequence+1}));}
+  function chooseCollection(value:string){setBrowseCollection(value);setPage(0);setDetailOpen(false);}
   function setTypeFilter(value:CollectionTypeId|''){setBrowseCollection(value);}
   const [draftQuery, setDraftQuery] = useState('');
   const [query, setQuery] = useState('');
@@ -150,7 +157,6 @@ export default function InventoryClient() {
 
   const grouped=!customCollectionId && browseView==='groups' && (!typeFilter || !!types?.[typeFilter].grouping);
   const filters=`&q=${encodeURIComponent(query)}${customCollectionId?`&custom_collection_id=${encodeURIComponent(customCollectionId)}`:typeFilter?`&collection_type=${typeFilter}${typeFilter==='other'?'&exclude_custom=true':''}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
-  useEffect(()=>setPageCategory('all'),[filters,browseView]);
   useEffect(() => {
     if(grouped){setLoading(false);return;}
     const controller = new AbortController();
@@ -168,6 +174,7 @@ export default function InventoryClient() {
 
   async function create(event: FormEvent) {
     event.preventDefault();
+    if (!detailGuard.current()) return;
     if (uncertain || (!settings && !genericEntry)) return;
     if (!title.trim()) {
       setSaveError('Add a title so you can recognize this copy later.'); titleInput.current?.focus(); return;
@@ -176,7 +183,7 @@ export default function InventoryClient() {
       await runSave(async () => {
         setSaveError(''); setNotice('');
         const copy = await api<InventoryCopy>('inventory', jsonSave({ catalog_cover:catalogCover?{provider:catalogCover.provider,candidate_id:catalogCover.candidate_id}:null, barcode, title: title.trim(), description: notes.trim() || null, collection_type: collectionType, record_details: record ? {artist:artist.trim() || null,format:format.trim() || null} : {}, movie_details:collectionType==='movie' ? {media_format:mediaFormat.trim() || null,studio:studio.trim() || null} : {}, comic_details:collectionType==='comic' ? {issue_number:issueNumber.trim() || null,publisher:publisher.trim() || null} : {}, edition_label: edition.trim() || null }));
-        setQuickEntry('');setQuickReading(null);lastQuick.current='';setEntryOpen(false);setDetailOpen(true);setPageCategory('all');setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setMediaFormat('');setStudio('');setEdition('');draftTouched.current=false; setSelected(copy.id);
+        setQuickEntry('');setQuickReading(null);lastQuick.current='';setEntryOpen(false);setIntakeVisible(false);setDetailOpen(true);setCatalogCover(null);setBarcode(null);setEntryVersion(value=>value+1);setIssueNumber('');setPublisher(''); setTitle(''); setNotes(''); setArtist('');setFormat('');setMediaFormat('');setStudio('');setEdition('');draftTouched.current=false; setSelected(copy.id);
         setDraftQuery(''); setQuery(''); setPage(0); changed();
         setNotice(customCollectionId ? 'Copy saved outside the selected custom collection. Choose All types to see it; use Add a figure to this collection for a collection member.' : typeFilter && typeFilter!==copy.collection_type ? 'Copy saved. Choose All types to see it in the list.' : 'Copy saved. You can add more details whenever you like.');
       });
@@ -194,8 +201,8 @@ export default function InventoryClient() {
     event.preventDefault(); setQuery(draftQuery.trim()); setPage(0); changed();
   }
   return (
-    <div className="themed-app" style={appearanceStyles}>
-      <a className="skip-link" href="#add-find" onClick={()=>{setDetailOpen(false);setEntryOpen(true);}}>Skip to adding a find</a>
+    <div className="themed-app collection-journey" style={appearanceStyles} onClickCapture={event=>{const target=(event.target as HTMLElement).closest('a.brand,button');if((target?.matches('a.brand')||target?.textContent==='Sign out')&&!detailGuard.current()){event.preventDefault();event.stopPropagation();}}}>
+      <a className="skip-link" href="#add-find" onClick={()=>{setDetailOpen(false);setIntakeVisible(true);setEntryOpen(true);}}>Skip to adding a find</a>
       <header className="masthead">
         <a className="brand" href="/">RelicRat</a><span className="brand-tagline">Your collection, one copy at a time.</span>
         <div className="account-nav" ref={accountNav} onKeyDown={event => {
@@ -216,13 +223,13 @@ export default function InventoryClient() {
         {settings && types && <CollectionSetup types={types} key={settingsVersion} settings={settings} open={settingsPanel === 'collection'} close={closeSettings} runSave={runSave} locked={busy || uncertain} saved={value=>{setSettings(value);if(!quickEntry && !title && !notes && !artist && !format && !mediaFormat && !studio && !barcode && !edition && !issueNumber && !publisher) setCollectionType(value.default_type);}} reload={()=>setSettingsVersion(value=>value+1)} />}
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{setGenericEntry(true);changeType('other');}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
-        <CollectionAuthoring runSave={runSave} locked={busy||uncertain} onCreated={id=>setCreatedCollection(event=>({id,sequence:event.sequence+1}))} />
+        <details className="collection-tools" ref={toolsPanel}><summary>Collection tools and imports</summary>        <CollectionAuthoring runSave={runSave} locked={busy||uncertain} onCreated={id=>setCreatedCollection(event=>({id,sequence:event.sequence+1}))} />
         <CustomCollections refresh={refresh} createdEvent={createdCollection} runSave={runSave} locked={busy||uncertain} changed={changed} openCopy={openCopy} />
         <CsvImport runSave={runSave} locked={busy || uncertain} changed={changed} openCopy={openCopy} />
-        <div className={`workspace${detailOpen ? ' detail-open' : ''}`}>
-          <div className="workbench">
+</details>
+          <div className="workbench" hidden={!intakeVisible}>
             <section className="intake" aria-labelledby="add-find">
-              <h2 id="add-find" tabIndex={-1}>Add an item</h2>
+              <div className="section-heading"><h2 id="add-find" tabIndex={-1}>Add an item</h2><button type="button" className="text-button" disabled={busy} onClick={()=>setIntakeVisible(false)}>Close intake</button></div>
               <form className="quick-intake" aria-label="Start adding an item" onSubmit={event=>{event.preventDefault();beginEntry(quickEntry);}}>
                 <fieldset disabled={busy||uncertain||(!settings&&!genericEntry)}>
                   <label htmlFor="quick-entry">Title or barcode</label>
@@ -231,7 +238,7 @@ export default function InventoryClient() {
                   <button type="submit" className="quiet intake-continue">Review item</button>
                 </fieldset>
               </form>
-                    <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} quickReading={quickReading} definition={types?.[collectionType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;setEntryOpen(true);titleInput.current?.focus();}} value={barcode} change={value=>{setQuickReading(null);setCatalogCover(null);setBarcode(value);draftTouched.current=true;setEntryOpen(true);titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings || (mobile && detailOpen)} />
+                    <BarcodeInput key={`${entryVersion}-${collectionType}-${JSON.stringify(types?.[collectionType].lookup)}`} quickReading={quickReading} definition={types?.[collectionType]} values={{title,artist,format,media_format:mediaFormat,studio,edition,issue_number:issueNumber,publisher}} cover={catalogCover} removeCover={()=>setCatalogCover(null)} apply={(fields,cover)=>{if(cover)setCatalogCover(cover);const setters:Record<string,(value:string)=>void>={title:setTitle,artist:setArtist,format:setFormat,media_format:setMediaFormat,studio:setStudio,edition:setEdition,issue_number:setIssueNumber,publisher:setPublisher};for(const [key,value] of Object.entries(fields))setters[key]?.(value);draftTouched.current=true;setEntryOpen(true);titleInput.current?.focus();}} value={barcode} change={value=>{setQuickReading(null);setCatalogCover(null);setBarcode(value);draftTouched.current=true;setEntryOpen(true);titleInput.current?.focus();}} formats={types?.[collectionType].barcode_formats || []} locked={busy || uncertain || !settings || !intakeVisible || (mobile && detailOpen)} />
               <div id="intake-fields" hidden={!entryOpen}>
                 <div className="intake-review-heading"><h3>Review item</h3><button type="button" className="text-button" onClick={()=>{setEntryOpen(false);quickInput.current?.focus();}}>Hide details</button></div>
                 <p className="intro">Start with a title. Everything else is optional.</p>
@@ -257,36 +264,41 @@ export default function InventoryClient() {
               {uncertain && <p className="hint">Check for this copy before saving again. <button className="text-button" onClick={reloadInventory} disabled={busy || loading}>Reload inventory</button></p>}
 
             </section>
-            {!grouped&&<nav className="categories" aria-label="Categories on this page"><h2>Categories</h2><p className="hint">Counts describe this loaded page only.</p><div className="category-controls">{(['all',...categoryTypes] as const).map(type=><button type="button" className="category-button quiet" key={type} disabled={busy||loading||!!listError} aria-pressed={pageCategory===type} onClick={()=>setPageCategory(type)}>{type==='all'?'All items':types?.[type].plural_label||type}{!loading&&!listError&&<span>{type==='all'?items.length:items.filter(copy=>copy.collection_type===type).length}</span>}</button>)}</div></nav>}
+
           </div>
+        <div className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
+          <aside className="collection-sidebar"><CollectionFilter value={browseCollection} change={chooseCollection} types={types} busy={busy} refresh={createdCollection.sequence} /></aside>
           <section className="collection" aria-labelledby="collection-title">
-            <div className="section-heading collection-heading"><h1 id="collection-title" tabIndex={-1} ref={collectionHeading}>Your collection</h1><div className="view-controls" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Bricks</button></div></div>
-            <button className="quiet" disabled={busy||loading} onClick={reloadInventory}>Reload inventory</button>
+            <div className="section-heading collection-heading"><h1 id="collection-title" tabIndex={-1} ref={collectionHeading}>{browseTitle}</h1><div className="view-controls" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Covers</button></div></div>
+            <div className="collection-actions"><button className="primary" type="button" disabled={busy||uncertain} aria-expanded={intakeVisible} onClick={()=>{if(!quickEntry&&!title&&!notes&&!barcode&&typeFilter)setCollectionType(typeFilter);setIntakeVisible(v=>!v);setDetailOpen(false);requestAnimationFrame(()=>quickInput.current?.focus());}}>Add a find</button><button className="text-button" disabled={busy||loading} onClick={reloadInventory}>Reload inventory</button></div>
+            {!intakeVisible&&(quickEntry||title||notes||barcode)&&<p className="hint">Your unfinished find is preserved. Open Add a find to continue.</p>}
             <div className={`inventory-results ${view}`}>
-            <label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!customCollectionId||typeFilter==='other'}>Grouped collection</option><option value="copies">Individual copies</option></select>
-            <CollectionFilter value={browseCollection} change={value=>{setBrowseCollection(value);setPage(0);}} types={types} busy={busy} refresh={createdCollection.sequence} />
-            {customCollectionId&&<><button type="button" disabled={busy||uncertain} onClick={()=>{setCreatedCollection(event=>({id:customCollectionId,sequence:event.sequence+1}));requestAnimationFrame(()=>document.getElementById('saved-collection')?.closest('details')?.querySelector('summary')?.focus());}}>Add a figure to this collection</button><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} locked={busy||uncertain} addFigure={entryId=>setCreatedCollection(event=>({id:customCollectionId,entryId,sequence:event.sequence+1}))} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the copies below.</p></>}
-            <StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} />
+            <div className="browse-mode"><label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!customCollectionId||typeFilter==='other'}>Grouped collection</option><option value="copies">Individual copies</option></select></div>
+
+            {customCollectionId&&<><button type="button" disabled={busy||uncertain} onClick={()=>{beginFigure();requestAnimationFrame(()=>document.getElementById('saved-collection')?.closest('details')?.querySelector('summary')?.focus());}}>Add a figure to this collection</button><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} locked={busy||uncertain} addFigure={entryId=>beginFigure(entryId)} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the copies below.</p></>}
+            <div className="browse-toolbar">
             <form className="search" onSubmit={search} aria-label="Search inventory">
               <label htmlFor="query">Find a copy</label>
               <div className="search-controls"><input id="query" type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder="Title, artist, studio or barcode" disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
               {query && <button className="text-button" type="button" disabled={busy} onClick={() => { setDraftQuery(''); setQuery(''); setPage(0); }}>Clear search</button>}
             </form>
+            <div className="storage-filter"><StorageFilter value={storageFilter} change={value=>{setStorageFilter(value);setPage(0);}} busy={busy} refresh={refresh} /></div>
+            </div>
             {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter].grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={openCopy} chooseType={(value,customId)=>{setBrowseCollection(customId?'custom:'+customId:value);setPage(0);}}/>:<>
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${customCollectionId?' · Custom collection':typeFilter ? ` · ${types?.[typeFilter].plural_label || typeFilter}` : ''}${query ? ` matching “${query}”` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} Use Reload inventory to try again.</p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
               : items.length === 0 ? <div className="empty"><h3>{query || typeFilter || customCollectionId ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{typeFilter || customCollectionId ? 'Try another collection or choose All types. You can also clear the search.' : query ? 'Try a shorter phrase or clear the search. Search treats symbols as literal text.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
-              : <CollectionRows groupByType types={types} items={pageCategory==='all'?items:items.filter(copy=>copy.collection_type===pageCategory)} busy={busy} selected={selected} open={openCopy}/>}
+              : <CollectionRows groupByType types={types} items={items} busy={busy} selected={selected} open={openCopy}/>}
 
             <nav className="pagination" aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
             </>}
-            {!grouped&&!loading&&!listError&&pageCategory!=='all'&&items.length>0&&!items.some(copy=>copy.collection_type===pageCategory)&&<p>No copies of this category on this page. Choose All items or another page.</p>}
+
             </div>
           </section>
-          <aside className="copy-inspector" aria-label="Selected copy">
+          <aside className="copy-inspector" hidden={!detailOpen} aria-label="Selected copy">
             <button type="button" className="text-button back-to-collection" disabled={busy} onClick={backToCollection}>Back to collection</button>
-            {selected ? <CopyDetail key={selected} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} types={types} movieFields={settings?.movie_fields || ['media_format','studio','edition','notes']} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
+            {selected ? <CopyDetail active={detailOpen} guard={detailGuard} copyId={selected} runSave={runSave} busy={busy} blocked={uncertain} changed={changed} types={types} movieFields={settings?.movie_fields || ['media_format','studio','edition','notes']} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
               : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </aside>
         </div>

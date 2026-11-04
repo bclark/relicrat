@@ -1,3 +1,4 @@
+import {showTools,editCopy} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {readFile, mkdir} from 'node:fs/promises';
 import {test} from 'node:test';
@@ -16,7 +17,7 @@ test('collection prompt, raw JSON validation and read-only previews preserve dra
   const page=await context.newPage();
   const posts=[];
   page.on('request',request=>{if(request.method()==='POST')posts.push(new URL(request.url()).pathname);});
-  await page.goto(base);
+  await page.goto(base);await showTools(page);
   await page.getByText('Start a new collection',{exact:true}).click();
   await page.getByLabel('What would you like to collect?').fill('The first 10 TMNT figures');
   const downloaded=page.waitForEvent('download');
@@ -55,7 +56,7 @@ test('explicit activation remains empty; figure retry, custom observations and h
  try{
   const context=await browser.newContext();
   assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:new URL(base).origin}})).status(),200);
-  const page=await context.newPage();await page.goto(base);
+  const page=await context.newPage();await page.goto(base);await showTools(page);
   await page.getByText('Start a new collection',{exact:true}).click();
   const draft=JSON.parse(example),suffix=Date.now().toString(36);draft.type_definition.id='figure-ui-'+suffix;draft.collection.type_id=draft.type_definition.id;draft.collection.id='tmnt-ui-'+suffix;
   await page.getByLabel('Or paste collection JSON').fill(JSON.stringify(draft));await page.getByRole('button',{name:'Validate and preview'}).click();
@@ -85,9 +86,9 @@ test('explicit activation remains empty; figure retry, custom observations and h
   await form.getByRole('button',{name:'Synthetic Leonardo',exact:true}).waitFor();
   const copies=await (await context.request.get(base+'/api/v1/inventory?custom_collection_id='+created.id)).json();assert.equal(copies.length,1);assert.equal(copies[0].custom_details.accessories,'Two synthetic swords');
   await form.getByRole('button',{name:'Synthetic Leonardo',exact:true}).click();
-  const edit=page.getByRole('form',{name:'Edit copy details'});await edit.getByLabel('Condition (optional)',{exact:true}).fill('Synthetic paint wear');
+  await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details'});await edit.getByLabel('Condition (optional)',{exact:true}).fill('Synthetic paint wear');
   await edit.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByText('Copy details saved.',{exact:true}).waitFor();
+  await page.getByText('Copy details saved.',{exact:true}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Copy edit history',{exact:true}).click();await page.getByText('Condition: Not recorded to Synthetic paint wear',{exact:true}).waitFor();
   const location=await context.request.post(base+'/api/v1/storage-locations',{data:{name:'Synthetic figure box'},headers:{Origin:new URL(base).origin}});assert.equal(location.status(),201);
   const moved=await context.request.post(base+'/api/v1/inventory/'+copies[0].id+'/location',{data:{storage_location_id:(await location.json()).id,expected_storage_revision:0},headers:{Origin:new URL(base).origin}});assert.equal(moved.status(),200,await moved.text());
@@ -100,7 +101,7 @@ test('explicit activation remains empty; figure retry, custom observations and h
    const results=await Promise.all([1,2].map(()=>fetch('/api/v1/custom-collections/'+id+'/copies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>({status:r.status,copy:await r.json()}))));return results;
   },created.id);
   assert.deepEqual(concurrent.map(r=>r.status),[200,200]);assert.equal(concurrent[0].copy.id,concurrent[1].copy.id);
-  await page.reload();
+  await page.reload();await showTools(page);
   await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(created.id);await page.getByRole('button',{name:'Synthetic Leonardo',exact:true}).waitFor();
   const artifacts=process.env.RELICRAT_TEST_ARTIFACTS;if(artifacts)await mkdir(artifacts,{recursive:true});
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(artifacts)await page.locator('details').filter({has:page.getByText('Your custom collections',{exact:true})}).screenshot({path:`${artifacts}/saved-collection-${width}.png`});}
@@ -116,7 +117,7 @@ test('field controls revise compatible legacy values and preserve unknown, No an
   raw.type_definition.optional_fields=[{id:'head',label:'Head Variant',input:'text',max_length:50},{id:'packaging',label:'Packaging',input:'select',max_length:50,options:['Loose','Carded']},{id:'signed',label:'Signed',input:'checkbox',max_length:50},{id:'accessories',label:'Accessories',input:'checkboxes',max_length:50,options:['Sword','Belt']}];
   const createdResponse=await context.request.post(base+'/api/v1/custom-collections',{data:raw,headers:{Origin:new URL(base).origin}});assert.equal(createdResponse.status(),200,await createdResponse.text());const created=await createdResponse.json();
   const old=await context.request.post(base+'/api/v1/custom-collections/'+created.id+'/copies',{data:{request_id:crypto.randomUUID(),title:'Earlier synthetic figure',custom_details:{head:'Soft'}},headers:{Origin:new URL(base).origin}});assert.equal(old.status(),200);
-  const page=await context.newPage();await page.goto(base);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(created.id);
+  const page=await context.newPage();await page.goto(base);await showTools(page);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(created.id);
   const region=page.getByRole('region',{name:'Saved collection: '+raw.collection.name,exact:true});
   await region.getByText('Configure field controls',{exact:true}).click();await region.getByLabel('Control for Head Variant',{exact:true}).selectOption('radio');await region.getByLabel('Choices for Head Variant (one per line)',{exact:true}).fill('Soft\nHard\n');
   await region.getByRole('button',{name:'Review field changes',exact:true}).click();await region.getByText('All saved values remain compatible.',{exact:false}).waitFor();
@@ -129,15 +130,15 @@ test('field controls revise compatible legacy values and preserve unknown, No an
   await signed.getByRole('checkbox',{name:'Signed',exact:true}).check();await signed.getByRole('checkbox',{name:'Signed',exact:true}).uncheck();await accessories.getByRole('checkbox',{name:'Sword',exact:true}).check();await accessories.getByRole('checkbox',{name:'Sword',exact:true}).uncheck();
   await add.getByRole('button',{name:'Add figure',exact:true}).click();await region.getByRole('button',{name:'Typed synthetic figure',exact:true}).waitFor();
   let copies=await (await context.request.get(base+'/api/v1/inventory?custom_collection_id='+created.id)).json();const figure=copies.find(c=>c.title==='Typed synthetic figure');assert.deepEqual(figure.custom_details,{head:'Hard',packaging:'Loose',signed:false,accessories:[]});
-  await region.getByRole('button',{name:'Typed synthetic figure',exact:true}).click();const edit=page.getByRole('form',{name:'Edit copy details'});
+  await region.getByRole('button',{name:'Typed synthetic figure',exact:true}).click();await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details'});
   await edit.getByRole('group',{name:'Head Variant (optional)',exact:true}).getByRole('radio',{name:'Soft',exact:true}).check();await edit.getByRole('group',{name:'Signed (optional)',exact:true}).getByRole('checkbox',{name:'Signed',exact:true}).check();
-  await edit.getByRole('group',{name:'Accessories (optional)',exact:true}).getByRole('checkbox',{name:'Sword',exact:true}).check();await edit.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();
+  await edit.getByRole('group',{name:'Accessories (optional)',exact:true}).getByRole('checkbox',{name:'Sword',exact:true}).check();await edit.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Copy edit history',{exact:true}).click();await page.getByText('Signed: No to Yes',{exact:true}).waitFor();await page.getByText('Accessories: None selected to Sword',{exact:true}).waitFor();
   const current=await (await context.request.get(base+'/api/v1/custom-collections/'+created.id)).json();const definition=structuredClone(current.proposal.type_definition);definition.optional_fields.find(f=>f.id==='packaging').options.push('Boxed');
   const concurrent=await page.evaluate(async ({id,definition})=>Promise.all([1,2].map(()=>fetch('/api/v1/custom-collections/'+id+'/definition',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_revision:1,definition})}).then(r=>r.status))),{id:created.id,definition});assert.deepEqual(concurrent.sort(),[200,409]);
   await edit.getByRole('group',{name:'Signed (optional)',exact:true}).getByRole('checkbox',{name:'Signed',exact:true}).uncheck();await edit.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Reload field controls and review your preserved draft.',{exact:false}).waitFor();
   await page.locator('.copy-details-form').getByRole('button',{name:'Reload field controls',exact:true}).click();await edit.getByRole('button',{name:'Save details',exact:true}).waitFor();
-  assert.equal(await edit.getByRole('checkbox',{name:'Signed',exact:true}).isChecked(),false);await edit.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();
+  assert.equal(await edit.getByRole('checkbox',{name:'Signed',exact:true}).isChecked(),false);await edit.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal((await (await context.request.get(base+'/api/v1/inventory/'+figure.id)).json()).custom_details.signed,false);
   const history=await (await context.request.get(base+'/api/v1/custom-collections/'+created.id+'/definition-history')).json();assert.deepEqual(history.map(h=>h.revision),[2,1,0]);
   await region.getByRole('button',{name:'Reload field controls',exact:true}).click();
@@ -154,11 +155,11 @@ test('owner-reviewed checklist progress counts distinct active entries and recov
   const response=await context.request.post(base+'/api/v1/custom-collections',{data:raw,headers:{Origin:new URL(base).origin}});assert.equal(response.status(),200,await response.text());const collection=await response.json();
   async function add(title){const r=await context.request.post(base+`/api/v1/custom-collections/${collection.id}/copies`,{data:{request_id:crypto.randomUUID(),title,custom_details:{}},headers:{Origin:new URL(base).origin}});assert.equal(r.status(),200);return (await r.json()).id;}
   const first=await add('Unrelated synthetic name'),second=await add('Leonardo');
-  const page=await context.newPage();await page.goto(base);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(collection.id);
+  const page=await context.newPage();await page.goto(base);await showTools(page);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(collection.id);
   const region=page.getByRole('region',{name:'Saved collection: '+raw.collection.name,exact:true}),progress=region.getByRole('region',{name:'Checklist progress',exact:true});
   await progress.getByText('0 of 10 collected',{exact:true}).waitFor();await region.getByRole('button',{name:'Unrelated synthetic name',exact:true}).click();
   const match=page.getByRole('region',{name:'Checklist match',exact:true}),form=match.getByRole('form',{name:'Review checklist match'}),entry=form.getByLabel('Checklist entry',{exact:true}),confirm=form.getByRole('checkbox');
-  const detailsDraft=page.locator('#copy-title');await detailsDraft.fill('Unsaved synthetic details draft');
+  await editCopy(page);const detailsDraft=page.locator('#copy-title');await detailsDraft.fill('Unsaved synthetic details draft');
   await entry.selectOption('leonardo');assert.equal(await confirm.isChecked(),false);await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await match.getByText('Checklist link saved for review. It does not count yet.',{exact:true}).waitFor();await progress.getByText('0 of 10 collected',{exact:true}).waitFor();
   await confirm.check();await form.getByRole('button',{name:'Save checklist match',exact:true}).click();await progress.getByText('1 of 10 collected',{exact:true}).waitFor();
   const duplicate=await context.request.post(base+`/api/v1/custom-collections/${collection.id}/copies/${second}/checklist-match`,{data:{entry_id:'leonardo',confirmed:true,expected_revision:0},headers:{Origin:new URL(base).origin}});assert.equal(duplicate.status(),200);

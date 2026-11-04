@@ -2,6 +2,7 @@
 import io
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -179,3 +180,43 @@ def test_refresh_failure_preserves_committed_photo(tmp_path, monkeypatch):
             session.delete(session.get(OwnedCopy, copy_id))
             session.commit()
         engine.dispose()
+
+
+def test_browse_projection_is_bounded_and_preserves_photo_role(client):
+    from sqlalchemy import event, update
+    from relicrat.models import OwnedCopy
+    api, connection, _ = client
+    first = create_copy(api)
+    second = create_copy(api)
+    location = api.post('/api/v1/storage-locations', json={'name': 'Synthetic shelf'}).json()
+    moved = api.post(f'/api/v1/inventory/{first}/location', json={
+        'storage_location_id': location['id'], 'expected_storage_revision': 0,
+    })
+    assert moved.status_code == 200, moved.text
+    photo = api.post(f'/api/v1/inventory/{first}/photos', files={'file': ('photo.png', png_bytes(), 'image/png')}).json()
+    cover = api.post(f'/api/v1/inventory/{first}/photos', files={'file': ('cover.png', png_bytes(), 'image/png')}).json()
+    connection.execute(update(MediaAsset).where(MediaAsset.id == uuid.UUID(cover['id'])).values(
+        role='catalog_cover', source_provider='synthetic', source_id='fixture', source_url='https://example.test/cover'))
+    calls = []
+    def count(*args):
+        calls.append(args[2])
+    event.listen(connection, 'before_cursor_execute', count)
+    try:
+        response = api.get('/api/v1/inventory?limit=1')
+        assert response.status_code == 200, response.text
+        small = len(calls)
+        calls.clear()
+        response = api.get('/api/v1/inventory?limit=100')
+        assert response.status_code == 200, response.text
+        assert len(calls) == small, 'Result rows must not add one query per copy'
+    finally:
+        event.remove(connection, 'before_cursor_execute', count)
+    rows = {row['id']: row for row in response.json()}
+    assert rows[first]['storage_location_name'] == 'Synthetic shelf'
+    assert rows[first]['preview_photo_id'] == cover['id']
+    assert rows[first]['preview_photo_role'] == 'catalog_cover'
+    assert rows[second]['preview_photo_id'] is None
+    assert rows[second]['storage_location_name'] is None
+    assert 'storage_key' not in str(rows)
+    connection.execute(update(OwnedCopy).where(OwnedCopy.id == uuid.UUID(first)).values(deleted_at=datetime.now(timezone.utc)))
+    assert first not in {row['id'] for row in api.get('/api/v1/inventory').json()}

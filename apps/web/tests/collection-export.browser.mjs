@@ -1,3 +1,4 @@
+import {showTools} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile,mkdir} from 'node:fs/promises';
@@ -6,7 +7,7 @@ const base=process.env.RELICRAT_TEST_WEB_URL;assert.ok(base&&new URL(base).hostn
 const template=JSON.parse(await readFile(new URL('../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json',import.meta.url),'utf8'));
 async function setup(){const browser=await chromium.launch({headless:true,executablePath:process.env.RELICRAT_TEST_CHROME});const context=await browser.newContext({viewport:{width:1440,height:1000}});assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}})).status(),200);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));return {browser,context,page,errors};}
 async function create(context,change=()=>{}){const raw=structuredClone(template),suffix=crypto.randomUUID().slice(0,8);raw.type_definition.id='export-'+suffix;raw.collection.type_id=raw.type_definition.id;raw.collection.id='export-'+suffix;raw.collection.name='Synthetic export '+suffix;change(raw);const response=await context.request.post(base+'/api/v1/custom-collections',{data:raw,headers:{Origin:base}});assert.equal(response.status(),200,await response.text());return response.json();}
-async function open(page,collection){await page.goto(base);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(collection.id);const region=page.getByRole('region',{name:'Saved collection: '+collection.name,exact:true});await region.getByRole('button',{name:'Export collection JSON',exact:true}).waitFor();return region;}
+async function open(page,collection){await page.goto(base);await showTools(page);await page.getByText('Your custom collections',{exact:true}).click();await page.getByLabel('Collection',{exact:true}).selectOption(collection.id);const region=page.getByRole('region',{name:'Saved collection: '+collection.name,exact:true});await region.getByRole('button',{name:'Export collection JSON',exact:true}).waitFor();return region;}
 async function download(page,region){const ready=page.waitForEvent('download');await region.getByRole('button',{name:'Export collection JSON',exact:true}).click();const result=await ready;assert.equal(result.suggestedFilename(),'relicrat-collection.json');const bytes=await readFile(await result.path());assert.ok(bytes.length<=65536);return {bytes,value:JSON.parse(bytes.toString())};}
 
 test('export downloads current saved controls and reimports through review without personal inventory or draft changes',async()=>{
