@@ -15,6 +15,18 @@ spec.loader.exec_module(worker_ssh)
 
 
 class WorkerSSHTests(unittest.TestCase):
+    def test_nas_mode_keeps_existing_identity_and_relay_without_outer_ssh(self):
+        with patch.object(sys, 'argv', ['worker-ssh.py', '--from-nas', 'printf ready']), patch.object(worker_ssh.os, 'execvp') as execute:
+            worker_ssh.main()
+        executable, command = execute.call_args.args
+        self.assertEqual(executable, 'ssh')
+        self.assertNotIn('technodrome', command)
+        self.assertIn('IdentitiesOnly=yes', command)
+        self.assertIn('ForwardAgent=no', command)
+        self.assertIn('HostKeyAlias=relicrat-worker', command)
+        self.assertEqual(command[-1], 'printf ready')
+        self.assertTrue(any(x.startswith('ProxyCommand=docker exec') for x in command))
+
     def test_command_and_interactive_modes_preserve_identity_and_quoting(self):
         for arguments, tty in [([], '-tt'), (["printf '%s' 'a; b'"], '-T')]:
             with self.subTest(arguments=arguments), patch.object(sys, 'argv', ['worker-ssh.py', *arguments]), patch.object(worker_ssh.os, 'execvp') as execute:

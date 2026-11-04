@@ -169,3 +169,13 @@ Native details/summary rows reveal explanatory text and merged-PR links. Categor
 - **Don't** treat this local report as the inventory application's visual identity or a global build-path preference.
 - **Don't** imply a live connection through decorative indicators or changing metrics.
 - **Don't** derive application readiness from a status color or a test count alone.
+
+## Operations extension — 2026-11-03
+
+Owner approved operational status as a separate reliability effort. Implemented:
+an Operations tab uses the existing report tokens, typography and native
+controls, with a read-only local status endpoint. Existing historical sections
+remain dated and unchanged. Freshness/error states replace old green data;
+Mac, NAS capture and Drive verification remain separate rows/times. This does
+not redesign the inventory app or establish a new product theme. See
+[operations contract](../operating-reliability.md).
