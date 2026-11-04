@@ -298,3 +298,13 @@ names without per-row metadata requests. No migration or dependency is added.
 [Behavior and limits](../collection-journey.md), [current product](../../PRODUCT.md)
 and [checks](../harness.md) are authoritative. Status: implemented for review,
 not deployed. Broader screen redesign and native/immersive clients remain future work.
+
+### One Collections list — approved and implemented for review (2026-11-04)
+
+After trying PR78, the owner found Collections versus My Collections confusing
+and requested one list. Desktop navigation now places built-in and named
+collections in one continuous list under Collections, with All items first.
+The phone chooser has the same flat choices and All items label, without type
+or custom collection optgroups. Scope IDs, ownership, grouping, paging, errors
+and draft preservation remain unchanged. No theme, schema or API change.
+Status: implemented for review; not deployed.
