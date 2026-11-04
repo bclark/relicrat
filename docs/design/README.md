@@ -226,3 +226,12 @@ path. An unfinished custom draft or uncertain save cannot be replaced. Explicit
 Add figure and later checklist qualification remain separate owner actions.
 Native buttons and existing layout/theme retained; no new tokens or assets.
 Not deployed. See [intake behavior](../checklist-intake.md).
+
+### Portable custom collection definitions (2026-11-03)
+
+Owner approved Export collection JSON. Implemented for review: a saved-collection
+button downloads the current persisted field controls and proposal in the normal
+import format. Fresh reads and existing preview validation precede download;
+personal inventory and unsaved drafts are excluded. Native button/status/error
+patterns and current layout/theme retained. No new tokens/assets/API/schema.
+Not deployed. See [export contract](../collection-definition-export.md).
