@@ -2582,3 +2582,38 @@ An initial assertion ran before type choices loaded; it now waits for readiness.
 The desktop/phone component captures were inspected together. Synthetic stack,
 bridge and owned temporary source were removed; live app images stayed running.
 No API suite was rerun for this UI-only change. No deployment is claimed.
+
+## Shared collection-aware item intake (2026-11-04, implemented for review)
+
+Validation used synthetic inventory on the isolated worker and an owned Mac
+preview bridge. No live inventory was used. The existing API runner passed
+422 tests and its upgrade → downgrade-to-base → upgrade migration round trip.
+`python3 scripts/test-api-remote.py relicrat-worker` initially encountered Docker
+automatic subnet exhaustion; the existing `sh scripts/test-api.sh` then passed
+with a measured non-overlapping disposable test subnet. No networks were pruned.
+
+Web unit tests passed 36 tests. `npm run lint --prefix apps/web` and the isolated
+production build passed; the existing CSS alignment compatibility warning remains.
+Nine focused `item-intake.browser.mjs` cases passed together with no skips:
+scoped entry, All items destination/draft preservation, custom typed membership,
+Back/scroll, provider failure/no-provider entry, ordinary uncertain writes, custom
+same-request retry/double submit, optional cover on rejected save, interrupted
+custom loading, and actual stale-definition/reload/review recovery.
+
+The existing inventory browser suite has 53 distinct passing cases across its
+main run (50 passing) and three corrected-case rechecks. This was not one fully
+green full-suite invocation. Five optional integration cases were skipped:
+shared-edition/photos/nested-storage persistence; Records reload; Comics reload;
+real theme persistence/stale-save recovery; and factory login palette. Seven
+browse/detail/edit/Back journey cases passed and are included in that count.
+Other feature-specific browser suites and physical phone/camera certification
+were not run. Chromium desktop, 390px phone-width and dark-theme captures were
+reviewed; earlier failed assertions and bridge-startup failures remain in private
+evidence. Independent finish review resolved its three scored issues and returned
+ship for this change, without deployment approval.
+
+The exact owned test project's containers, volumes, network and local images
+were verified removed, along with its temporary worker source and Mac bridge.
+Prior resources and the deployed owner trial were preserved. Private logs, review
+receipts and final synthetic captures are retained outside Git. No API/schema,
+dependency, live migration or deployment change is included.
