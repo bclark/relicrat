@@ -235,3 +235,14 @@ import format. Fresh reads and existing preview validation precede download;
 personal inventory and unsaved drafts are excluded. Native button/status/error
 patterns and current layout/theme retained. No new tokens/assets/API/schema.
 Not deployed. See [export contract](../collection-definition-export.md).
+
+### Import as an independent collection (2026-11-03)
+
+Owner approved reusing a shared definition without editing JSON identifiers.
+Implemented for review: an optional Import as a new collection checkbox and name
+field precede the existing validation, preview, acknowledgement and Create flow.
+Raw source validates first; fresh collection/type identities isolate later field
+edits. Owned figures/progress are not copied. An uncertain creation response keeps
+its reviewed proposal for same-identity retry. Native controls, existing theme
+and layout retained; no new assets/tokens/API/schema. Not deployed.
+[Copy-import contract](../import-collection-copy.md).

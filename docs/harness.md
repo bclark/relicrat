@@ -2290,3 +2290,38 @@ unsaved drafts are excluded. No new route, schema, dependency or network access.
 Exact successful test services were removed; reused release images were kept.
 Private verification, screenshots and cleanup receipts retained. API/container
 configuration and owner data were not changed. Review/merge precedes rollout.
+
+## Import as an independent collection (2026-11-03)
+
+Frontend-only optional import mode. The raw source passes the existing bounded
+parser first, then only the collection name/ID, type ID and matching type reference
+change before a second preview. Original JSON, checklist/source IDs, field
+controls and evidence remain. Fresh independent types avoid altering the source
+collection's controls. No owned copies or checklist matches are imported.
+
+- `cd apps/web && npm run lint`, `npm test`, `npm run build`: passed; **36 unit
+  tests**, no skips. Existing fixed route/origin/auth/byte boundaries apply.
+- Browser verification uses a production build plus a separate synthetic
+  PostgreSQL/API project with the unchanged verified API image. Four new scenarios
+  cover empty independent copies from revised definitions, unchanged source
+  ownership/progress, independent field edits, stable revalidation IDs and exact
+  retry payloads after an uncertain Create response. They also cover duplicate-key
+  rejection before transformation, name/mode review invalidation, source-link
+  correction notices, asynchronous file/name edits and copied-document byte limits.
+- Four existing authoring scenarios passed: raw JSON/prompt/preview, explicit
+  activation and figure retry/photos/history, field-control revisions, reviewed
+  checklist progress. The four new cases were rerun after preserving the source
+  correction notice. Evidence is retained in private browser logs.
+- Desktop1440/phone390 copy-preview inspection and overflow checks passed; static
+  detector reported no findings. No independent-agent or physical-device review.
+- API source/schema unchanged; full API suite and unrelated browser suites not
+  rerun. No real collection used as a fixture and no live deployment performed.
+
+Review/merge precedes frontend rollout; no migration/dependency/provider change.
+The existing transactional activation operation supplies same-definition retry
+safety. An uncertain response locks definition edits until retry confirms it.
+
+Exact successful synthetic services were removed after verification; reused
+release images and all live resources were preserved. Private receipts and
+screenshots retained. Eight distinct browser scenarios passed across the runs,
+including the four copy cases on the final production build; no skips.
