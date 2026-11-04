@@ -1,0 +1,21 @@
+{
+  "artifact": "visual concept only",
+  "checks": [
+    "desktop entry and all flat destinations",
+    "album scan, reviewed fields, optional cover and confirmed save",
+    "phone album review without page overflow",
+    "custom typed controls and named destination save",
+    "comics scan retention without invented lookup",
+    "movie title-only lookup and no invented art",
+    "Back, dirty switching and existing text protected from suggestions",
+    "no match, unavailable provider and camera fallback retain manual intake",
+    "Other title-only entry and rejected save retains draft",
+    "unknown outcome blocks duplicate creation and explicit simulated inspection"
+  ],
+  "browser_errors": [],
+  "viewport_widths": [
+    1440,
+    390
+  ],
+  "production_or_api_tests_run": false
+}

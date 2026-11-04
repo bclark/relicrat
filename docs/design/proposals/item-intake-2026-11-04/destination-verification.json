@@ -1,0 +1,16 @@
+{
+  "concept_only": true,
+  "checks": [
+    "No repeated collection picker from Albums or Movies",
+    "All items retains destination choice",
+    "Back to All items preserves selected destination and draft",
+    "Album review and optional artwork retained",
+    "Phone custom scope omits repeated picker and saves to named collection",
+    "No phone page overflow or browser errors"
+  ],
+  "widths": [
+    1440,
+    390
+  ],
+  "live_app_changed": false
+}

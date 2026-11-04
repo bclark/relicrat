@@ -9,15 +9,16 @@ export async function chooseCollection(page,value){
 }
 export async function showIntake(page){
  const back=page.getByRole('button',{name:'Back to collection',exact:true});if(await back.isVisible())await back.click();
- await page.locator('#collection-title').waitFor();
- if(!(await page.locator('.workbench').isVisible())){await page.getByRole('button',{name:'Add a find',exact:true}).click();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));}
- await page.locator('.workbench').waitFor();
+ const intake=page.locator('.item-intake');
+ if(!(await intake.isVisible())){await page.getByRole('button',{name:'Add an item',exact:true}).click();await intake.getByRole('form',{name:'Add an item',exact:true}).waitFor();}
+ await intake.waitFor();
 }
 export async function showTools(page){
  const summary=page.getByText('Collection tools and imports',{exact:true});
  if(await summary.count()&&!(await summary.evaluate(el=>el.parentElement.open)))await summary.click();
 }
 export async function editCopy(page){
+ if(await page.locator('.item-intake').isVisible())await page.locator('.item-intake').getByRole('button',{name:/^Back to /}).click();
  if(!(await page.locator('.copy-inspector').isVisible()))await page.locator('.copy-row[aria-pressed="true"]').click();
  const form=page.getByRole('form',{name:'Edit copy details',exact:true});
  if(!(await form.isVisible()))await page.getByRole('button',{name:'Edit details',exact:true}).click();

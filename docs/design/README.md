@@ -308,3 +308,37 @@ The phone chooser has the same flat choices and All items label, without type
 or custom collection optgroups. Scope IDs, ownership, grouping, paging, errors
 and draft preservation remain unchanged. No theme, schema or API change.
 Status: implemented for review; not deployed.
+
+### Add-item journey — proposed visual concept (2026-11-04)
+
+Owner requested collection → scan or title → review optional details/cover → one
+clear Save across built-in and custom collections, with a visual concept before
+implementation. The [interactive proposal](proposals/item-intake-2026-11-04/README.md)
+extends the current palette/components and uses fictional in-memory examples.
+It brings the destination first and reviews suggestions in the final form;
+current provider/cover capabilities and separate custom ownership/checklist rules
+remain explicit. Status: proposed for owner review; no app or deployment change.
+
+Owner refinement (2026-11-04): selecting a collection already establishes the
+intake destination. The concept now says “Add to Movies” (or the selected name)
+and removes the repeated picker. Only Add from All items asks for a destination.
+Applies equally to named custom collections and phone entry. Proposed; app unchanged.
+
+### Add-item concept approved for implementation (2026-11-04)
+
+Owner approved the refined concept: a scoped “Add to Movies” (or collection name)
+without a repeated picker; All items keeps destination selection. Build one
+config-driven entry, review suggestions and optional cover in the final form,
+and confirm one physical copy after Save. Preserve custom request identity,
+explicit checklist qualification, manual input, drafts and uncertain outcomes.
+Implementation and verification remain separate from deployment.
+
+### Shared item intake — implemented for review (2026-11-04)
+
+The approved concept is implemented in one shared, config-driven task. Selected
+collections establish the destination; only All items asks for one. Suggested
+fields and optional cover are reviewed before one Save item. Built-in and custom
+creation preserve drafts, uncertain outcomes and explicit ownership rules.
+See [item intake](../item-intake.md) for the behavior contract and
+[verification](../harness.md) for evidence and limits. Desktop, 390px and dark-theme
+synthetic captures were reviewed. Status: implemented for PR review; not deployed.
