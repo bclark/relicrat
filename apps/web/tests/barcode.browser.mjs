@@ -1,3 +1,4 @@
+import {showIntake,showTools,editCopy,openDisclosure} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {test,before,after} from 'node:test';
 import {readFile,mkdir} from 'node:fs/promises';
@@ -29,7 +30,7 @@ async function setup(t,mode='read'){
   };
   Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:fakeGetUserMedia}});window.__fakeGetUserMedia=fakeGetUserMedia;
  },{mode,fixture});
- await page.goto(base);await page.getByRole('button',{name:'Review item',exact:true}).click();await page.selectOption('#find-type','other');assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
+ await page.goto(base);await showTools(page);await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();await page.selectOption('#find-type','other');assert.equal(await page.evaluate(()=>navigator.mediaDevices.getUserMedia===window.__fakeGetUserMedia),true,'Synthetic camera must replace the real camera before any scan');const scanner=page.getByRole('region',{name:'Barcode scanning trial',exact:true});
  return {page,scanner,writes,external};
 }
 async function stopped(page){await page.waitForFunction(()=>window.__cameraStreams.length>0&&window.__cameraStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')));}
@@ -119,7 +120,7 @@ test('use a scan explicitly, save one copy, find it by barcode and retain remova
  await page.reload();
  await page.selectOption('#collection-browse-view','copies');
  await page.locator('.inventory-list').getByRole('button').filter({hasText:title}).click();
- const edit=page.getByRole('form',{name:'Edit copy details'}),disclosure=edit.locator('summary').filter({hasText:'Barcode (optional)'});
+ await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details'}),disclosure=edit.locator('summary').filter({hasText:'Barcode (optional)'});
  await disclosure.click();await edit.getByText('Saved barcode',{exact:true}).waitFor();
  if(process.env.RELICRAT_INTAKE_SCREENSHOTS){const dir=process.env.RELICRAT_INTAKE_SCREENSHOTS;await page.screenshot({path:dir+'/saved-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/saved-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
  await page.evaluate(()=>{window.__cameraMode='blank';});
@@ -131,7 +132,7 @@ test('use a scan explicitly, save one copy, find it by barcode and retain remova
  await edit.getByRole('button',{name:'Remove barcode from draft',exact:true}).click();
  assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+copy.id)).json()).barcode.value,'012345678905');
  await edit.getByRole('button',{name:'Save details',exact:true}).click();
- await page.getByText('Copy details saved.',{exact:true}).waitFor();
+ await page.getByText('Copy details saved.',{exact:true}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
  const cleared=await (await page.request.get(base+'/api/v1/inventory/'+copy.id)).json();assert.deepEqual(cleared.barcode,{});assert.equal(cleared.id,copy.id);
  const history=await (await page.request.get(base+'/api/v1/inventory/'+copy.id+'/detail-history')).json();
  assert.equal(history.at(-1).before_barcode.value,'012345678905');assert.deepEqual(history.at(-1).after_barcode,{});
@@ -168,11 +169,11 @@ test('type configuration can disable new scans or reject a format without changi
   for(const type of Object.values(types))type.barcode_formats=formats;
   await route.fulfill({json:types});
  });
- await page.reload();await page.getByRole('form',{name:'Start adding an item',exact:true}).waitFor();
+ await page.reload();await showIntake(page);await page.getByRole('form',{name:'Start adding an item',exact:true}).waitFor();
  await page.waitForFunction(()=>!!document.querySelector('#find-type') && !document.querySelector('#find-type').closest('fieldset').disabled);
  assert.equal(await scanner.getByRole('button',{name:'Scan barcode',exact:true}).isDisabled(),true);
  assert.equal(await page.evaluate(()=>window.__cameraRequests.length),0);
- formats=['EAN_13'];await page.reload();await page.selectOption('#find-type','record');
+ formats=['EAN_13'];await page.reload();await showIntake(page);await page.selectOption('#find-type','record');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();
  await scanner.getByRole('alert').filter({hasText:'not supported for this collection type'}).waitFor();await stopped(page);
  assert.equal(await scanner.getByRole('button',{name:'Use barcode',exact:true}).count(),0);assert.deepEqual(writes,[]);
@@ -252,14 +253,14 @@ test('existing-copy lookup changes only reviewed details and saves with retained
  const {page,writes}=await setup(t);const title='Original lookup copy '+Date.now();await lookupFixture(page);
  const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title,collection_type:'record',barcode:{value:'012345678905',format:'UPC_A'}}});assert.equal(response.status(),201);const original=await response.json();
  await page.reload();await page.selectOption('#collection-browse-view','copies');await page.locator('.inventory-list button').filter({hasText:title}).click();
- const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
+ await editCopy(page);const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
  await form.getByRole('region',{name:'Barcode scanning trial',exact:true}).getByRole('button',{name:'Scan barcode',exact:true}).click();await stopped(page);
  await lookup.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();await lookup.locator('.barcode-matches button').click();
  assert.equal(await lookup.getByRole('checkbox',{name:/Album title/}).isChecked(),false);
  await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json()).record_details.artist,undefined);
  assert.equal(await form.locator('#copy-title').evaluate(element=>element===document.activeElement),true);
  if(process.env.RELICRAT_LOOKUP_SCREENSHOTS){const dir=process.env.RELICRAT_LOOKUP_SCREENSHOTS;await page.screenshot({path:dir+'/existing-filled-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:dir+'/existing-filled-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});}
- await form.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();
+ await form.getByRole('button',{name:'Save details',exact:true}).click();await page.getByText('Copy details saved.',{exact:true}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
  const saved=await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json();assert.equal(saved.id,original.id);assert.equal(saved.title,title);assert.equal(saved.record_details.artist,'Synthetic artist');assert.equal(saved.catalog_item_id,null);
  const history=await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/detail-history')).json();assert.equal(history.length,1);assert.equal(history[0].after_record_details.artist,'Synthetic artist');assert.equal(writes.filter(path=>path==='/api/v1/inventory').length,0);
 });
@@ -297,10 +298,10 @@ test('optional catalog cover is unchecked, staged for review, and stored only wi
  await lookup.getByRole('button',{name:'Use these details',exact:true}).click();await page.getByText('Catalog cover selected. Save the form to keep it.',{exact:true}).waitFor();
  assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,0);assert.equal((await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json()).length,0);
  await coverCapture(page,'cover-pending');
- await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('region',{name:'Catalog artwork',exact:true}).waitFor();
+ await page.getByRole('form',{name:'Add a find',exact:true}).getByRole('button',{name:'Save copy',exact:true}).click();await page.locator('details[aria-label="Catalog artwork"]').waitFor();await openDisclosure(page,'Artwork source');await openDisclosure(page,'Photos of your copy');
  const copies=await (await page.request.get(base+'/api/v1/inventory?q='+encodeURIComponent(title))).json();assert.equal(copies.length,1);
  const art=await (await page.request.get(base+'/api/v1/inventory/'+copies[0].id+'/photos')).json();assert.equal(art.length,1);assert.equal(art[0].role,'catalog_cover');assert.equal(art[0].source_id,lookupId);
- assert.equal(await page.getByRole('region',{name:'Catalog artwork'}).getByRole('link',{name:'Source: musicbrainz'}).getAttribute('href'),'https://musicbrainz.org/release/'+lookupId);
+ assert.equal(await page.locator('details[aria-label="Catalog artwork"]').getByRole('link',{name:'Source: musicbrainz'}).getAttribute('href'),'https://musicbrainz.org/release/'+lookupId);
  await page.getByText('No photos yet. Add a clear view of this physical copy.',{exact:true}).waitFor();await coverCapture(page,'cover-saved');
 });
 
@@ -309,12 +310,12 @@ test('cover-only existing-copy save preserves physical photos and does not creat
  const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title,collection_type:'record',barcode:{value:'012345678905',format:'UPC_A'}}});const original=await response.json();
  const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=4;c.height=4;return c.toDataURL('image/png').split(',')[1];});assert.equal((await page.request.post(base+'/api/v1/inventory/'+original.id+'/photos',{headers:{Origin:base},multipart:{file:{name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')}}})).status(),201);
  await page.reload();await page.selectOption('#collection-browse-view','copies');await page.locator('.inventory-list button').filter({hasText:title}).click();
- const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
+ await editCopy(page);const form=page.getByRole('form',{name:'Edit copy details'});await form.locator('summary').filter({hasText:'Barcode (optional)'}).click();const lookup=form.getByRole('region',{name:'Barcode lookup',exact:true});
  await lookup.getByRole('button',{name:'Find album details',exact:true}).click();await lookup.locator('.barcode-matches button').click();await page.waitForFunction(()=>!!document.querySelector('.lookup-cover')?.naturalWidth);
  for(const checkbox of await lookup.getByRole('checkbox').all())await checkbox.uncheck();await lookup.getByRole('checkbox',{name:/Include catalog cover/}).check();
  await lookup.getByRole('button',{name:'Use these details',exact:true}).click();assert.equal(await form.getByRole('button',{name:'Save details',exact:true}).isEnabled(),true);
  assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/photos')).json()).length,1);
- await form.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('region',{name:'Catalog artwork',exact:true}).waitFor();await page.getByText('View photo 1',{exact:true}).waitFor();
+ await form.getByRole('button',{name:'Save details',exact:true}).click();await page.locator('details[aria-label="Catalog artwork"]').waitFor();await openDisclosure(page,'Artwork source');await openDisclosure(page,'Photos of your copy');await page.getByText('View photo 1',{exact:true}).waitFor();
  const images=await (await page.request.get(base+'/api/v1/inventory/'+original.id+'/photos')).json();assert.equal(images.length,2);assert.equal(images.filter(image=>image.role==='photo').length,1);assert.equal(images.filter(image=>image.role==='catalog_cover').length,1);
  assert.equal(writes.filter(p=>p==='/api/v1/inventory').length,0);assert.equal((await (await page.request.get(base+'/api/v1/inventory/'+original.id)).json()).title,title);
 });
@@ -409,4 +410,12 @@ test('opening phone details stops the hidden rail camera and Back preserves the 
  const row=page.getByRole('button',{name:'Open '+title,exact:true});await row.waitFor();await page.locator('#find-title').fill('Keep the camera draft');
  await scanner.getByRole('button',{name:'Scan barcode',exact:true}).click();await scanner.getByText('Hold the barcode steady and keep the bars in view.',{exact:true}).waitFor();await row.click();await stopped(page);
  assert.equal(await page.locator('.workbench').isVisible(),false);await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Keep the camera draft');assert.equal(await page.evaluate(()=>window.__cameraRequests.length),1);
+});
+
+test('Back stops a hidden copy-editor camera while retaining its edit draft',async t=>{
+ const {page,writes}=await setup(t,'blank');const title='Synthetic editor camera '+Date.now();
+ const response=await page.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title}});assert.equal(response.status(),201);
+ await page.selectOption('#collection-browse-view','copies');await page.getByRole('button',{name:'Reload inventory',exact:true}).click();const row=page.getByRole('button',{name:'Open '+title,exact:true});await row.click();await editCopy(page);
+ const edit=page.getByRole('form',{name:'Edit copy details',exact:true});await edit.getByLabel('Title',{exact:true}).fill('Keep camera edit draft');await edit.getByText('Barcode (optional)',{exact:true}).click();const camera=edit.getByRole('region',{name:'Barcode scanning trial',exact:true});await camera.getByRole('button',{name:'Scan barcode',exact:true}).click();await camera.getByRole('status').filter({hasText:'Hold the barcode'}).waitFor();
+ await page.getByRole('button',{name:'Back to collection',exact:true}).click();await stopped(page);await row.click();assert.equal(await edit.getByLabel('Title',{exact:true}).inputValue(),'Keep camera edit draft');assert.equal(await page.evaluate(()=>window.__cameraRequests.length),1);assert.equal(writes.filter(p=>p.endsWith('/details')).length,0);
 });

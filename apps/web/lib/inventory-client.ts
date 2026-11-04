@@ -4,6 +4,7 @@ export type ComicField = 'issue_number'|'publisher'|'edition'|'notes';
 export type MovieField = 'media_format'|'studio'|'edition'|'notes';
 export type EntryField = 'title'|RecordField|ComicField|MovieField;
 export type InventoryCopy = {
+  storage_location_name?:string|null; preview_photo_id?:string|null; preview_photo_role?:string|null;
   custom_collection_name?:string|null; custom_collection_id?:string|null; custom_details?:Record<string,string|boolean|string[]>;
   barcode: Partial<BarcodeReading>;
   id: string; title: string | null; description: string | null;

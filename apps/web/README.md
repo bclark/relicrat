@@ -195,7 +195,7 @@ The [private-beta checklist](../../docs/private-beta-acceptance.md) maps coverag
 to the hands-on acceptance tasks.
 
 For `tests/barcode.browser.mjs`, start only the disposable API with
-`RELICRAT_SYNTHETIC_SMOKE=1 python tests/browser_server.py` from the API directory
+`PYTHONPATH=. RELICRAT_SYNTHETIC_SMOKE=1 python tests/browser_server.py` from the API directory
 (the test image includes that file). Its database name must end in `_test`.
 This bootstrap returns generated cover bytes for the one synthetic successful
 candidate and rejects other candidates. Browser lookup/preview interception
@@ -315,23 +315,22 @@ loopback URL using `node --test apps/web/tests/groups.browser.mjs`. The existing
 inventory/import browser tests explicitly select Individual copies for their
 original copy-workflow coverage. Do not point test commands at the private trial.
 
-## Compact collection workspace
+## Collection browse, inspect and edit
 
-Intake sits openly on the workspace. Individual-copy pages group Albums, Comics,
-Movies and Other finds with counts labelled “on this page”; these are not whole
-collection totals. Rows keep title and optional edition together, with Location
-assigned or Unassigned alongside. Notes remain in the selected record. Existing
-server groups, search, type/storage filters and pagination retain their semantics.
+The approved November 4 journey replaces the earlier intake rail. Collections
+lead desktop navigation; phones use a native chooser. Search, exact storage
+filters and existing server artist/series/title groups retain their scope.
+List and Covers share the same records, with authenticated existing artwork or
+an explicit missing-art fallback. Add a find opens a preserved intake draft;
+custom setup and imports remain under Collection tools and imports.
 
-## Three-pane workspace
+A copy opens read-first. Edit details reveals its configured fields, and a
+confirmed Save returns to the summary and focuses Edit details. Back hides the
+inspector while preserving its draft and the browser's query, page and position.
+Opening a different copy requires reviewing dirty or uncertain edits. Separate
+photo, storage and catalog operations keep their existing save boundaries.
+Draft preservation is session-local; this does not add offline sync or routes.
 
-Quick intake sits at left, collection browsing in the middle and the full selected
-copy editor at right. Below 1180px, Back to collection switches between list and
-details; below 760px, details also hide the intake rail. Drafts remain mounted.
-Enter a title and press Enter/Review item, or scan using the existing decoder.
-Typed 12-digit UPC-A and 13-digit EAN-13 codes use configured lookup and explicit
-match/cover review; scan eight-digit codes to preserve their format. No barcode
-is appended to notes and scanning never creates ownership. Save copy remains
-explicit. List and unboxed Bricks change presentation only; server groups, CSV
-import, Movie fields, filters and history retain their existing behavior.
-Category buttons/counts apply only to an individual-copy response page.
+See [the journey contract](../../docs/collection-journey.md) and
+[validation evidence](../../docs/harness.md). This implementation is for review;
+it does not establish deployment or physical-phone camera certification.

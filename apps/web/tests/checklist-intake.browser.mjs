@@ -1,3 +1,4 @@
+import {chooseCollection,showIntake,showTools} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile,mkdir} from 'node:fs/promises';
@@ -5,17 +6,18 @@ import {chromium} from 'playwright';
 const base=process.env.RELICRAT_TEST_WEB_URL;assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='56742');
 const template=JSON.parse(await readFile(new URL('../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json',import.meta.url),'utf8'));
 async function setup(){
- const browser=await chromium.launch({headless:true,executablePath:process.env.RELICRAT_TEST_CHROME});const context=await browser.newContext({viewport:{width:1440,height:1000}});assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}})).status(),200);
+ const browser=await chromium.launch({headless:true,executablePath:process.env.RELICRAT_TEST_CHROME});try{const context=await browser.newContext({viewport:{width:1440,height:1000}});assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}})).status(),200);
  const suffix=crypto.randomUUID().slice(0,8),raw=structuredClone(template);raw.type_definition.id='intake-'+suffix;raw.collection.type_id=raw.type_definition.id;raw.collection.id='goal-'+suffix;raw.collection.name='Synthetic checklist intake '+suffix;
  const response=await context.request.post(base+'/api/v1/custom-collections',{data:raw,headers:{Origin:base}});assert.equal(response.status(),200);const collection=await response.json();const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(base);await page.getByLabel('Show collection',{exact:true}).selectOption('custom:'+collection.id);const main=page.locator('.collection'),progress=main.getByRole('region',{name:'Checklist progress',exact:true});await progress.getByText('0 of 10 collected',{exact:true}).waitFor();await progress.getByText('View checklist and missing entries',{exact:true}).click();
+ await page.goto(base);await showTools(page);await chooseCollection(page,'custom:'+collection.id);const main=page.locator('.collection'),progress=main.getByRole('region',{name:'Checklist progress',exact:true});await progress.getByText('0 of 10 collected',{exact:true}).waitFor();await progress.getByText('View checklist and missing entries',{exact:true}).click();
  return {browser,context,page,collection,main,progress,errors,async copies(){return (await context.request.get(base+'/api/v1/inventory?custom_collection_id='+collection.id)).json();}};
+ }catch(error){await browser.close();throw error;}
 }
 
 test('missing checklist action prefills the right collection, saves explicitly and leaves qualification for review',async()=>{
  const f=await setup();const {page,collection,main,progress}=f;try{
   const capture=process.env.RELICRAT_TEST_ARTIFACTS;if(capture){await mkdir(capture,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await progress.screenshot({path:`${capture}/missing-actions-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
-  await page.getByRole('button',{name:'Review item',exact:true}).click();const generic=page.getByRole('form',{name:'Add a find',exact:true});await generic.getByLabel('Title',{exact:true}).fill('Preserve generic draft');
+  await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();const generic=page.getByRole('form',{name:'Add a find',exact:true});await generic.getByLabel('Title',{exact:true}).fill('Preserve generic draft');
   await progress.getByRole('button',{name:'Add this figure: Leonardo',exact:true}).click();const saved=page.getByRole('region',{name:'Saved collection: '+collection.name,exact:true}),title=saved.getByLabel('Figure name (required)',{exact:true});await title.waitFor();await page.waitForFunction(()=>document.activeElement?.tagName==='INPUT'&&document.activeElement.value==='Leonardo');assert.equal(await title.inputValue(),'Leonardo');assert.equal(await page.getByLabel('Collection',{exact:true}).inputValue(),collection.id);assert.equal((await f.copies()).length,0);assert.equal(await generic.getByLabel('Title',{exact:true}).inputValue(),'Preserve generic draft');
   await saved.getByRole('textbox',{name:/^Notes \(optional\)/}).fill('Synthetic reviewed personal details');await saved.getByRole('button',{name:'Add figure',exact:true}).click();await page.getByText('Figure added. Open it to review its checklist match.',{exact:true}).waitFor();const copies=await f.copies();assert.equal(copies.length,1);assert.equal(copies[0].title,'Leonardo');assert.equal(copies[0].description,'Synthetic reviewed personal details');assert.equal(copies[0].custom_collection_id,collection.id);const result=await (await f.context.request.get(base+`/api/v1/custom-collections/${collection.id}/progress`)).json();assert.equal(result.completed,0);assert.equal(result.unassigned_copies,1);
   // The same action also works inside saved collections; it never saves on click.

@@ -1,6 +1,6 @@
 # Shared UI, brand, and theming brief
 
-Updated 2026-11-01. Read this before UI, brand, or Appearance work and update it
+Updated 2026-11-04. Read this before UI, brand, or Appearance work and update it
 when a decision changes another area's work. It is a shared handoff, not an
 automatic transcript sync or a substitute for inspecting the implementation.
 
@@ -269,3 +269,32 @@ No inventory interface, theme, collection field or ownership behavior changes.
 Native controls, escaped text, stale/unavailable states and responsive views
 were checked. See [operating contract](../operating-reliability.md) and the
 [report design record](project-dashboard.md#operations-extension--2026-11-03).
+
+### Collection browsing journey concept (2026-11-04)
+
+Owner requested a redesign of open collection → find item → view/edit and chose visual concepts before implementation. Proposed: collections in navigation, a collection-scoped search/filter row, artist/series grouping, and a read-first inspector with an explicit Edit details step. Desktop keeps browse context; phone Back should restore query, position and focus. Preserve supported theme roles, physical-copy identity, separate photo/location saves and dirty/uncertain drafts. [Three concept frames and implementation boundaries](proposals/collection-journey-2026-11-04/README.md) use fictional collection data. Status: proposed for review, not approved, implemented or deployed. Existing designer checkout and active inventory are unchanged.
+
+### Collection journey approved for implementation (2026-11-04)
+
+Owner approved the three visual concepts and requested a focused implementation
+PR, with review before deployment. Collections lead navigation; browsing retains
+server grouping and storage/search scope; copy details open read-first with an
+explicit Edit details step. Back preserves mounted drafts and browse context;
+replacing a dirty copy requires an explicit discard decision, and uncertain saves
+require inspection. Core/API/web stay here; native and immersive clients use the
+API. The implementation preserves the current theme roles and separate
+storage/photo/catalog saves. Fictional artwork in the concepts is not shipping
+inventory or a new brand master. Implementation and verification are recorded
+separately below; no deployment is authorized by this handoff.
+
+### Collection journey implemented for review (2026-11-04)
+
+The focused implementation uses collection navigation, a search/storage toolbar,
+List/Covers, existing artist/series groups and a read-first inspector with explicit
+Edit details. Back retains mounted drafts and restores browse position/focus;
+confirmed Save returns focus to Edit details. Existing theme tokens and domain
+save boundaries remain. API list display metadata adds existing artwork/location
+names without per-row metadata requests. No migration or dependency is added.
+[Behavior and limits](../collection-journey.md), [current product](../../PRODUCT.md)
+and [checks](../harness.md) are authoritative. Status: implemented for review,
+not deployed. Broader screen redesign and native/immersive clients remain future work.

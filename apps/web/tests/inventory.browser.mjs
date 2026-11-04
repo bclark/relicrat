@@ -1,3 +1,4 @@
+import {chooseCollection,showIntake,editCopy,openDisclosure} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { mkdir } from 'node:fs/promises';
@@ -22,6 +23,7 @@ async function reviewItem(page) {
   const back = page.getByRole('button', { name: 'Back to collection', exact: true });
   if (await back.isVisible()) await back.click();
   const form = page.getByRole('form', { name: 'Add a find', exact: true });
+  if (!(await page.getByRole('button',{name:'Review item',exact:true}).isVisible())) await page.getByRole('button',{name:'Add a find',exact:true}).click();
   if (!(await form.isVisible())) await page.getByRole('button', { name: 'Review item', exact: true }).click();
   await form.waitFor();
   return form;
@@ -37,7 +39,7 @@ async function fixture(t, initial = {}) {
   assert.equal(appearanceResponse.status(),200);
   const appearance = await appearanceResponse.json();
   initial.configureTypes?.(types);
-  const page = await context.newPage();
+  const page = await context.newPage();page.setDefaultTimeout(10000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, [], 'Unexpected browser errors'));
   const state = { settings:{status:'skipped',records_enabled:false,default_type:'other',record_fields:['artist','format','edition','notes'],revision:0}, failSettings:'', reads: [], edits: {}, detailsConflict: false, uncertainDetails: false, failDetails: '', failEditionRead: false, slowEditionRead: false, categories: [], items: [], releases: [], identifications: {}, identificationConflict: false, uncertainIdentification: false, copies: [], locations: [], photos: {}, moves: {}, writes: [], failCreate: '', failPhoto: false, conflict: false, failList: false, ...initial };
@@ -47,7 +49,7 @@ async function fixture(t, initial = {}) {
     const method = request.method(); let result; let status = 200;
     if (method === 'GET' && path === 'inventory' && state.failList === 'invalid') { await route.fulfill({ status: 200, contentType: 'text/plain', body: 'invalid JSON' }); return; }
     if (method === 'GET' && path === 'inventory' && state.failList === 'network') { await route.abort('failed'); return; }
-    if (method === 'GET') state.reads.push(path);
+    if (method === 'GET') {state.reads.push(path);(state.urls ||= []).push(url.pathname+url.search);}
     if (method === 'POST') state.writes.push({ path, body: path.endsWith('/photos') ? null : request.postDataJSON() });
     if (path === 'appearance' && method === 'GET') {
       result = appearance;
@@ -86,6 +88,8 @@ async function fixture(t, initial = {}) {
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         const type=url.searchParams.get('collection_type');
         if(type) result=result.filter(item=>item.collection_type===type);
+        if(url.searchParams.has('storage_location_id'))result=result.filter(item=>item.storage_location_id===url.searchParams.get('storage_location_id'));
+        if(url.searchParams.get('unassigned')==='true')result=result.filter(item=>!item.storage_location_id);
         result = result.slice(offset, offset + limit);
       }
     } else if (method === 'POST' && path === 'inventory') {
@@ -185,13 +189,24 @@ async function fixture(t, initial = {}) {
     try { await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) }); } catch { /* An intentionally aborted stale read may have closed. */ }
   });
   await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
-  if(!initial.quickIntake)await page.getByRole('button',{name:'Review item',exact:true}).click();
+  if(!initial.quickIntake)await reviewItem(page);else if(!initial.browseOnly)await showIntake(page);
   return { page, state };
+}
+async function reloadCopy(page){
+ const advanced=await page.getByText('Advanced: catalog matching',{exact:true}).evaluate(el=>el.parentElement.open);
+ const accept=dialog=>dialog.accept();page.on('dialog',accept);
+ await page.getByRole('button',{name:'Reload copy',exact:true}).click();
+ await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();page.off('dialog',accept);
+ if(advanced)await page.getByText('Advanced: catalog matching',{exact:true}).click();
+ for(const name of ['Photos of your copy','Change storage'])await page.getByText(name,{exact:true}).click();
+ await page.getByRole('button',{name:'Edit details',exact:true}).click();
 }
 async function open(page, title, edition = '') {
   await page.getByRole('button', { name: `Open ${title}${edition ? ` · ${edition}` : ''}`, exact: true }).click();
   await page.getByRole('heading', { name: title, exact: true }).waitFor();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
+  await editCopy(page);
 }
 
 async function catalog(page) {
@@ -222,7 +237,9 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   await page.getByLabel('Notes (optional)', { exact: true }).fill('');
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
   await page.getByRole('button', { name: 'Save copy', exact: true }).dblclick();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
+  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.copies.length, 1); assert.equal(state.writes.filter(write => write.path === 'inventory').length, 1);
   assert.equal(state.copies[0].description, null);
   assert.equal(state.copies[0].edition_label, null);
@@ -234,7 +251,7 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
   await page.getByAltText('Photo 1 of Synthetic blue-cover comic').waitFor();
-  await page.getByText('Create a storage location', { exact: true }).click();
+  await openDisclosure(page,'Create a storage location');
   await page.getByLabel('Location name', { exact: true }).fill('Study');
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'created. Choose it under Location' }).waitFor();
@@ -282,7 +299,9 @@ test('API outages and failed photos stay distinct from empty inventory and faile
   assert.equal(await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).inputValue(), 'Retained title');
   state.failCreate = ''; state.failPhoto = true;
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
+  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   const count = state.writes.length;
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'empty.png', mimeType: 'image/png', buffer: Buffer.alloc(0) });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
@@ -327,7 +346,7 @@ test('storage conflicts require reload; location and history pages are not silen
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
   await page.getByRole('alert').filter({ hasText: 'changed elsewhere' }).waitFor();
   assert.ok(await page.getByLabel('Location', { exact: true }).isDisabled()); assert.equal(state.writes.length, 1);
-  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await reloadCopy(page);
   await page.getByLabel('Location', { exact: true }).waitFor();
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
   await page.getByRole('status').filter({ hasText: 'Added to Place 0.' }).waitFor();
@@ -356,7 +375,7 @@ test('storage selection saves once, confirms the box nearby, and keeps confirmed
   assert.equal(state.writes[0].body.expected_storage_revision, 0);
   assert.equal(state.moves[item.id].length, 1);
   state.failHistory = false;
-  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await reloadCopy(page);
   await location.waitFor();
   assert.equal(await location.inputValue(), place.id);
   assert.equal(state.writes.length, 1, 'Reloading must not retry a confirmed save');
@@ -387,7 +406,7 @@ for (const failure of ['validation', 'uncertain']) test(`storage ${failure} fail
   assert.equal(await location.isDisabled(), failure === 'uncertain');
   state.failMove = '';
   if (failure === 'uncertain') {
-    await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+    await reloadCopy(page);
     await location.waitFor();
     assert.equal(await location.inputValue(), places[1].id, 'Reload reconciles the actual committed move');
     assert.equal(state.writes.length, 1);
@@ -414,7 +433,7 @@ test('unreadable/network errors and long untrusted text stay safe and keyboard a
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.getByRole('button',{name:'Back to collection',exact:true}).click();
   await page.waitForFunction(name=>document.activeElement?.getAttribute('aria-label')===name,'Open '+title);
-  await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
+  await showIntake(page);await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).focus(); await page.keyboard.press('Tab');
   const notesField=page.getByRole('form',{name:'Add a find',exact:true}).getByLabel('Notes (optional)',{exact:true});
   assert.ok(await notesField.evaluate(input=>input===document.activeElement));
   assert.notEqual(await notesField.evaluate(input=>getComputedStyle(input).outlineStyle),'none');
@@ -426,7 +445,7 @@ test('a saved copy edits its existing title and edition in one form without cata
   const before = structuredClone(original);
   const { page, state } = await fixture(t, { copies: [original], locations: [{ id: id(1000), name: 'Shelf', parent_id: null }], photos: { [original.id]: [photo] } });
   await open(page, original.title);
-  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), before.title);
   await form.getByLabel('Edition', { exact: true }).fill('Blue vinyl');
   assert.equal(await page.getByText('Find a collectible', { exact: true }).isVisible(), false);
@@ -440,7 +459,7 @@ test('a saved copy edits its existing title and edition in one form without cata
     await page.screenshot({ path: `${output}/copy-mobile.png`, fullPage: true, animations: 'disabled' });
   }
   await form.getByRole('button', { name: 'Save details', exact: true }).dblclick();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.writes.length, 1); assert.equal(state.writes[0].path, `inventory/${original.id}/details`);
   assert.equal(state.copies[0].title, before.title); assert.equal(state.copies[0].edition_label, 'Blue vinyl');
   for (const key of ['id', 'created_at', 'catalog_item_id', 'release_id', 'identification_revision', 'storage_location_id', 'storage_revision', 'ownership_status']) assert.equal(state.copies[0][key], before[key]);
@@ -461,7 +480,7 @@ for (const failure of ['validation', 'conflict', 'uncertain']) test(`copy edit $
   const original = copy(1, 'Original saved copy', { edition_label: 'Blue vinyl' });
   const { page, state } = await fixture(t, { copies: [original], failDetails: failure === 'validation' ? 'validation' : '', detailsConflict: failure === 'conflict', uncertainDetails: failure === 'uncertain' });
   await open(page, original.title, 'Blue vinyl');
-  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await form.getByLabel('Title', { exact: true }).fill('Changed copy');
   await form.getByLabel('Edition', { exact: true }).fill('Copper cover');
   await form.getByRole('button', { name: 'Save details', exact: true }).click();
@@ -472,7 +491,7 @@ for (const failure of ['validation', 'conflict', 'uncertain']) test(`copy edit $
   if (failure !== 'validation') assert.equal(await page.getByText('Unsaved changes to this copy.', { exact: true }).count(), 0, 'Uncertain outcomes must not claim the changes were not saved');
   state.failDetails = ''; state.uncertainDetails = false;
   if (failure !== 'validation') {
-    await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+    await reloadCopy(page);
     await form.getByLabel('Title', { exact: true }).waitFor();
     assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), failure === 'uncertain' ? 'Changed copy' : 'Original saved copy');
     assert.equal(state.writes.length, 1, 'Reload must not retry the save');
@@ -485,15 +504,16 @@ test('a matched edition remains intact when only the copy title changes', async 
   const original = copy(1, 'My album', { catalog_item_id: item.id, release_id: release.id, identification_status: 'identified' });
   const { page, state } = await fixture(t, { copies: [original], items: [item], releases: [release] });
   await open(page, original.title);
-  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await form.getByLabel('Title', { exact: true }).fill('My annotated album');
   assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), release.name);
   await form.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.writes[0].body.edition_label, null);
   assert.equal(state.copies[0].release_id, release.id); assert.equal(state.copies[0].catalog_item_id, item.id);
   await form.getByLabel('Edition', { exact: true }).fill('My handwritten blue label');
   await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor(); await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Your edition label is used for this copy. Shared catalog information is under Advanced.', { exact: true }).waitFor();
   assert.equal(state.releases[0].name, release.name); assert.equal(state.copies[0].release_id, release.id);
 });
@@ -505,7 +525,7 @@ test('unavailable matched edition cannot be saved as an empty copy label', async
   const { page, state } = await fixture(t, { copies: [original], items: [item], releases: [release], failEditionRead: true });
   await open(page, original.title);
   await page.getByRole('alert').filter({ hasText: 'Synthetic edition lookup unavailable' }).waitFor();
-  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   assert.ok(await form.getByLabel('Title', { exact: true }).isDisabled());
   assert.ok(await form.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
   assert.equal(state.writes.length, 0);
@@ -525,7 +545,7 @@ test('a delayed matched edition never overwrites the next physical copy', async 
   await open(page, previous.title);
   await open(page, next.title, 'Black vinyl');
   await page.waitForTimeout(550);
-  const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   assert.equal(await form.getByLabel('Title', { exact: true }).inputValue(), next.title);
   assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), 'Black vinyl');
   assert.equal(state.writes.length, 0);
@@ -541,22 +561,24 @@ test('real browser preserves three physical copies across shared editions, photo
   let title = 'Synthetic browser trial comic';
   await page.getByRole('form', { name: 'Add a find', exact: true }).getByLabel('Title', { exact: true }).fill(title);
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
+  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
   await page.getByAltText(`Photo 1 of ${title}`).waitFor();
   const initialCopy = await page.evaluate(async () => (await (await fetch('/api/v1/inventory')).json())[0]);
-  const copyForm = page.getByRole('form', { name: 'Edit copy details', exact: true });
+  await editCopy(page);const copyForm = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await copyForm.getByLabel('Title', { exact: true }).fill('Updated synthetic browser trial comic');
   await copyForm.getByLabel('Edition', { exact: true }).fill('My blue copy');
   await copyForm.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   title = 'Updated synthetic browser trial comic';
   const edited = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.equal(edited.length, 1); assert.equal(edited[0].id, initialCopy.id); assert.equal(edited[0].created_at, initialCopy.created_at); assert.equal(edited[0].edition_label, 'My blue copy');
   assert.equal(edited[0].details_revision, 1); assert.equal(edited[0].catalog_item_id, null);
   assert.deepEqual(await page.evaluate(() => fetch('/api/v1/catalog/items').then(response => response.json())), [], 'Copy edits must not create catalog records');
-  await page.getByText('Create a storage location', { exact: true }).click();
+  await openDisclosure(page,'Create a storage location');
   await page.getByLabel('Location name', { exact: true }).fill('Synthetic study');
   await page.getByRole('button', { name: 'Create location', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'created. Choose it under Location' }).waitFor();
@@ -619,6 +641,7 @@ test('real browser preserves three physical copies across shared editions, photo
     await page.getByLabel('Notes (optional)', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
+    await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
     const created = await page.evaluate(async title => (await (await fetch('/api/v1/inventory')).json()).find(item => item.title === title), copyTitle);
     assert.ok(created?.id); added.push(created);
     await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: `copy-${index + 2}.png`, mimeType: 'image/png', buffer: png });
@@ -810,7 +833,7 @@ test('catalog paging, selected release beyond page one, stale revisions and unce
   await page.getByRole('button', { name: 'Save catalog match', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'This copy changed elsewhere' }).waitFor();
   assert.ok(await page.getByRole('button', { name: 'Upload photo', exact: true }).isDisabled());
-  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await reloadCopy(page);
   await catalog(page);
   await page.getByLabel('Edition or variant', { exact: true }).waitFor();
   await page.getByLabel('Edition or variant', { exact: true }).selectOption('');
@@ -819,7 +842,7 @@ test('catalog paging, selected release beyond page one, stale revisions and unce
   await page.getByRole('alert').filter({ hasText: 'Save could not be confirmed' }).first().waitFor();
   assert.ok(await page.getByRole('button', { name: 'Save catalog match', exact: true }).isDisabled());
   assert.equal(state.writes.filter(write => write.path.endsWith('/reconcile')).length, 2);
-  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await reloadCopy(page);
   await catalog(page);
   await page.getByText('Edition not specified', { exact: false }).first().waitFor();
   await catalog(page);
@@ -862,7 +885,7 @@ test('private owner login blocks guests, protects photos, and logout invalidates
   }
   await page.getByLabel('Owner password', { exact: true }).fill(ownerPassword);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByRole('form', { name: 'Start adding an item', exact: true }).waitFor();
+  await page.waitForURL(base+'/'); await showIntake(page);await page.getByRole('form', { name: 'Start adding an item', exact: true }).waitFor();
   await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   assert.equal(new URL(page.url()).pathname, '/');
   const cookies = await context.cookies();
@@ -944,7 +967,7 @@ test('skip and cancel preserve generic entry; changing a nonempty draft requires
   await page.getByRole('button',{name:'Skip for now',exact:true}).click();
   await page.getByRole('button',{name:'Collection settings',exact:true}).waitFor();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});
-  await intake.getByLabel('Title',{exact:true}).fill('Keep this draft');
+  await showIntake(page);await intake.getByLabel('Title',{exact:true}).fill('Keep this draft');
   page.once('dialog',dialog=>dialog.dismiss());await page.getByLabel('What are you adding?',{exact:true}).selectOption('record');
   assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep this draft');
   page.once('dialog',dialog=>dialog.accept());await page.getByLabel('What are you adding?',{exact:true}).selectOption('record');
@@ -956,7 +979,7 @@ test('hidden record fields keep saved values editable and searchable without rew
   const item=copy(1,'Example album',{collection_type:'record',record_details:{artist:'Example band',format:'Vinyl'},description:null});
   const {page,state}=await fixture(t,{copies:[item],settings:{...freshSettings(),status:'configured',records_enabled:true,default_type:'record',record_fields:[]}});
   await page.getByRole('button',{name:'Open Example band — Example album',exact:true}).click();
-  const editForm=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editCopy(page);const editForm=page.getByRole('form',{name:'Edit copy details',exact:true});
   assert.equal(await editForm.getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Example band');
   assert.equal(await page.getByRole('form',{name:'Add a find',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).count(),0);
   await editForm.getByLabel('Album title',{exact:true}).fill('Corrected album');
@@ -983,7 +1006,7 @@ test('unavailable settings allow explicit generic entry without replacing prefer
   const {page,state}=await fixture(t,{failSettings:'read',quickIntake:true});
   await page.getByRole('button',{name:'Use generic entry',exact:true}).click();
   await reviewItem(page);
-  const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Title',{exact:true}).fill('Generic fallback');
+  const intake=page.getByRole('form',{name:'Add a find',exact:true});await showIntake(page);await intake.getByLabel('Title',{exact:true}).fill('Generic fallback');
   await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Generic fallback',exact:true}).waitFor();
   assert.equal(state.writes.filter(w=>w.path==='collection-settings').length,0);assert.equal(state.copies[0].collection_type,'other');
 });
@@ -1005,7 +1028,7 @@ test('real Records setup and artist search survive browser reload with a title-o
   await page.getByRole('checkbox',{name:'Artist or band',exact:true}).uncheck();await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Save setup',exact:true}).click();
   await intake.getByLabel('Artist or band (optional)',{exact:true}).waitFor({state:'detached'});
   assert.equal(await intake.getByLabel('Artist or band (optional)',{exact:true}).count(),0);
-  assert.equal(await page.getByRole('form',{name:'Edit copy details',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Synthetic setup band');
+  await editCopy(page);assert.equal(await page.getByRole('form',{name:'Edit copy details',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Synthetic setup band');
   await reviewItem(page);
   await intake.getByLabel('Album title',{exact:true}).fill('Synthetic title-only album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Synthetic title-only album',exact:true}).waitFor();
@@ -1064,11 +1087,11 @@ test('Record entry suggests saved artists, orders artist before title and accept
   }
   await reviewItem(page);
   assert.equal(await form.getByLabel('Format (optional)',{exact:true}).inputValue(),'');
-  const edit=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details',exact:true});
   assert.equal(await edit.getByLabel('Other format',{exact:true}).inputValue(),'Reel-to-reel');
   await edit.getByLabel('Format (optional)',{exact:true}).selectOption('CD');
   await edit.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.copies[0].record_details.format,'CD');
 });
 
@@ -1101,10 +1124,10 @@ test('Album labels reach type selection and history while stored identities stay
   const item=copy(1,'Existing music item');
   const {page,state}=await fixture(t,{copies:[item]});
   await open(page,item.title);
-  const form=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editCopy(page);const form=page.getByRole('form',{name:'Edit copy details',exact:true});
   await form.getByLabel('Collection type',{exact:true}).selectOption({label:'Album'});
   await form.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Copy edit history',{exact:true}).click();
   await page.getByText('Type: Other to Album',{exact:true}).waitFor();
   assert.equal(state.copies[0].collection_type,'record');
@@ -1133,16 +1156,16 @@ test('Comics setup previews without writes; series-only and issue/publisher entr
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('Ex');
   await page.locator('#find-publisher-suggestions option[value="Example Press"]').waitFor({state:'attached'});
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('');
-  const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editCopy(page);const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
   await editor.getByLabel('Issue number (optional)',{exact:true}).fill('Annual 1');
   await editor.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('heading',{name:'Example heroes #Annual 1',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Example heroes #Annual 1',exact:true}).waitFor();await editCopy(page);
   await editor.getByLabel('Collection type',{exact:true}).selectOption('other');
   await editor.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.deepEqual(state.copies[0].comic_details,{issue_number:'Annual 1',publisher:'Example Press'});
   assert.equal(await editor.getByLabel('Publisher (optional)',{exact:true}).inputValue(),'Example Press');
-  await form.getByLabel('Series/title',{exact:true}).fill('Series title only');
+  await reviewItem(page);await form.getByLabel('Series/title',{exact:true}).fill('Series title only');
   await form.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:'Series title only',exact:true}).waitFor();
   assert.deepEqual(state.copies[0].comic_details,{});
@@ -1164,10 +1187,11 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic Press');
   await intake.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('heading',{name:display,exact:true}).waitFor();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic-comic.png',mimeType:'image/png',buffer:png});
   await page.getByRole('button',{name:'Upload photo',exact:true}).click();
   await page.getByAltText('Photo 1 of '+display).waitFor();
-  await page.getByText('Create a storage location',{exact:true}).click();
+  await openDisclosure(page,'Create a storage location');
   await page.getByLabel('Location name',{exact:true}).fill('Synthetic Comics box');
   await page.getByRole('button',{name:'Create location',exact:true}).click();
   await page.getByRole('status').filter({hasText:'created. Choose it under Location'}).waitFor();
@@ -1178,6 +1202,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   assert.deepEqual(original.comic_details,{issue_number:'423',publisher:'Synthetic Comic Press'});
   await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Open '+display,exact:true}).click();
+  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
   await page.getByAltText('Photo 1 of '+display).waitFor();
   assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
   await reviewItem(page);
@@ -1202,7 +1227,7 @@ test('password-manager autofill without input events can sign in; empty native v
   await page.evaluate(password=>{const input=document.querySelector('#owner-password');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,password);},ownerPassword);
   assert.ok(await button.isEnabled());
   await button.click();
-  await page.getByRole('heading',{name:'Add an item',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Your collection',exact:true,level:1}).waitFor();
   assert.equal(requests.length,1);
 });
 
@@ -1215,7 +1240,7 @@ test('autofilled rejected passwords retain input and allow an explicit corrected
   assert.equal(await page.getByLabel('Owner password',{exact:true}).inputValue(),'incorrect-synthetic-password');
   await page.getByLabel('Owner password',{exact:true}).fill(ownerPassword);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  await page.getByRole('heading',{name:'Add an item',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Your collection',exact:true,level:1}).waitFor();
 });
 
 
@@ -1237,39 +1262,39 @@ test('collection type filters the entire list, scopes search/pages and preserves
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('status').filter({hasText:'5 copies on this page'}).waitFor();
   const intake=page.getByRole('form',{name:'Add a find',exact:true});
-  await intake.getByLabel('Title',{exact:true}).fill('Keep my intake draft');
+  await showIntake(page);await intake.getByLabel('Title',{exact:true}).fill('Keep my intake draft');
   const filter=page.getByLabel('Show collection',{exact:true});
-  await filter.selectOption({label:'Comics'});
+  await chooseCollection(page,{label:'Comics'});
   await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
   assert.equal(await page.getByText('Page 1',{exact:true}).count(),1);
   assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep my intake draft');
   await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).click();
-  const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
+  await editCopy(page);const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
   await editor.getByLabel('Series/title',{exact:true}).fill('Keep my edit draft');
-  await filter.selectOption({label:'Albums'});
+  await chooseCollection(page,{label:'Albums'});
   await page.getByRole('status').filter({hasText:'20 copies on this page · Albums'}).waitFor();
-  assert.equal(await editor.getByLabel('Series/title',{exact:true}).inputValue(),'Keep my edit draft');
+  assert.equal(await page.locator('form[aria-label="Edit copy details"] #copy-title').inputValue(),'Keep my edit draft');
   await page.getByLabel('Find a copy',{exact:true}).fill('Shared comic');await page.getByRole('button',{name:'Search',exact:true}).click();
   await page.getByRole('heading',{name:'No matching copies',exact:true}).waitFor();
-  await filter.selectOption('comic');await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
+  await chooseCollection(page,'comic');await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
   await page.getByRole('button',{name:'Clear search',exact:true}).click();
   assert.equal(await filter.inputValue(),'comic');
-  await filter.selectOption('other');await page.getByRole('button',{name:'Open Shared other',exact:true}).waitFor();
-  await filter.selectOption('');await page.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
+  await chooseCollection(page,'other');await page.getByRole('button',{name:'Open Shared other',exact:true}).waitFor();
+  await chooseCollection(page,'');await page.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
   assert.equal(state.writes.length,0);
   if(process.env.RELICRAT_SCREENSHOTS){const output=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(output,{recursive:true});await page.locator('.collection').screenshot({path:`${output}/type-filter-desktop.png`});await page.setViewportSize({width:390,height:844});await page.locator('.collection').screenshot({path:`${output}/type-filter-mobile.png`});}
 });
 
 test('saving outside the visible type filter keeps the find type and explains where to see it',async t=>{
   const {page,state}=await fixture(t,{copies:[copy(1,'A comic',{collection_type:'comic'})]});
-  const filter=page.getByLabel('Show collection',{exact:true});await filter.selectOption('comic');
+  const filter=page.getByLabel('Show collection',{exact:true});await chooseCollection(page,'comic');
   await page.getByRole('button',{name:'Open A comic',exact:true}).waitFor();
   const form=page.getByRole('form',{name:'Add a find',exact:true});await form.getByLabel('Title',{exact:true}).fill('A generic find');
   await form.getByRole('button',{name:'Save copy',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Choose All types to see it in the list.'}).waitFor();
   assert.equal(await filter.inputValue(),'comic');assert.equal(state.copies[0].collection_type,'other');
   assert.equal(await page.getByRole('button',{name:'Open A generic find',exact:true}).count(),0);
-  await filter.selectOption('');await page.getByRole('button',{name:'Open A generic find',exact:true}).waitFor();
+  await chooseCollection(page,'');await page.getByRole('button',{name:'Open A generic find',exact:true}).waitFor();
   assert.equal(state.writes.filter(write=>write.path==='inventory').length,1);
 });
 
@@ -1395,7 +1420,7 @@ test('approved factory palette matches login and the initial inventory appearanc
   }
   await signIn(context); await page.goto(base);
   factory=(await (await context.request.get(base+'/api/v1/appearance')).json()).default_theme;
-  await page.getByLabel('What are you adding?',{exact:true}).waitFor();
+  await showIntake(page);await page.getByLabel('What are you adding?',{exact:true}).waitFor();
   await page.waitForFunction(()=>document.querySelector('.themed-app')?.style.getPropertyValue('--page')==='#F7F3E9');
   assert.equal(await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(247, 243, 233)');
   await reviewItem(page);
@@ -1481,13 +1506,13 @@ test('page-local type counts preserve copy selection and drafts across paginatio
  assert.ok(await page.getByRole('region',{name:'Albums',exact:true}).getByText('10 on this page',{exact:true}).isVisible());
  assert.ok(await page.getByRole('region',{name:'Comics',exact:true}).getByText('10 on this page',{exact:true}).isVisible());
  await open(page,'Synthetic page copy 0');
- const detail=page.getByRole('form',{name:'Edit copy details',exact:true});await detail.getByLabel('Album title',{exact:true}).fill('Keep this edit draft');
- const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel('Title',{exact:true}).fill('Keep this intake draft');
+ await editCopy(page);const detail=page.getByRole('form',{name:'Edit copy details',exact:true});await detail.getByLabel('Album title',{exact:true}).fill('Keep this edit draft');
+ const intake=page.getByRole('form',{name:'Add a find',exact:true});await showIntake(page);await intake.getByLabel('Title',{exact:true}).fill('Keep this intake draft');
  const pages=page.getByRole('navigation',{name:'Inventory pages',exact:true});await pages.getByRole('button',{name:'Next',exact:true}).click();
  await page.getByRole('button',{name:'Open Later movie',exact:true}).waitFor();
  assert.equal(await page.locator('.copy-row').count(),2);assert.equal(await page.getByRole('region',{name:'Albums',exact:true}).count(),0);
  for(const name of ['Movies','Other'])assert.ok(await page.getByRole('region',{name,exact:true}).getByText('1 on this page',{exact:true}).isVisible());
- assert.equal(await detail.getByLabel('Album title',{exact:true}).inputValue(),'Keep this edit draft');
+ assert.equal(await page.locator('form[aria-label="Edit copy details"] #copy-title').inputValue(),'Keep this edit draft');
  assert.equal(await intake.getByLabel('Title',{exact:true}).inputValue(),'Keep this intake draft');
  await pages.getByRole('button',{name:'Previous',exact:true}).click();const selected=page.getByRole('button',{name:'Open Synthetic page copy 0',exact:true});await selected.waitFor();
  assert.equal(await selected.getAttribute('aria-pressed'),'true');assert.equal(state.writes.length,0);
@@ -1498,11 +1523,11 @@ test('three-pane layout preserves all types, list/bricks selection and drafts ac
  const copies=[copy(1,'Glass Arcade',{collection_type:'record',edition_label:'Blue vinyl'}),copy(2,'Moon Harbor',{collection_type:'comic',comic_details:{issue_number:'08'}}),copy(3,'Synthetic film',{collection_type:'movie'}),copy(4,'Tin robot')];
  const {page,state}=await fixture(t,{quickIntake:true,copies});
  assert.equal(await page.locator('#find-title').isVisible(),false);
- await page.locator('#quick-entry').fill('Unsaved intake');await page.locator('#quick-entry').press('Enter');
+ await showIntake(page);await page.locator('#quick-entry').fill('Unsaved intake');await page.locator('#quick-entry').press('Enter');
  assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
  await open(page,'Glass Arcade','Blue vinyl');
- const edit=page.getByRole('form',{name:'Edit copy details',exact:true});await edit.getByLabel('Album title',{exact:true}).fill('Unsaved correction');
- const a=await page.locator('.workbench').boundingBox(),b=await page.locator('.collection').boundingBox(),c=await page.locator('.copy-inspector').boundingBox();assert.ok(a.x<b.x&&b.x<c.x);
+ await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details',exact:true});await edit.getByLabel('Album title',{exact:true}).fill('Unsaved correction');
+ const a=await page.locator('.collection-navigation').boundingBox(),b=await page.locator('.collection').boundingBox(),c=await page.locator('.copy-inspector').boundingBox();assert.ok(a.x<b.x&&b.x<c.x);
  const output=process.env.RELICRAT_THREE_PANE_SCREENSHOTS;if(output)await mkdir(output,{recursive:true});
  if(output)await page.screenshot({path:`${output}/desktop.png`,fullPage:true,animations:'disabled'});
  for(const width of [1024,390,320]){
@@ -1511,14 +1536,14 @@ test('three-pane layout preserves all types, list/bricks selection and drafts ac
   if(output&&width!==390)await page.screenshot({path:`${output}/detail-${width}.png`,fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
   await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Open Glass Arcade · Blue vinyl');
-  await page.getByRole('button',{name:'Bricks',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.getByRole('button',{name:'Covers',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   if(output&&width!==390)await page.screenshot({path:`${output}/bricks-${width}.png`,fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'List',exact:true}).click();await open(page,'Glass Arcade','Blue vinyl');assert.equal(await edit.getByLabel('Album title',{exact:true}).inputValue(),'Unsaved correction');
  }
  await page.getByRole('button',{name:'Back to collection',exact:true}).click();
- const categories=page.getByRole('navigation',{name:'Categories on this page',exact:true});await categories.getByRole('button',{name:/^Movies\s*1$/,exact:true}).click();assert.equal(await page.locator('.copy-row').count(),1);
- await categories.getByRole('button',{name:/^All items\s*4$/,exact:true}).click();assert.equal(await page.locator('.copy-row').count(),4);
- await page.getByRole('button',{name:'Hide details',exact:true}).click();await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
+ await chooseCollection(page,'movie');await page.getByRole('status').filter({hasText:'1 copy on this page · Movies'}).waitFor();assert.equal(await page.locator('.copy-row').count(),1);
+ await chooseCollection(page,'');await page.getByRole('status').filter({hasText:'4 copies on this page'}).waitFor();assert.equal(await page.locator('.copy-row').count(),4);
+ await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.locator('#find-title').inputValue(),'Unsaved intake');
  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Appearance',exact:true}).click();await page.getByRole('heading',{name:'Make RelicRat yours'}).waitFor();
  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Close appearance',exact:true}).click();
  const appearance=await(await page.request.get(base+'/api/v1/appearance')).json();const dark=appearance.presets.find(theme=>theme.mode==='dark');const preview=await page.request.post(base+'/api/v1/appearance/preview',{data:{theme:dark},headers:{Origin:new URL(base).origin}});assert.equal(preview.status(),200);await page.evaluate(styles=>{for(const [key,value]of Object.entries(styles))document.querySelector('.themed-app').style.setProperty(key,value);},(await preview.json()).styles);
@@ -1531,11 +1556,11 @@ test('three-pane layout preserves all types, list/bricks selection and drafts ac
 test('quick barcode entry uses structured observations and configured lookup without ownership writes',async t=>{
  const {page,state}=await fixture(t,{quickIntake:true});let calls=0;
  await page.route('**/api/v1/barcode-lookups/record',route=>{calls++;return route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[]}});});
- await page.selectOption('#find-type','record');await page.locator('#quick-entry').fill('01234565');await page.locator('#quick-entry').press('Enter');await page.getByRole('alert').filter({hasText:'Eight-digit barcodes'}).waitFor();assert.equal(calls,0);
- await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
+ await page.selectOption('#find-type','record');await showIntake(page);await page.locator('#quick-entry').fill('01234565');await page.locator('#quick-entry').press('Enter');await page.getByRole('alert').filter({hasText:'Eight-digit barcodes'}).waitFor();assert.equal(calls,0);
+ await showIntake(page);await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
  await page.getByRole('heading',{name:'Possible matches from MusicBrainz',exact:true}).waitFor();assert.equal(calls,1);assert.equal(await page.locator('#find-title').inputValue(),'');
  await page.locator('#find-notes').fill('Keep notes separate');await page.getByRole('button',{name:'Hide details',exact:true}).click();await page.waitForTimeout(650);assert.equal(calls,1);
- await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(calls,1,'Showing the same draft must not repeat lookup');await page.locator('#find-title').fill('Synthetic typed barcode album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
+ await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(calls,1,'Showing the same draft must not repeat lookup');await page.locator('#find-title').fill('Synthetic typed barcode album');await page.getByRole('button',{name:'Save copy',exact:true}).click();
  await page.getByRole('heading',{name:'Synthetic typed barcode album',exact:true}).waitFor();const writes=state.writes.filter(x=>x.path==='inventory');assert.equal(writes.length,1);assert.deepEqual(writes[0].body.barcode,{value:'012345678905',format:'UPC_A',supplement:null});assert.equal(writes[0].body.description,'Keep notes separate');assert.equal(writes[0].body.catalog_cover,null);
 });
 
@@ -1544,7 +1569,80 @@ test('quick lookup keeps catalog cover optional and sends it only with the final
  const {page,state}=await fixture(t,{quickIntake:true});const candidate='11111111-1111-4111-8111-111111111111';
  await page.route('**/api/v1/barcode-lookups/record',route=>route.fulfill({json:{provider:'musicbrainz',provider_label:'MusicBrainz',candidates:[{id:candidate,title:'Synthetic reviewed artwork album',description:'Synthetic test release',source_url:'https://musicbrainz.org/release/'+candidate,fields:{title:'Synthetic reviewed artwork album'},cover_url:'/api/v1/barcode-lookups/record/'+candidate+'/cover'}]}}));
  await page.route('**/api/v1/barcode-lookups/record/*/cover',route=>route.fulfill({contentType:'image/png',body:png}));
- await page.selectOption('#find-type','record');await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
+ await page.selectOption('#find-type','record');await showIntake(page);await page.locator('#quick-entry').fill('012345678905');await page.locator('#quick-entry').press('Enter');
  const lookup=page.getByRole('region',{name:'Barcode lookup',exact:true});await lookup.locator('.barcode-matches button').click();const checkbox=lookup.getByRole('checkbox',{name:/Include catalog cover/});assert.equal(await checkbox.isChecked(),false);await checkbox.check();await lookup.getByRole('button',{name:'Use these details',exact:true}).click();
  assert.equal(state.writes.filter(x=>x.path==='inventory').length,0);await page.getByRole('button',{name:'Save copy',exact:true}).click();await page.getByRole('heading',{name:'Synthetic reviewed artwork album',exact:true}).waitFor();const writes=state.writes.filter(x=>x.path==='inventory');assert.equal(writes.length,1);assert.deepEqual(writes[0].body.catalog_cover,{provider:'musicbrainz',candidate_id:candidate});assert.equal(state.copies.length,1);
+});
+
+
+test('journey: collection navigation, read-first details and a preserved phone edit', async t=>{
+ const capture=async name=>{const dir=resolve(process.env.RELICRAT_CAPTURE_DIR||'.harness-results/journey/captures');await mkdir(dir,{recursive:true});await page.screenshot({path:dir+'/'+name+'.png',fullPage:true});};
+ const rows=Array.from({length:45},(_,i)=>copy(i+1,`Harbor ${String(i+1).padStart(2,'0')}`,{collection_type:'record',record_details:{artist:'Mira Vale',format:'Vinyl'},barcode:{}}));
+ const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:rows});
+ await page.getByRole('navigation',{name:'Collections',exact:true}).getByRole('button',{name:'Albums',exact:true}).click();
+ await page.getByRole('heading',{name:'Albums',exact:true,level:1}).waitFor();
+ await page.locator('#query').fill('Harbor');await page.getByRole('button',{name:'Search',exact:true}).click();
+ await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Open Mira Vale — Harbor 40',exact:true}).waitFor();await capture('desktop-browse');
+ await page.setViewportSize({width:390,height:844});
+ const target=page.getByRole('button',{name:'Open Mira Vale — Harbor 21',exact:true});await target.click();
+ await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);await capture('phone-view');
+ await page.getByRole('button',{name:'Edit details',exact:true}).click();await page.locator('#copy-title').fill('Preserved phone draft');await capture('phone-edit');
+ await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+ assert.equal(await page.locator('#query').inputValue(),'Harbor');await page.getByText('Page 2',{exact:true}).waitFor();assert.equal(await target.evaluate(el=>document.activeElement===el),true);
+ await target.click();assert.equal(await page.locator('#copy-title').inputValue(),'Preserved phone draft');
+ await page.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
+ await page.waitForFunction(()=>document.activeElement?.id==='copy-edit');assert.equal(await page.getByText('Copy details saved.',{exact:true}).count(),1);assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:320,height:844});await capture('phone-320');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:1440,height:1050});await capture('desktop-view');
+});
+
+test('journey: replacing dirty or unconfirmed edits never silently drops a draft', async t=>{
+ const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[copy(1,'First copy',{barcode:{}}),copy(2,'Second copy',{barcode:{}})]});
+ await page.getByRole('button',{name:'Open First copy',exact:true}).click();await page.getByRole('button',{name:'Edit details',exact:true}).click();await page.locator('#copy-title').fill('Keep this draft');
+ page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');
+ state.uncertainDetails=true;await page.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('alert').filter({hasText:'Save could not be confirmed'}).waitFor();
+ page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
+});
+
+test('journey: collection browsing and storage preserve scope without showing stale rows on failure', async t=>{
+ const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[copy(1,'Harbor vinyl',{collection_type:'record',record_details:{artist:'Mira Vale'},storage_location_id:id(500),storage_location_name:'Shelf A',barcode:{}}),copy(2,'Elsewhere',{barcode:{}})],locations:[{id:id(500),name:'Shelf A',parent_id:null}]});
+ await page.getByRole('navigation',{name:'Collections',exact:true}).getByRole('button',{name:'Albums',exact:true}).click();
+ await page.locator('#collection-storage-filter').selectOption(id(500));await page.getByRole('button',{name:'Open Mira Vale — Harbor vinyl',exact:true}).waitFor();
+ assert.match(state.urls.at(-1),/storage_location_id=/);assert.equal(await page.getByRole('button',{name:'Open Elsewhere',exact:true}).count(),0);
+ state.failList=true;await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByRole('alert').filter({hasText:'Synthetic API unavailable'}).waitFor();assert.equal(await page.locator('.copy-row').count(),0);
+});
+
+
+test('journey: available artwork uses authenticated copy media and missing art stays explicit',async t=>{
+ const item=copy(1,'Harbor Lights',{collection_type:'record',record_details:{artist:'Mira Vale',format:'Vinyl'},barcode:{},preview_photo_id:id(90),preview_photo_role:'catalog_cover',storage_location_name:'Shelf A'});
+ const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[item,copy(2,'No artwork',{barcode:{}})],photos:{[item.id]:[{id:id(90),owned_copy_id:item.id,role:'catalog_cover',content_type:'image/png',byte_size:png.length}]}});
+ const row=page.getByRole('button',{name:'Open Mira Vale — Harbor Lights',exact:true});assert.equal(await row.getByRole('img',{name:'Catalog artwork',exact:true}).getAttribute('src'),`/api/v1/inventory/${item.id}/photos/${id(90)}`);
+ assert.equal(await page.getByLabel('No artwork',{exact:true}).count(),1);await page.getByRole('button',{name:'Covers',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Covers',exact:true}).getAttribute('aria-pressed'),'true');await row.click();await page.getByText('Catalog artwork, not a photo of your copy.',{exact:true}).waitFor();assert.equal(state.writes.length,0);
+});
+
+test('journey: confirmed photo and nested location saves do not leave a false draft warning',async t=>{
+ const first=copy(1,'First saved copy'),second=copy(2,'Next copy');
+ const {page,state}=await fixture(t,{browseOnly:true,quickIntake:true,copies:[first,second],locations:[{id:id(500),name:'Study',parent_id:null}]});
+ await open(page,first.title);
+ await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
+ await page.getByRole('button',{name:'Upload photo',exact:true}).click();await page.getByText('Photo saved. The copy and its existing history are unchanged.',{exact:true}).waitFor();
+ await openDisclosure(page,'Create a storage location');await page.getByLabel('Location name',{exact:true}).fill('Box B');await page.getByLabel('Inside another location',{exact:true}).selectOption(id(500));
+ await page.getByRole('button',{name:'Create location',exact:true}).click();await page.getByRole('status').filter({hasText:'Box B created.'}).waitFor();
+ const box=state.locations.find(v=>v.name==='Box B');assert.ok(box);await page.getByLabel('Location',{exact:true}).selectOption(box.id);await page.getByRole('status').filter({hasText:'Added to Box B.'}).waitFor();
+ const dialogs=[];page.on('dialog',async d=>{dialogs.push(d.message());await d.dismiss();});
+ await page.getByRole('button',{name:'Open Next copy',exact:true}).click();await page.getByRole('heading',{name:'Next copy',exact:true}).waitFor();assert.deepEqual(dialogs,[]);assert.equal(state.copies[0].storage_location_id,box.id);assert.equal(state.photos[first.id].length,1);
+});
+
+test('journey: Back restores a nonzero phone browse position',async t=>{
+ const {page}=await fixture(t,{quickIntake:true,browseOnly:true,copies:Array.from({length:45},(_,i)=>copy(i+1,`Position ${i+1}`))});
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
+ const row=page.getByRole('button',{name:'Open Position 39',exact:true});await row.scrollIntoViewIfNeeded();const position=await page.evaluate(()=>window.scrollY);assert.ok(position>0);
+ await row.click();await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+ await page.waitForFunction(y=>Math.abs(window.scrollY-y)<2,position);assert.equal(await row.evaluate(el=>document.activeElement===el),true);await page.getByText('Page 2',{exact:true}).waitFor();
+});
+
+test('journey: custom observations are readable before entering the editor',async t=>{
+ const collection=id(90),item=copy(1,'Synthetic figure',{custom_collection_id:collection,custom_collection_name:'Synthetic figures',custom_details:{head:'Soft',signed:false,accessories:[]}});
+ const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[item]});await page.route('**/api/v1/custom-collections/'+collection,route=>route.fulfill({json:{id:collection,type_revision:0,name:'Synthetic figures',proposal:{collection:{name:'Synthetic figures',checklist:[],completion:{eligibility:'Synthetic fixture only'}},type_definition:{id:'figure',label:'Figure',title:{label:'Figure name',max_length:100},optional_fields:[{id:'head',label:'Head Variant',input:'radio',options:['Soft','Hard'],max_length:50},{id:'signed',label:'Signed',input:'checkbox',max_length:50},{id:'accessories',label:'Accessories',input:'checkboxes',options:['Sword'],max_length:50}]}}}}));
+ await page.getByRole('button',{name:'Open Synthetic figure',exact:true}).click();await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();const summary=page.locator('dl[aria-label="Collection details"]');await summary.getByText('Soft',{exact:true}).waitFor();await summary.getByText('No',{exact:true}).waitFor();await summary.getByText('None selected',{exact:true}).waitFor();assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(state.writes.length,0);
 });

@@ -1,3 +1,4 @@
+import {chooseCollection,showTools} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {test,before,after} from 'node:test';
 import {chromium} from 'playwright';
@@ -8,7 +9,7 @@ assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='5674
 let browser;
 before(async()=>{browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE});});
 after(async()=>{await browser?.close();});
-async function pageFor(t){const context=await browser.newContext({viewport:{width:1440,height:1050}});t.after(()=>context.close());const r=await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}});assert.equal(r.status(),200);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await page.getByRole('button',{name:'Import CSV',exact:true}).click();return {page,context};}
+async function pageFor(t){const context=await browser.newContext({viewport:{width:1440,height:1050}});t.after(()=>context.close());const r=await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}});assert.equal(r.status(),200);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);await showTools(page);await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await page.getByRole('button',{name:'Import CSV',exact:true}).click();return {page,context};}
 const csv=(type,count)=>type==='clz'?['Series,Issue,Publisher,Quantity,Collection Status,Core ComicID,Storage Box',...Array.from({length:count},(_,i)=>`Synthetic volume comic ${i},${i+1}A,Test Press,1,In Collection,${i},Synthetic Box`)].join('\r\n'):['Title,Artist,Format,release_id,CollectionFolder',...Array.from({length:count},(_,i)=>`Synthetic volume album ${i},Synthetic band,CD,${i},Synthetic folder`)].join('\r\n');
 async function upload(page,type,text){await page.getByLabel('Export format',{exact:true}).selectOption(type);await page.getByLabel('CSV file',{exact:true}).setInputFiles({name:'synthetic.csv',mimeType:'text/csv',buffer:Buffer.from(text)});await page.getByRole('button',{name:'Preview import',exact:true}).click();await page.getByRole('heading',{name:'Review the import',exact:true}).waitFor();}
 
@@ -26,7 +27,7 @@ test('real UI imports 1915 synthetic copies, retains source, scopes pages and bl
  await page.getByRole('button',{name:'Reload import history',exact:true}).click();
  const rowButton=page.getByRole('button',{name:/Discogs Albums · 465 copies/});await rowButton.click();await page.getByRole('heading',{name:'Original source rows · Discogs Albums'}).waitFor();await page.getByRole('button',{name:'Next source rows',exact:true}).click();await page.getByRole('button',{name:'Open copy from row 22, copy 1',exact:true}).waitFor();
  await page.getByRole('button',{name:'Close imports',exact:true}).click();
- await page.getByLabel('Show collection',{exact:true}).selectOption('record');await page.getByRole('status').filter({hasText:'20 copies on this page · Albums'}).waitFor();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
+ await chooseCollection(page,'record');await page.getByRole('status').filter({hasText:'20 copies on this page · Albums'}).waitFor();await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
  if(process.env.RELICRAT_SCREENSHOTS){const path=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(path,{recursive:true});await page.screenshot({path:path+'/volume-desktop.png',fullPage:true});}
  await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic volume album 464');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Open Synthetic band — Synthetic volume album 464',exact:true}).waitFor();
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Import CSV',exact:true}).click();await upload(page,'discogs',csv('discogs',465));await page.getByRole('status').filter({hasText:'This exact file was already imported'}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

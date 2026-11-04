@@ -1,3 +1,4 @@
+import {chooseCollection,showIntake,showTools,editCopy} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {before,after,test} from 'node:test';
 import {chromium} from 'playwright';
@@ -14,23 +15,23 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
  const {page,context}=await setup(t);
  for(const [source,count] of [['clz',1450],['discogs',465]]){const raw=encoded(source,count),sha=createHash('sha256').update(raw).digest('hex');const r=await context.request.post(base+`/api/v1/imports/commit?source=${source}&reviewed_sha256=${sha}`,{headers:{Origin:base,'Content-Type':'text/csv'},data:raw});assert.equal(r.status(),200,await r.text());}
  const unknown=await context.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title:'Synthetic unknown artist',collection_type:'record'}});assert.equal(unknown.status(),201);
- await page.goto(base);await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.getByLabel('Browse view',{exact:true}).inputValue(),'groups');
+ await page.goto(base);await showTools(page);await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();assert.equal(await page.getByLabel('Browse view',{exact:true}).inputValue(),'groups');
  await page.getByRole('button',{name:/^Comics \d+ copies · Browse collection$/}).click();
  await page.getByRole('button',{name:'Synthetic series 00 27 copies · Open group',exact:true}).click();
  const group=page.getByRole('region',{name:'Synthetic series 00 copies',exact:true});await group.getByRole('status').filter({hasText:'20 copies on this group page'}).waitFor();
  assert.equal(await group.getByRole('button',{name:'Open Synthetic series 00 #1',exact:true}).count(),1);
  await group.getByRole('button',{name:'Next copies',exact:true}).click();await group.getByRole('status').filter({hasText:'7 copies on this group page'}).waitFor();
  await group.getByRole('button',{name:'Open Synthetic series 00 #21',exact:true}).click();
- const editor=page.getByRole('form',{name:'Edit copy details',exact:true});await editor.getByLabel('Series/title',{exact:true}).fill('Keep this edit draft');
- const intake=page.getByRole('form',{name:'Add a find',exact:true});await intake.getByLabel(/^(Title|Series\/title|Album title|Movie or box-set title)$/).fill('Keep this intake draft');
+ await editCopy(page);const editor=page.locator('form[aria-label="Edit copy details"]');await editor.getByLabel('Series/title',{exact:true}).fill('Keep this edit draft');
+ const intake=page.locator('form[aria-label="Add a find"]');await showIntake(page);await intake.getByLabel(/^(Title|Series\/title|Album title|Movie or box-set title)$/).fill('Keep this intake draft');
  await page.getByRole('button',{name:'Next groups',exact:true}).click();await page.getByRole('button',{name:'Synthetic series 20 27 copies · Open group',exact:true}).waitFor();
- await page.getByLabel('Show collection',{exact:true}).selectOption('record');await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).waitFor();
+ await chooseCollection(page,'record');await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).waitFor();
  assert.equal(await editor.getByLabel('Series/title',{exact:true}).inputValue(),'Keep this edit draft');assert.equal(await intake.getByLabel(/^(Title|Series\/title|Album title|Movie or box-set title)$/).inputValue(),'Keep this intake draft');
  await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).click();await page.getByRole('button',{name:'Open Synthetic artist 00 — Synthetic album 000',exact:true}).waitFor();
  if(process.env.RELICRAT_SCREENSHOTS){const p=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(p,{recursive:true});await page.locator('.collection').screenshot({path:p+'/groups-desktop.png'});}
  await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic album 000');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Synthetic artist 00 1 copy · Open group',exact:true}).waitFor();
  await page.getByRole('button',{name:'Clear search',exact:true}).click();await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic unknown artist');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Artist not recorded 1 copy · Open group',exact:true}).click();await page.getByRole('button',{name:'Open Synthetic unknown artist',exact:true}).waitFor();
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.RELICRAT_SCREENSHOTS)await page.locator('.collection').screenshot({path:resolve(process.env.RELICRAT_SCREENSHOTS)+'/groups-mobile.png'});
+ await page.setViewportSize({width:390,height:844});if(await page.getByRole('button',{name:'Back to collection',exact:true}).isVisible())await page.getByRole('button',{name:'Back to collection',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.RELICRAT_SCREENSHOTS)await page.locator('.collection').screenshot({path:resolve(process.env.RELICRAT_SCREENSHOTS)+'/groups-mobile.png'});
  await page.getByLabel('Browse view',{exact:true}).selectOption('copies');await page.getByRole('button',{name:'Open Synthetic unknown artist',exact:true}).waitFor();
  const original=await(await context.request.get(base+'/api/v1/inventory/'+(await unknown.json()).id)).json();assert.equal(original.title,'Synthetic unknown artist');
 });
@@ -38,7 +39,7 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
 test('storage filters apply to group counts and copies; errors retry and obsolete reads are ignored',async t=>{
  const {page,context}=await setup(t);let fail=true;let held=false;
  await page.route('**/api/v1/collection-groups?**',async route=>{const url=new URL(route.request().url());if(fail){await route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({detail:'Synthetic group read failed'})});return;}if(url.searchParams.get('q')==='Old'){held=true;await new Promise(r=>setTimeout(r,600));}await route.continue();});
- await page.goto(base);await page.getByRole('alert').filter({hasText:'Synthetic group read failed'}).waitFor();fail=false;await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByRole('button',{name:/^Albums \d+ copies · Browse collection$/}).waitFor();
+ await page.goto(base);await showTools(page);await page.getByRole('alert').filter({hasText:'Synthetic group read failed'}).waitFor();fail=false;await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByRole('button',{name:/^Albums \d+ copies · Browse collection$/}).waitFor();
  const location=await context.request.post(base+'/api/v1/storage-locations',{headers:{Origin:base},data:{name:'Synthetic grouping box'}});const box=(await location.json()).id;
  const r=await context.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title:'Synthetic shelved album',collection_type:'record',record_details:{artist:'Shelved artist'}}});const copy=await r.json();
  const move=await context.request.post(base+`/api/v1/inventory/${copy.id}/location`,{headers:{Origin:base},data:{storage_location_id:box,expected_storage_revision:0}});assert.equal(move.status(),200,await move.text());
@@ -52,5 +53,5 @@ test('filter locations can page beyond 100 and failed pages require retry rather
  const {page}=await setup(t);let fail=true;const offsets=[];
  const locations=Array.from({length:101},(_,i)=>({id:`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`,name:`Synthetic filter location ${i}`,parent_id:null}));
  await page.route('**/api/v1/storage-locations?**',async route=>{const offset=Number(new URL(route.request().url()).searchParams.get('offset')||0);offsets.push(offset);if(offset===100&&fail){await route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({detail:'Synthetic location page failed'})});return;}await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(locations.slice(offset,offset+100))});});
- await page.goto(base);const more=page.getByRole('button',{name:'Load more filter locations',exact:true});await more.click();await page.getByRole('alert').filter({hasText:'Synthetic location page failed'}).waitFor();assert.equal(await more.isDisabled(),true);fail=false;await page.getByRole('button',{name:'Reload filter locations',exact:true}).click();await page.getByLabel('Storage location',{exact:true}).locator('option').filter({hasText:'Synthetic filter location 100'}).waitFor({state:'attached'});assert.deepEqual(offsets,[0,100,100]);assert.equal(await more.count(),0);assert.equal(await page.getByLabel('Storage location',{exact:true}).locator('option').count(),103);
+ await page.goto(base);await showTools(page);const more=page.getByRole('button',{name:'Load more filter locations',exact:true});await more.click();await page.getByRole('alert').filter({hasText:'Synthetic location page failed'}).waitFor();assert.equal(await more.isDisabled(),true);fail=false;await page.getByRole('button',{name:'Reload filter locations',exact:true}).click();await page.getByLabel('Storage location',{exact:true}).locator('option').filter({hasText:'Synthetic filter location 100'}).waitFor({state:'attached'});assert.deepEqual(offsets,[0,100,100]);assert.equal(await more.count(),0);assert.equal(await page.getByLabel('Storage location',{exact:true}).locator('option').count(),103);
 });

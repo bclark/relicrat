@@ -227,7 +227,7 @@ def test_search_preserves_copy_history_and_photo(search_inventory, tmp_path, mon
     assert before["storage_revision"] == 1
     history = api.get(f"{base}/reconciliations").json()
     assert len(history) == 1
-    assert search(api, "Copper") == [before]
+    assert search(api, "Copper") == [{**before, "storage_location_name": "Synthetic search shelf", "preview_photo_id": photo["id"], "preview_photo_role": "photo"}]
     assert search(api, "no match") == []
     assert api.get(base).json() == before
     assert api.get(f"{base}/reconciliations").json() == history

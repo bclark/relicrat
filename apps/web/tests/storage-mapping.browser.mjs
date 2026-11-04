@@ -1,3 +1,4 @@
+import {showTools} from './journey-test-helpers.mjs';
 import assert from 'node:assert/strict';
 import {test,before,after} from 'node:test';
 import {chromium} from 'playwright';
@@ -20,7 +21,7 @@ async function setup(t,number){
  const destination=await json('storage-locations',{name:`Synthetic mapping destination ${number}`});
  await json(`inventory/${rows[0].copy_id}/location`,{storage_location_id:destination.id,expected_storage_revision:0});
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
- await page.goto(base);await page.getByRole('button',{name:'Import CSV',exact:true}).click();await page.getByRole('button',{name:'Reload import history',exact:true}).click();
+ await page.goto(base);await showTools(page);await page.getByRole('button',{name:'Import CSV',exact:true}).click();await page.getByRole('button',{name:'Reload import history',exact:true}).click();
  await page.getByRole('button',{name:'Map storage boxes',exact:true}).first().click();
  const section=page.getByRole('region',{name:'Map imported storage boxes',exact:true});
  await section.getByRole('button',{name:'Next labels',exact:true}).click();

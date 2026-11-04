@@ -24,10 +24,10 @@ colors:
 typography:
   headline:
     fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-    fontSize: "1.75rem"
+    fontSize: "1.8rem"
     fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "-.025em"
+    lineHeight: 1.1
+    letterSpacing: "-.035em"
   intake:
     fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
     fontSize: "1.25rem"
@@ -82,17 +82,17 @@ components:
     rounded: "{rounded.input}"
     padding: "10px 12px"
   quick-intake:
-    backgroundColor: "transparent"
-    padding: "0"
+    backgroundColor: "{colors.paper}"
+    padding: "24px"
   inventory-row-selected:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.accent-text}"
+    backgroundColor: "{colors.soft}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.input}"
     padding: "4px 8px"
   inventory-brick:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
-    padding: "14px 8px 22px"
+    padding: "12px"
 ---
 
 # Design System: RelicRat inventory application
@@ -103,7 +103,7 @@ components:
 
 This is a record of the current inventory implementation, extracted from apps/web/app/globals.css, its React components and the bounded theme styles in apps/api/relicrat/theme_values.py. The new-arrivals workbench uses warm ivory, white surfaces, charcoal ink and restrained burgundy actions to make physical copies easy to record and find. Plain labeled controls and text-led records keep collection information prominent, without paper texture or faux-vintage controls.
 
-The owner approved these factory theme values on 2026-10-31, including sans body/headings, balanced spacing, soft corners and comfortable density. The forest and light-gold After hours preset is the dark companion. Approval covers application theme values; brand-wide master specifications, proposed logos and mascot extensions remain separate decisions. The owner separately approved the three-column workspace refinement on 2026-11-02; it is integrated on current main for review; validation is recorded in docs/harness.md. Owners can explicitly preview and apply their own supported theme. This record describes the implementation for review, not deployment or production readiness.
+The owner approved these factory theme values on 2026-10-31, including sans body/headings, balanced spacing, soft corners and comfortable density. The forest and light-gold After hours preset is the dark companion. Approval covers application theme values; brand-wide master specifications, proposed logos and mascot extensions remain separate decisions. The owner separately approved the collection journey on 2026-11-04: collection navigation, browsing and a read-first inspector. It supersedes the 2026-11-02 intake-rail composition and is implemented for review; see docs/collection-journey.md and docs/harness.md. Owners can explicitly preview and apply their own supported theme. This record describes the implementation for review, not deployment or production readiness.
 
 The separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance. The original add-first and direct-build choices do not establish a standing build-path preference.
 
@@ -120,7 +120,7 @@ The factory light theme pairs warm neutral surfaces with one burgundy action acc
 
 ### Primary
 - **Burgundy action:** accent identifies primary saves, links and the caret; hover and focus alias the same accent. The primary hover adds an underline in the authenticated application. Accent-text supplies primary-button text and selection text.
-- **Soft sage wash:** soft supports alternating list rows, hover surfaces, category selection, secondary pressed states, static loading skeletons and photo frames. Pressed, loading and photo-bg describe these uses of the same soft value. The selected copy uses accent fill and accent-text; the selected-border alias is retained as historical token metadata and is not a current row shadow.
+- **Soft sage wash:** soft supports alternating list rows, hover surfaces, category selection, secondary pressed states, static loading skeletons and photo frames. Pressed, loading and photo-bg describe these uses of the same soft value. The selected copy uses soft fill, ink text and an inset one-pixel accent outline; selected-border aliases accent. Accent-text remains the contrasting primary-action text.
 
 ### Secondary
 - **Fixed error red:** error and error-bg retain the application's alert treatment; error-border aliases error. These values remain fixed across owner themes.
@@ -139,39 +139,41 @@ After hours uses forest page/paper/soft surfaces with ivory primary text, pale s
 
 ## Typography
 
-The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Frontmatter records the current collection headline and intake heading; heading weights are browser-default bold. The collection headline becomes 1.5rem below 760px. The brand uses 1.75rem, weight 750 and -.025em tracking. Labels use .9rem and weight 650. Dense list titles use .875rem, weight 500 and 22px row line-height; edition and location use .875rem. Group headings use .875rem and weight 600, while column labels use .75rem. Bricks titles use 1rem and weight 650. Buttons use 600. Status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace and a 65ch maximum. Pagination, category counts and copy metadata use tabular numerals.
+The factory theme uses the operating-system sans stack for both headings and body in this Operate surface. Appearance offers bounded installed sans, serif and mono stacks for each role independently. No external font or decorative display face ships. Frontmatter records the current collection headline and intake heading; heading weights are browser-default bold. The current collection headline is 1.8rem across widths. The brand uses 1.75rem, weight 750 and -.025em tracking. Labels use .9rem and weight 650. Dense list titles use .875rem, weight 500 and 22px row line-height; edition and location use .875rem. Group headings use .875rem and weight 600, while column labels use .75rem. Bricks titles use 1rem and weight 650. Buttons use 600. Status and pagination are .8rem and .85rem respectively; record metadata reaches .75rem. Notes use .95rem with preserved whitespace and a 65ch maximum. Pagination, category counts and copy metadata use tabular numerals.
 
 ## Layout
 
-The inventory header and main workspace have a 1700px maximum width. Main uses 32px desktop gutters; the header retains 36px gutters. Three columns place quick intake, early item type and page-local categories in a 232px left rail, the searchable List/Bricks register in a flexible middle column, and the full selected-copy inspector in a 340px right pane. The workspace has a theme-space top margin (32px balanced), a 28px gap, and one-pixel left rules with 28px inset padding on middle and right panes. Intake itself is unboxed. Inline settings precede the workspace; the synthetic-trial notice follows it. This is the current inventory composition, not a mandatory template for future screens.
+The collection main has an 1800px maximum width; the header retains its 1700px bound and 36px gutters. Main keeps 32px desktop gutters. A 200px collection navigation rail sits beside a flexible paper browser; opening a copy adds a 380px paper inspector, with 28px gaps. The browser has 24px padding and the inspector 20px. Desktop inspection is sticky at 20px with bounded vertical scrolling. Intake is an explicit Add a find disclosure above the workspace, aligned after the rail, with a 720px maximum width and 24px padding. Inline settings and Collection tools and imports remain available. The trial notice follows the workspace. This composition is approved for the collection surface, not a mandatory future-screen template.
 
-Below 1180px (max-width:1179px), the workspace uses a 220px rail and flexible content with a 26px gap. Opening a copy switches the middle content from collection to inspector; Back to collection restores the list and focus to the selected row, falling back to the collection heading. Below 760px (max-width:759px), the workspace stacks with 18px main gutters and a 24px top margin; the intake/category rail also hides while details are open. Returning reveals the rail and collection. Quick intake remains visible when browsing; only the full Review item form starts collapsed and stays mounted when hidden. Categories become wrapping controls. Header utilities retain their separate 650px Menu breakpoint; the tagline hides at 850px. Appearance keeps its own 800px stacking breakpoint.
+Below 1280px (max-width:1279px), the rail is 180px and the content gap 22px. Opening a copy replaces browsing with the inspector; Back restores the selected row and browse position, or focuses the browse heading when that row no longer exists. Below 760px, the native collection chooser replaces rail links; opening details hides the chooser and browser. Main gutters and paper padding are 16px, with a 20px workspace top margin. Header utilities retain their separate 650px Menu breakpoint; the tagline hides at 850px. Appearance keeps its own 800px stacking breakpoint.
 
-List rows use title, edition and assigned/unassigned-location columns in minmax(0,1.2fr), minmax(0,.95fr), minmax(0,.9fr), with 12px gaps. Fine-pointer desktop rows have a 30px minimum, 4px 8px padding and single-line ellipsis. Coarse-pointer rows have a 44px minimum. Below 760px, 44px rows show title/edition in the flexible first column and location in a 100px second column; column headers hide. Bricks uses two unboxed columns with 20px gaps (12px below 760px), a 130px minimum per item, top rules and 14px 8px 22px padding. Titles and edition wrap; longer notes remain in the full selected-copy editor. Individual-copy type groups and category counts describe the current 20-copy page. Existing server groups retain whole-collection counts and paging. Location labels say Location assigned or Unassigned; they do not invent a location name.
+List rows retain aligned Item, Edition and Location columns with a 64px minimum target at every width. A 44px contained thumbnail or explicit no-art fallback sits beside title and supporting artist/format/publisher information. Actual location names use the bounded display projection, with Location assigned/Unassigned fallbacks. Covers uses responsive columns with a 150px minimum and 16px gap; phone uses two columns. Cover images are contained at 140px desktop and 110px phone heights. Missing imagery never installs invented inventory. Individual-copy type headings and counts describe only the current bounded page; configured server groups retain whole-filtered-group counts and paging. Search, exact-location filtering and grouping remain server-backed. Switching List/Covers, inspecting and Back preserve the current browse state. Custom navigation choices are paged independently and retain a visible off-page selection.
 
 ## Elevation & Depth
 
-The surface is flat. Paper fills and one-pixel rules group content. Selected inventory rows use solid accent fill and contrasting text; there are no row or ambient card shadows. The mobile utility dropdown sits above content as a paper surface with a one-pixel rule and panel corners. Dense inventory rows change selection immediately without a color transition. Reduced-motion preferences remove the other 150ms button color transitions and the 180ms record opacity entrance (from .7 to 1).
+The surface is flat. Paper fills and one-pixel rules group content. Selected inventory rows use soft fill, ink text and a one-pixel inset accent outline; there are no row or ambient card shadows. The mobile utility dropdown sits above content as a paper surface with a one-pixel rule and panel corners. Dense inventory rows change selection immediately without a color transition. Reduced-motion preferences remove the other 150ms button color transitions and the 180ms record opacity entrance (from .7 to 1).
 
 ## Shapes
 
-The approved soft setting gives panels a gentle 12px radius; fields, buttons, error boxes and photos use 6px. These values follow the owner-selected corner setting when applied. List rows are full-width and use the theme control radius; unboxed Bricks have square corners. Buttons and editable controls have a minimum 44px height, except dense list rows with the pointer/width rules described above. Textareas resize vertically with a 100px minimum. Photos preserve the whole image inside square frames using object-fit:contain.
+The approved soft setting gives panels a gentle 12px radius; fields, buttons, error boxes and photos use 6px. These values follow the owner-selected corner setting when applied. List rows are full-width and use the theme control radius; unboxed Bricks have square corners. Buttons and editable controls have a minimum 44px height, including the current collection rows, whose minimum is 64px. Textareas resize vertically with a 100px minimum. Photos preserve the whole image inside square frames using object-fit:contain.
 
 ## Components
 
 ### Forms and saves
 
-Persistent labels precede fields. Quick intake starts with Title or barcode, early collection type and the existing Scan barcode control. Review item or Enter expands the mounted form; 12-digit UPC-A and 13-digit EAN-13 typing also opens it after a 500ms pause. Eight-digit codes require scanning or an expanded code to avoid guessing UPC-E versus EAN-8. Hiding and reopening the same draft does not repeat provider lookup. Barcode observations retain their structured format and history separately from notes. Configured provider suggestions and optional covers require review; Save copy alone creates ownership. No scanner or provider implementation is replaced. Camera frames stay on the device, and tracks stop when phone details hide the rail as well as on existing close, read, timeout and visibility boundaries. Type changes with a draft require confirmation. Controls retain current theme density/corners and 44px minimum targets; dense desktop pointer rows are the documented exception. Native file controls, selects and details remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
+Persistent labels precede fields. Add a find explicitly opens intake, starting with Title or barcode, collection type and the existing Scan barcode control. Closing intake keeps its draft mounted and stops scanning. Review item or Enter expands the mounted form; 12-digit UPC-A and 13-digit EAN-13 typing also opens it after a 500ms pause. Eight-digit codes require scanning or an expanded code to avoid guessing UPC-E versus EAN-8. Hiding and reopening the same draft does not repeat provider lookup. Barcode observations retain their structured format and history separately from notes. Configured provider suggestions and optional covers require review; Save copy alone creates ownership. No scanner or provider implementation is replaced. Camera frames stay on the device, and tracks stop when phone details hide the rail as well as on existing close, read, timeout and visibility boundaries. Type changes with a draft require confirmation. Controls retain current theme density/corners and 44px minimum targets; collection rows use a 64px minimum. Native file controls, selects and details remain recognizable. Uploads accept JPEG, PNG or WebP up to 15 MiB, subject to API validation.
 
 Saving locks conflicting actions and changes the primary label to Saving…. Drafts remain page-local and can be lost on reload. A new location becomes available after creation without moving the copy. Choosing it saves the move immediately; a nearby status announces progress and the confirmed destination. No POST is retried automatically. Unconfirmed writes and revision conflicts display explicit review/reload guidance and block subsequent saves until review.
 
 ### Register and selected record
 
-Each list row or unboxed brick is a real button with aria-pressed. List presents compact title, edition and location state with alternating soft fills; selected copies use accent fill and accent-text. Bricks wraps the same title, edition and location facts. There are no repetitive Saved copy labels. Albums, Comics, Movies and Other group the visible page; collection-type configuration supplies labels where available. Category filters and List/Bricks choice remain page-local and do not create or change inventory. Opening a record focuses its heading and exposes the full working copy in the right pane or responsive detail view. Native disclosures reveal location creation, movement history and copy details. Movement/location lists load additional bounded pages explicitly. Photos link to the stored image; their content is collection data, not decorative artwork.
+Each list row or cover tile is a real button with aria-pressed. Selection uses soft fill, ink text and an accent outline. Albums, Comics, Movies, Other and custom collections retain configured identities and fields. List/Covers changes presentation without changing ownership, filters, group or page. Authenticated, lazy-loaded thumbnails and named locations come from the bounded API projection without per-row metadata requests. Catalog artwork is explicitly distinguished from photographs of the physical copy.
+
+Opening a copy focuses its heading and starts with a read-only summary. Edit details reveals the existing configured editor; only a confirmed Save details returns to summary. Cancel requires explicit discard confirmation for a dirty editor. Back preserves the mounted selected record/editor; replacing it with another copy or newly saved copy checks for unsaved changes. Dirty edits lock location/catalog changes that could reset the form. Uncertain/conflicting writes require reload and review, and unsaved selected-copy changes receive a browser unload warning. Preservation is session-local; it does not imply offline synchronization. Existing notes remain read-only where the API has no editor. Photo, location, checklist and catalog operations remain independent, with secondary operations and histories behind native disclosures.
 
 ### Focus, feedback and loading
 
-Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link returns from detail view to intake and targets its focusable heading. There is no separate Add a find jump link. Confirmation text uses the theme ink and role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Empty collection/search messages sit openly on the workspace with generous vertical space and no filled card. Read failures offer reload; no fabricated records appear as placeholders.
+Interactive controls use a three-pixel focus outline offset by three pixels; the focused record heading uses a five-pixel offset. A focus-revealed skip link opens intake and targets its focusable heading. Add a find explicitly opens/closes intake; Back to collection restores browse focus and position. Confirmation text uses the theme ink and role=status; errors use role=alert with a bordered red-tinted box. Inventory loading combines announced text with aria-hidden static skeletons. Empty and failed search states give explicit next actions. Empty collection/search messages sit openly on the workspace with generous vertical space and no filled card. Read failures offer reload; no fabricated records appear as placeholders.
 
 **The Separate Save Rule.** Make confirmed copy, photo and location saves distinguishable; choosing a location immediately saves a revision-checked move and confirms its destination beside the selector. Creating a location remains a separate save.
 
@@ -181,7 +183,7 @@ Header controls select one inline settings editor before the workspace. The Appe
 
 ### Navigation
 
-The brand links home; the inventory rail provides page-local category filters rather than application navigation. Desktop exposes Appearance, collection settings and Sign out in the header. At 650px and below, Menu reveals those same controls in a right-aligned dropdown with an expanded state. Escape dismisses it and returns focus to Menu; outside pointer interaction and focus leaving the utility group also dismiss it. Choosing settings closes the dropdown and focuses the editor heading. Search has a visible label, explicit submit and conditional clear action. Pagination is a named navigation region with disabled end controls. Mobile keeps the same semantic order.
+The brand links home. The collection navigation rail selects built-in or named custom collections, with bounded custom-choice paging and an off-page selection retained. Below 760px it becomes a native labeled chooser; Back returns from the focused record to browsing. Desktop exposes Appearance, collection settings and Sign out in the header. At 650px and below, Menu reveals those same controls in a right-aligned dropdown with an expanded state. Escape dismisses it and returns focus to Menu; outside pointer interaction and focus leaving the utility group also dismiss it. Choosing settings closes the dropdown and focuses the editor heading. Search has a visible label, explicit submit and conditional clear action. Pagination is a named navigation region with disabled end controls. Mobile keeps the same semantic order.
 
 ## Do's and Don'ts
 

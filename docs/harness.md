@@ -2488,3 +2488,83 @@ unchanged app code. The new report and operator logic received the checks above.
 Physical replacement hardware, always-on external alert delivery and NAS-owned
 Drive credentials remain outside the proved VM scope. Manual validation does not
 count as the first genuinely scheduled NAS-assisted Mac-plus-Drive success.
+
+## Collection browse → inspect → edit (2026-11-04, implemented for review)
+
+The approved journey and its limits are in [the behavior contract](collection-journey.md).
+This is a focused web implementation, not deployment or a native-client claim.
+The original designer checkout and active inventory were not modified.
+
+Validation used generated inventory, an isolated worker Compose project with no
+published ports, and a task-owned loopback browser bridge:
+
+- `python3 scripts/test-api-remote.py relicrat-worker` initially refused because
+  the worker's default Docker address pools were exhausted, before running tests.
+  A private runner applied an inspected unused `/28` only to its disposable test
+  network, then ran the unchanged `scripts/test-api.sh`: **422 passed**, no skips,
+  158 warnings; downgrade to base and upgrade to `0016` passed. An earlier API
+  attempt exposed the new list-only display fields in a strict response assertion;
+  the assertion now names those fields while retaining all stored-history checks.
+- `npm run lint`: passed. The disposable worker production web build passed.
+  Compose used its ordinary Docker builder because Buildx/Bake was unavailable;
+  Webpack also reported a cache-serialization warning and Autoprefixer flagged
+  the standards-valid `align-items: start` value for mixed older-browser support.
+- `npm test`: **36 passed**, no skips. Its synthetic loopback-server tests require
+  local network permission; the restricted initial invocation was interrupted and
+  rerun successfully with that permission.
+- `node --test apps/web/tests/inventory.browser.mjs` with the synthetic URL,
+  installed Chromium and `RELICRAT_REAL_UI_TEST=1`: **53/56 passed** in the full
+  final-build run. Three old UI navigation/timing assumptions were corrected;
+  the affected keyboard, matched-edition and responsive-layout checks then passed
+  in focused reruns. All **58 distinct inventory scenarios** passed across those
+  runs, including the additional nonzero phone-scroll check; no skipped scenarios.
+  The final-build focused run passed its nine existing checks; the added custom
+  read-only summary check passed after completing its synthetic definition fixture. Real API cases verified three
+  physical copies, shared editions, history, photos, nested storage, settings,
+  login/logout and themes. Earlier interrupted/shared-database attempts are not
+  counted as successful runs.
+
+The seven focused journey scenarios cover desktop/phone read-first editing,
+preserved search/page/draft/focus/scroll, dirty/uncertain replacement protection,
+exact storage scope, unavailable reads, authenticated existing artwork with an
+honest missing-art fallback, configured read-only custom values, and confirmed photo/location saves without false
+unsaved-draft warnings. Browser widths include 1440, 1024, 390 and 320 pixels,
+with enlarged-text and theme checks. Synthetic artwork/camera inputs do not
+certify physical iOS/Android cameras or native applications.
+
+Five final synthetic captures were inspected. The independent finish review's
+focus and documentation fixes received **disposition: ship** in its bounded
+verdict pass; that verdict covers those scored fixes, not deployment or unrelated
+screens. The single mechanical detector pass returned no findings.
+
+No new dependency, database migration, provider or theme token is required.
+The additive list projection uses three bounded queries per nonempty page and
+never exposes media paths. Existing image bytes are lazy loaded; image resizing
+is deferred. Notes remain read-only where the existing API has no edit operation.
+Drafts survive in-app Back within the mounted session, not reload/offline sync.
+
+The related browser matrix passed **53 distinct scenarios**, with a fresh
+synthetic database/media per complete file: groups 3, custom browsing 3, Movies 2,
+CSV imports 2, storage mapping 4, barcode/lookup/cover 25, collection authoring 4,
+checklist intake 3, collection export 3 and collection copy 4. Together with the
+58 inventory scenarios this is **111 distinct passing browser scenarios**, not
+one all-green invocation; no scenario was skipped. Focused reruns resolved the
+older disclosure/navigation assertions. The checklist compatibility regression
+was corrected so a checklist save preserves an unsaved details draft. Test setup
+now waits for collection choices and closes its browser if setup fails; the
+earlier stalled test runner was interrupted and is not counted as a pass.
+
+The two server-side cover cases initially used ordinary API startup, which
+correctly could not fetch fictional artwork on the internal test network. Both
+passed with the existing guarded `tests/browser_server.py` bootstrap and
+`PYTHONPATH=.`; its first missing-module-path startup attempt is retained as a
+fixture failure. Real image validation, provenance and transactions remained in
+use. The ordinary test API startup was restored afterward. The hidden-editor
+camera check passed: Back stops tracks without losing the edit draft or restarting
+the camera automatically. Existing saved collection export/copy semantics remain.
+
+Cleanup verified the exact disposable project's containers, volumes, network and
+API/web images were removed, then removed its owned temporary worker source.
+The task-owned Mac preview bridge is closed. Prior resources and the active
+owner trial were preserved; no deployment, live migration or live credential/network
+change was made. Durable private logs and final synthetic captures were retained.

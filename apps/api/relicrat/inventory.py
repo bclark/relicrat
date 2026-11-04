@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from relicrat.inventory_queries import copies_query,copy_order
 from relicrat.database import get_db
-from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release
+from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release, StorageLocation, MediaAsset
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.catalog_cover import CoverSelection,stage_cover
 from relicrat.barcodes import BarcodeReading
@@ -47,6 +47,9 @@ class InventoryCopy(BaseModel):
     catalog_item_id: UUID | None
     release_id: UUID | None
     storage_location_id: UUID | None
+    storage_location_name: str | None = None
+    preview_photo_id: UUID | None = None
+    preview_photo_role: str | None = None
     identification_status: str
     storage_revision: int
     identification_revision: int
@@ -92,10 +95,33 @@ def list_copies(
     exclude_custom: bool = False,
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     db: Session = Depends(get_db),
-) -> list[OwnedCopy]:
+) -> list[InventoryCopy]:
     stmt=copies_query(q,collection_type,storage_location_id,unassigned,group,custom_collection_id=custom_collection_id,exclude_custom=exclude_custom)
     stmt=stmt.order_by(*copy_order(collection_type,group)).limit(limit).offset(offset)
-    return list(db.scalars(stmt).all())
+    copies = list(db.scalars(stmt).all())
+    # Three bounded queries per result page; never one lookup per rendered copy.
+    ids = [copy.id for copy in copies]
+    if not ids:
+        return []
+    locations = dict(db.execute(select(StorageLocation.id, StorageLocation.name).where(
+        StorageLocation.id.in_({copy.storage_location_id for copy in copies if copy.storage_location_id})
+    )).all())
+    previews = {row.owned_copy_id: row for row in db.execute(
+        select(MediaAsset.owned_copy_id, MediaAsset.id, MediaAsset.role)
+        .where(MediaAsset.owned_copy_id.in_(ids))
+        .distinct(MediaAsset.owned_copy_id)
+        .order_by(MediaAsset.owned_copy_id, MediaAsset.role, MediaAsset.created_at, MediaAsset.id)
+    )}
+    result = []
+    for copy in copies:
+        value = InventoryCopy.model_validate(copy)
+        value.storage_location_name = locations.get(copy.storage_location_id)
+        preview = previews.get(copy.id)
+        if preview:
+            value.preview_photo_id = preview.id
+            value.preview_photo_role = preview.role
+        result.append(value)
+    return result
 
 
 class EditCopyDetails(BaseModel):

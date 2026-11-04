@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-04T00:00:00Z",
   "title": "Design System: RelicRat inventory application",
   "extensions": {
     "scope": {
@@ -290,20 +290,14 @@
     "typographyMeta": {
       "headline": {
         "displayName": "Collection opening headline",
-        "purpose": "Browser-default bold h1; responsive 2rem–3rem opening heading, 1.1 line-height and -.035em tracking; system UI sans for Operate."
+        "purpose": "Collection heading at 1.8rem, bold, 1.1 line-height and -.035em tracking; uses the bounded owner heading font."
       },
       "intake": {
         "displayName": "Intake heading",
-        "purpose": "Subordinate bold h2 at 1.5rem, 1.2 line-height and -.025em tracking; skip-link focus target, containing the mobile entry disclosure."
+        "purpose": "Intake heading at 1.25rem, bold, 1.3 line-height and -.015em tracking; focusable skip-link destination inside explicit intake."
       }
     },
-    "shadows": [
-      {
-        "name": "selected-row",
-        "value": "inset 0 0 0 1px var(--accent, #823B3D)",
-        "purpose": "Selected physical-copy row only."
-      }
-    ],
+    "shadows": [],
     "motion": [
       {
         "name": "button-state",
@@ -318,18 +312,30 @@
     ],
     "breakpoints": [
       {
-        "name": "compact-columns",
+        "name": "inspector-replaces-browse",
+        "value": "1280px"
+      },
+      {
+        "name": "phone-collection-chooser",
+        "value": "760px"
+      },
+      {
+        "name": "header-menu",
+        "value": "650px"
+      },
+      {
+        "name": "hide-tagline",
         "value": "850px"
       },
       {
-        "name": "stack-workspace",
-        "value": "650px"
+        "name": "appearance-stack",
+        "value": "800px"
       }
     ],
     "focus": {
       "value": "3px solid var(--focus); outline-offset:3px",
       "recordHeadingOffset": "5px",
-      "intakeTarget": "Skip link expands mobile intake and targets its focusable h2; no separate Add a find jump link."
+      "intakeTarget": "Skip link opens explicit intake and focuses its h2; Back restores the selected row or browse heading and browse position."
     },
     "evidence": {
       "verdict": "ship",
@@ -338,7 +344,7 @@
         ".impeccable/review/desktop.png",
         ".impeccable/review/mobile.png"
       ],
-      "provenance": "Full-page production captures using synthetic records and synthetic PNG test fixture; no approved comp, shipping raster or icon assets. User photos are data."
+      "provenance": "Historical original inventory-surface review. Full-page production captures using synthetic records and synthetic PNG test fixture; no approved comp, shipping raster or icon assets. User photos are data."
     },
     "roleAliases": {
       "hover": "accent",
@@ -369,20 +375,35 @@
       "provenance": "Synthetic disposable browser verification, inspected 2026-10-31. Light default, saved dark companion and light login fallback at desktop/mobile. Historical evidence above applies to its original inventory-screen review."
     },
     "layout": {
-      "workspace": "Three panes: 232px quick-intake rail, flexible collection, 340px full selected-copy inspector; 28px gaps and 1700px shell. Unboxed.",
-      "compactColumns": "Below 1180px: 220px rail and collection OR inspector; Back preserves mounted drafts.",
-      "mobile": "Below 760px: details hide both rail and collection. Back restores the list and its focus; hiding the rail stops the existing camera. Quick title/type remain visible when browsing.",
+      "workspace": "1800px main bound. 200px collection navigation plus flexible paper browser; opening a copy adds a 380px paper inspector; 28px gaps. Browser padding 24px, inspector 20px.",
+      "compactColumns": "Below 1280px: 180px navigation and flexible browser OR inspector; 22px gap. Inspector becomes static. Back preserves mounted drafts.",
+      "mobile": "Below 760px: native collection chooser; details hide chooser and browsing. Main gutters and paper padding 16px. Back restores browse focus and position.",
       "settings": "Appearance, collection settings and Sign out in the header. Editors render inline below the opening heading; their components remain mounted when closed. Collection setup initializes choices on opening; Skip for now stays inside setup.",
       "trialNotice": "Below the workspace.",
-      "emptyState": "Open workspace message with generous vertical space; no filled card or rounded container.",
-      "copyRows": "List aligns Name, Edition, Location; 30px desktop pointer rows and 44px touch/mobile rows. Unboxed Bricks is a presentation choice. Page categories remain explicit; server groups retain global counts."
+      "emptyState": "Explicit empty/search messages without fabricated records.",
+      "copyRows": "List/Covers with 64px minimum rows; 44px contained thumbnail/no-art fallback and named location projection. Server groups retain whole-filtered-group counts; copy-page counts stay page-local.",
+      "intake": "Explicit Add a find disclosure above workspace, max-width 720px, 24px desktop/16px phone padding; closing preserves its draft and stops scanning."
     },
     "navigation": {
       "desktop": "Appearance, collection settings and Sign out beside the brand header.",
       "mobile": "At 650px and below, one Menu button exposes the same actions in a right-aligned paper dropdown with a rule and panel corners.",
       "dismissal": "Escape closes the dropdown and returns focus to Menu. Outside pointer interaction and focus leaving the utility group close it. Selecting settings closes the dropdown and focuses the editor heading.",
       "settingsClose": "Restores focus to the desktop settings trigger or mobile Menu button.",
-      "entry": "Show/Hide only changes mobile entry visibility; the skip link expands intake and focuses its heading. Save copy alone creates the physical copy."
+      "entry": "Add a find explicitly opens/closes intake; skip link opens and focuses its heading. Save copy alone creates ownership.",
+      "collections": "Desktop rail and phone native chooser; custom choices are paged in batches of 50 and an off-page selection stays visible.",
+      "record": "Summary first, including configured custom observations; explicit Edit details; confirmed Save returns to summary and focuses Edit. Back retains the draft and stops its camera. Replacing a copy checks for dirty drafts."
+    },
+    "collectionJourneyEvidence": {
+      "status": "Implemented and verified for review; not deployed. Bounded finish-review fixes received ship.",
+      "screenshots": [
+        ".harness-results/journey/final-captures/desktop-browse.png",
+        ".harness-results/journey/final-captures/desktop-view.png",
+        ".harness-results/journey/final-captures/phone-view.png",
+        ".harness-results/journey/final-captures/phone-edit.png",
+        ".harness-results/journey/final-captures/phone-320.png"
+      ],
+      "validation": "422 API, 36 Node, and 111 distinct browser scenarios passed across complete files and focused reruns; see docs/harness.md for attempts, warnings and scope.",
+      "provenance": "Synthetic final implementation captures. Approved November 4 concepts are direction references, not pixel masters or production inventory; no new shipping brand assets."
     }
   },
   "components": [
@@ -413,17 +434,17 @@
     {
       "name": "Intake panel",
       "kind": "card",
-      "description": "Unboxed quick title/barcode and early type; Review item reveals the mounted fields. Reuses existing camera, configured lookup and structured observations.",
+      "description": "Explicit Add a find disclosure; closing preserves mounted quick-entry/type/review fields and stops scanning.",
       "html": "<div class=\"ds-sample\"><section class=\"ds-intake\"><h2>Add an item</h2><label for=\"ds-quick-entry\">Title or barcode</label><input id=\"ds-quick-entry\" placeholder=\"Type, then press Enter\"/><label for=\"ds-type\">What are you adding?</label><select id=\"ds-type\"><option>Other</option><option>Album</option><option>Comic</option><option>Movie</option></select><button type=\"button\">Review item</button><button type=\"button\">Scan barcode</button></section></div>",
-      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-intake{min-width:0}.ds-intake h2{font:700 1.25rem/1.3 var(--heading-font,system-ui);margin:0 0 14px}.ds-intake label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:650}.ds-intake input,.ds-intake select,.ds-intake button{font:inherit;color:inherit;background:var(--paper,#FFFFFF);border:1px solid var(--muted,#595650);border-radius:var(--radius,6px);padding:10px 12px;min-height:44px;max-width:100%;box-sizing:border-box}.ds-intake input,.ds-intake select{width:100%}.ds-intake button{margin:12px 8px 0 0}.ds-intake :focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
-      "refersTo": "intake-panel"
+      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-intake{min-width:0;background:var(--paper,#FFFFFF);padding:24px;border:1px solid var(--rule,#C6C9C3);border-radius:var(--radius,6px)}.ds-intake h2{font:700 1.25rem/1.3 var(--heading-font,system-ui);margin:0 0 14px}.ds-intake label{display:block;margin:16px 0 7px;font-size:.9rem;font-weight:650}.ds-intake input,.ds-intake select,.ds-intake button{font:inherit;color:inherit;background:var(--paper,#FFFFFF);border:1px solid var(--muted,#595650);border-radius:var(--radius,6px);padding:10px 12px;min-height:44px;max-width:100%;box-sizing:border-box}.ds-intake input,.ds-intake select{width:100%}.ds-intake button{margin:12px 8px 0 0}.ds-intake :focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
+      "refersTo": "quick-intake"
     },
     {
       "name": "Selected collection row",
       "kind": "button",
-      "description": "Shared physical-copy row; aligned columns in List or unboxed Bricks, accent selection, aria-pressed and full accessible name. Touch/mobile targets remain 44px.",
-      "html": "<div class=\"ds-sample\"><button class=\"ds-row\" aria-pressed=\"true\"><span class=\"ds-identity\"><strong>Synthetic series #08</strong><span>Alternate cover</span></span><span class=\"ds-location\">Unassigned</span></button></div>",
-      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-row{font:inherit;width:100%;min-height:30px;border:0;border-radius:0;text-align:left;padding:4px 8px;display:flex;align-items:baseline;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;color:inherit;background:var(--accent,#823B3D);color:var(--accent-text,#FFFFFF);cursor:pointer}.ds-identity{display:flex;flex:1 1 220px;align-items:baseline;flex-wrap:wrap;gap:4px 12px;min-width:0}.ds-row strong{font-size:1rem;font-weight:650;max-width:100%}.ds-row span{overflow-wrap:anywhere}.ds-identity>span{font-size:.875rem;color:var(--accent-text,#FFFFFF)}.ds-location{font-size:.8rem;color:var(--accent-text,#FFFFFF)}.ds-row:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}@media(pointer:coarse),(max-width:759px){.ds-row{min-height:44px}}",
+      "description": "Selected physical copy in List/Covers: soft fill, ink text, inset accent outline, 64px target and explicit no-art fallback.",
+      "html": "<div class=\"ds-sample\"><button class=\"ds-row\" aria-pressed=\"true\"><span class=\"ds-art\" aria-label=\"No artwork\">S</span><span><strong>Synthetic series #08</strong><small>Alternate cover</small></span><span>Unassigned</span></button></div>",
+      "css": ".ds-sample{font:16px/1.5 var(--font,system-ui);color:var(--ink,#302B28)}.ds-row{font:inherit;width:100%;min-height:64px;text-align:left;display:flex;align-items:center;gap:12px;padding:4px 8px;border:0;border-radius:var(--radius,6px);background:var(--soft,#E8EEE9);color:var(--ink,#302B28);outline:1px solid var(--accent,#823B3D);outline-offset:-1px;cursor:pointer}.ds-art{display:grid;place-items:center;min-width:44px;height:44px;background:var(--soft,#E8EEE9);color:var(--muted,#595650)}.ds-row strong,.ds-row small{display:block;font-size:.875rem}.ds-row small{color:var(--muted,#595650)}.ds-row:hover{background:var(--soft,#E8EEE9)}.ds-row:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}",
       "refersTo": "inventory-row-selected"
     },
     {
@@ -446,11 +467,18 @@
       "description": "Native disclosure for secondary working sections.",
       "html": "<div class=\"ds-sample\"><details class=\"ds-details\"><summary>Create a storage location</summary><p>Location creation and copy movement save separately.</p></details></div>",
       "css": ".ds-sample{font-family:var(--font,system-ui);font-size:16px;line-height:1.5;color:var(--ink,#302B28)}.ds-details{border-top:1px solid var(--rule,#C6C9C3);padding:14px 0;margin-top:20px}.ds-details summary{font-weight:600;font-size:.9rem;cursor:pointer;padding:5px 0;overflow-wrap:anywhere}.ds-details summary:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}"
+    },
+    {
+      "name": "Collection navigation",
+      "kind": "nav",
+      "description": "Collection rail; current selection uses aria-current, soft fill and an accent outline. Phone uses a native chooser.",
+      "html": "<nav class=\"ds-collections\" aria-label=\"Collections\"><button aria-current=\"page\">Albums</button><button>Comics</button><button>Movies</button></nav>",
+      "css": ".ds-collections{font:16px/1.5 var(--font,system-ui)}.ds-collections button{display:block;width:100%;min-height:44px;font:inherit;padding:10px 12px;border:0;text-align:left;background:transparent;color:var(--ink,#302B28);cursor:pointer}.ds-collections button:hover,.ds-collections button[aria-current=page]{background:var(--soft,#E8EEE9)}.ds-collections button[aria-current=page]{font-weight:700;outline:1px solid var(--accent,#823B3D);outline-offset:-1px}.ds-collections button:focus-visible{outline:3px solid var(--focus,#823B3D);outline-offset:3px}"
     }
   ],
   "narrative": {
     "northStar": "The new-arrivals workbench",
-    "overview": "This is a record of the current inventory implementation, extracted from apps/web/app/globals.css, its React components and the bounded theme styles in apps/api/relicrat/theme_values.py. The new-arrivals workbench uses warm ivory, white surfaces, charcoal ink and restrained burgundy actions to make physical copies easy to record and find. Plain labeled controls and text-led records keep collection information prominent, without paper texture or faux-vintage controls.\n\nThe owner approved these factory theme values on 2026-10-31, including sans body/headings, balanced spacing, soft corners and comfortable density. The forest and light-gold After hours preset is the dark companion. Approval covers application theme values; brand-wide master specifications, proposed logos, mascot extensions and navigation layouts remain separate decisions. Owners can explicitly preview and apply their own supported theme. This record describes the implementation for review, not deployment or production readiness.\n\nThe separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance. The original add-first and direct-build choices do not establish a standing build-path preference.",
+    "overview": "This is a record of the current inventory implementation, extracted from apps/web/app/globals.css, its React components and the bounded theme styles in apps/api/relicrat/theme_values.py. The new-arrivals workbench uses warm ivory, white surfaces, charcoal ink and restrained burgundy actions to make physical copies easy to record and find. Plain labeled controls and text-led records keep collection information prominent, without paper texture or faux-vintage controls.\n\nThe owner approved these factory theme values on 2026-10-31, including sans body/headings, balanced spacing, soft corners and comfortable density. The forest and light-gold After hours preset is the dark companion. Approval covers application theme values; brand-wide master specifications, proposed logos and mascot extensions remain separate decisions. The owner separately approved the collection journey on 2026-11-04: collection navigation, browsing and a read-first inspector. It supersedes the 2026-11-02 intake-rail composition and is implemented for review; see docs/collection-journey.md and docs/harness.md. Owners can explicitly preview and apply their own supported theme. This record describes the implementation for review, not deployment or production readiness.\n\nThe separate frozen progress report through PR #14 retains its own [historical design record](docs/design/project-dashboard.md) and [preserved sidecar](.impeccable/project-dashboard-design.json); it is not current application guidance. The original add-first and direct-build choices do not establish a standing build-path preference.",
     "keyCharacteristics": [
       "System UI sans for an Operate workflow.",
       "Approved ivory, charcoal and burgundy factory palette with a forest/gold dark companion.",

@@ -53,3 +53,25 @@ executable API verification and its known limitations.
 Use UUID primary keys, explicit foreign keys, timestamps, migration reviews, and transactional domain operations. Define uniqueness and reconciliation rules per category before implementing automated matching. Start with PostgreSQL full-text and relational search; do not introduce a separate search cluster prematurely.
 
 See [ADR 0001](../decisions/0001-modular-monolith.md) for stack decisions and the root [README](../../README.md) for setup and roadmap.
+
+## Core repository and client boundary (approved November 4, 2026)
+
+This repository owns the RelicRat core, API, declarative collection definitions,
+and web interface. Native iOS, native Android and immersive clients, including a
+possible virtual collection shop, can live in separate repositories and use the
+same authenticated API. These clients are planned, not implemented here.
+
+Keep domain validation, ownership, reconciliation, storage and provenance rules
+in the core services and database. A client may present information differently;
+it must not reimplement authoritative write rules or access the database/media
+filesystem directly. API responses carry stable copy identities and revision
+requirements; keep those contracts independent of React components, browser
+routes or a virtual room's layout. Collection JSON describes domain fields and
+bounded capabilities; current input hints are presentation hints, not permission
+to install arbitrary UI or executable code.
+
+A virtual display position is not a physical storage location. Future experience
+configuration must not silently move inventory or manufacture ownership. Native
+authentication, offline synchronization, versioned public client contracts and
+experience manifests require separate reviewed designs. Do not introduce a
+plugin framework, native project or speculative transport in this web redesign.

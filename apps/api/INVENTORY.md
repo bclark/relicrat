@@ -515,3 +515,16 @@ The media list adds nullable source_provider/source_id/source_url and role
 URLs remain unchanged. Apply additive migration 0012 before deploying this API;
 [optional artwork](../../docs/catalog-covers.md) describes source retention,
 rollback, downgrade refusal and recovery requirements.
+
+## Collection-browser display projection
+
+The paginated `GET /api/v1/inventory` response adds nullable
+`storage_location_name`, `preview_photo_id` and `preview_photo_role`. They are
+read-only display metadata, not writable copy observations. Existing detail/write
+responses may leave them null; retain `storage_location_id` as authoritative.
+One bounded query fetches locations and one fetches the first available image for
+the current result page, preferring catalog artwork before physical-copy photos.
+No filesystem path or external image URL is returned. Fetch image bytes through
+the existing owner-authenticated copy/photo endpoint and label catalog artwork
+separately from evidence of the physical object. A missing preview is unknown,
+not permission to invent artwork. Pagination and search never merge copies.
