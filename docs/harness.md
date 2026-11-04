@@ -2325,3 +2325,84 @@ Exact successful synthetic services were removed after verification; reused
 release images and all live resources were preserved. Private receipts and
 screenshots retained. Eight distinct browser scenarios passed across the runs,
 including the four copy cases on the final production build; no skips.
+
+## Private-beta acceptance audit (2026-11-03)
+
+Owner requested the remaining phase-one work. The acceptance matrix and short
+hands-on trial are in [private-beta acceptance](private-beta-acceptance.md).
+This audit preserves the deployed interface; it does not add another settings
+screen or claim owner usability acceptance from headless automation.
+
+The first complete browser pass exposed eleven stale journey assertions after
+the progressive-intake/navigation changes and two cover-save cases without an
+API-side artwork fixture. Core journeys now open Review item after reload or a
+confirmed save, use the current sign-in landing form, and return from the phone
+inspector before searching. Artist-first assertions follow the relocated type
+selector. Validation, identity, history and uncertain-write assertions remain.
+The inventory suite also refuses the private trial's loopback port before login.
+
+`apps/api/tests/browser_server.py` is an explicitly guarded, test-only API
+bootstrap. It requires the synthetic-test flag and a `_test` database name;
+only the fixed successful candidate receives generated JPEG bytes, while the
+unavailable candidate still fails. All real media staging, transactions,
+provenance and downloads run. No runtime entrypoint, provider configuration,
+schema, theme or dependency changes. See the [browser setup](../apps/web/README.md#browser-verification).
+
+Verification uses current deployed application code as the baseline, a local
+production frontend, and a separate PostgreSQL/API project on the dedicated
+worker with no published ports. Data is synthetic, the database uses tmpfs, and
+media is container-local. Each browser file gets a fresh database/media to avoid
+fixed-identifier collisions. The API suite uses its own independent project.
+An explicit non-overlapping internal subnet was supplied for the API test
+Compose file because automatic Docker address pools were exhausted; the
+ordinary suite and migration commands remained unchanged.
+
+- `sh scripts/test-api.sh`: **418 passed**, no skips, plus the migration
+  downgrade/upgrade round trip. **89 existing deprecation warnings** concern
+  Starlette/httpx and Alembic path separation.
+- `python -m pytest -q tests/test_browser_server.py` in a network-disabled
+  disposable API container: **3 passed**. The initial attempt used the `pytest`
+  executable without the package path and failed import; the corrected module
+  invocation passed.
+- `cd apps/web && npm test`: **36 passed**, no skips. `npm run lint` and
+  `npm run build`: passed on the unchanged application source.
+- Syntax/diff checks and refusal of the private owner-trial URL: passed.
+
+Browser command: from `apps/web`, set `RELICRAT_TEST_WEB_URL` to the disposable
+loopback production frontend, `RELICRAT_REAL_UI_TEST=1`, and the installed test
+Chromium executable; run `node --test --test-concurrency=1 tests/<file>` for each
+file below, resetting only the owned synthetic project between files. The barcode
+file uses the guarded artwork bootstrap described above. Final per-file results:
+
+| File | Passed | Skipped |
+| --- | ---: | ---: |
+| inventory.browser.mjs | 51 | 0 |
+| movies.browser.mjs | 2 | 0 |
+| groups.browser.mjs | 3 | 0 |
+| import.browser.mjs | 2 | 0 |
+| storage-mapping.browser.mjs | 4 | 0 |
+| barcode.browser.mjs | 24 | 0 |
+| collection-authoring.browser.mjs | 4 | 0 |
+| custom-browsing.browser.mjs | 3 | 0 |
+| checklist-intake.browser.mjs | 3 | 0 |
+| collection-export.browser.mjs | 3 | 0 |
+| collection-copy.browser.mjs | 4 | 0 |
+| **Distinct total** | **103** | **0** |
+
+The corrected inventory and barcode files passed complete reruns; other files
+passed the initial run. Original failure logs and synthetic snapshots are kept
+privately. This is not a claim that the initial run passed. Screenshot inspection
+covered desktop1440 and narrow phone320, with automated navigation/theme/overflow
+checks at additional widths. Large synthetic imports covered 1,915 CLZ/Discogs
+copies and a separate 389-item Movie import. No owner CSV or image was reused.
+
+Chromium only in this audit: WebKit, physical cameras, real catalog coverage and
+uncoached owner usability remain unverified. The owner trial remains open. No
+application defect was reproduced after repairing the test journeys/fixture;
+no live deployment or data migration is needed for these test/document changes.
+
+Exact task-owned synthetic containers/network and Mac test endpoints were removed
+or stopped after success; reused images, live services, retained restores and
+private failure evidence were preserved. The owner login remained reachable and
+guest inventory requests remained unauthorized. Private receipts include final
+per-file results, test-source hashes, baseline failures, screenshots and cleanup.

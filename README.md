@@ -132,6 +132,7 @@ These are plans, not implemented capabilities. See the
 | Start here | Go deeper |
 | --- | --- |
 | [Browser features and verification](apps/web/README.md) | [Inventory API contract](apps/api/INVENTORY.md) |
+| [Private-beta acceptance checklist](docs/private-beta-acceptance.md) | [Shared UI and brand context](docs/design/README.md) |
 | [Owner setup and private access](docs/owner-access.md) | [Architecture decisions](docs/decisions/) |
 | [Development harness and Symphony boundaries](docs/harness.md) | [Offline backup and restore](docs/backup-restore.md) |
 | [Theme authoring guidelines](packages/themes/AUTHORING-PROMPT.md) | [Brand artwork and status](docs/brand/README.md) |
