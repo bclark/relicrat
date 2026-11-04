@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import CustomField,{normalizeCustomValues,replaceCustomValue,type CustomValues,type CustomTypeDefinition} from './custom-field';
 import CustomDefinitionEditor from './custom-definition-editor';
 import ChecklistProgress from './checklist-progress';
+import CollectionDefinitionExport from './collection-definition-export';
 import {api,ApiError,errorText,jsonSave,type InventoryCopy,type RunSave} from '../lib/inventory-client';
 
 export type SavedCollection = {id:string;name:string;type_revision:number;proposal:{type_definition:CustomTypeDefinition;collection:{checklist:{id:string;title:string}[];completion:{eligibility:string}}}};
@@ -56,6 +57,7 @@ export default function CustomCollections({createdEvent,runSave,locked,changed,o
   <button type="button" disabled={locked||loading||listPage===0} onClick={()=>setListPage(p=>p-1)}>Previous collections</button><button type="button" disabled={locked||loading||!listMore} onClick={()=>setListPage(p=>p+1)}>More collections</button>
   {error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{loading&&<p role="status">Loading collection…</p>}
   {collection&&<section aria-label={`Saved collection: ${collection.name}`}><h2>{collection.name}</h2><p>This checklist describes your collecting goal. Progress uses only your reviewed matches to owned figures.</p>
+   <CollectionDefinitionExport key={collection.id} collectionId={collection.id} locked={locked||loading||review} />
    <ChecklistProgress collectionId={collection.id} refresh={refresh} locked={locked||review||loading} addFigure={entryId=>startFigure(collection.id,entryId)} />
    <CustomDefinitionEditor key={collection.id+'-'+collection.type_revision} collection={collection} locked={locked||review||!!title||!!notes||Object.keys(normalizeCustomValues(values)).length>0} runSave={runSave} saved={next=>{setCollection(next);setVersion(v=>v+1);setNotice('Field controls updated. Existing figures were preserved.');}} />
    <button type="button" disabled={locked||review||loading} onClick={async()=>{try{setCollection(await api<SavedCollection>(`custom-collections/${selected}`));setError('');}catch(e){setError(errorText(e));}}}>Reload field controls</button>

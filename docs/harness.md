@@ -2261,3 +2261,32 @@ changed.
 
 No migration or dependency change. Review/merge precedes deployment; live PR72
 remains unchanged. Ownership/checklist identity and server validation stay intact.
+
+## Portable collection definition export (2026-11-03)
+
+Frontend-only saved-collection action: fresh effective proposal read, explicit
+six-root-field projection, existing read-only preview validation, then a local
+JSON download. Field-control revisions are included; personal inventory and
+unsaved drafts are excluded. No new route, schema, dependency or network access.
+
+- `cd apps/web && npm run lint`, `npm test`, `npm run build`: passed; **36 unit
+  tests**, no skips. Existing owner/origin/byte-bound gateway protections remain.
+- `RELICRAT_TEST_WEB_URL=<isolated-loopback> node --test --test-concurrency=1
+  tests/collection-export.browser.mjs`: **3 passed**. Actual downloads match the
+  current applied revision, omit synthetic private DTO/copy/draft data, and
+  validate through the import review UI without creating ownership. Failed reads
+  and invalid nested fields produce no download; switching collections cancels
+  the old request. A450-entry definition uses compact JSON within64KiB and passes
+  the existing validator. Identifier conflict rules remain explicit.
+- Same isolated production build, `tests/checklist-intake.browser.mjs`:
+  **3 passed**, including independent drafts, explicit saves, uncertain retries
+  and failure recovery. Synthetic PostgreSQL/API only; no real inventory fixture.
+- Desktop1440/phone390 export inspection and overflow checks passed; static
+  detector returned no findings. No independent-agent or physical-device review.
+- API source and migrations unchanged. Full API suite and unrelated import/
+  barcode/browser suites not rerun. Browser requests used the verified deployed
+  API image against a separate disposable database. No live deployment performed.
+
+Exact successful test services were removed; reused release images were kept.
+Private verification, screenshots and cleanup receipts retained. API/container
+configuration and owner data were not changed. Review/merge precedes rollout.
