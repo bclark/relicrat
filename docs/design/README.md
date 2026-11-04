@@ -257,3 +257,15 @@ layout or branding change. Physical-phone usability remains an owner acceptance
 step; automated viewport checks do not establish it. See the
 [phase-one checklist](../private-beta-acceptance.md) and
 [verification record](../harness.md#private-beta-acceptance-audit-2026-11-03).
+
+### Operating reliability and report status (2026-11-03)
+
+Owner requested the full reliability follow-up after accepting phase-one
+functionality and deferring a major UI/UX overhaul. Implemented for review:
+a separate Operations tab in the existing project report, preserving its
+historical sections and incumbent design. It reads private aggregate health,
+capacity and distinct NAS/Mac/Drive checkpoints through a loopback-only server.
+No inventory interface, theme, collection field or ownership behavior changes.
+Native controls, escaped text, stale/unavailable states and responsive views
+were checked. See [operating contract](../operating-reliability.md) and the
+[report design record](project-dashboard.md#operations-extension--2026-11-03).

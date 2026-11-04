@@ -2406,3 +2406,85 @@ or stopped after success; reused images, live services, retained restores and
 private failure evidence were preserved. The owner login remained reachable and
 guest inventory requests remained unauthorized. Private receipts include final
 per-file results, test-source hashes, baseline failures, screenshots and cleanup.
+
+## Operating reliability and replacement-VM recovery (2026-11-03)
+
+Owner authorized the full reliability follow-up: separate operational status,
+replacement-environment recovery and less dependence on an available Mac. The
+inventory app/interface, schema, owner settings and image identities are unchanged.
+[Operating contract](operating-reliability.md); [owner recovery guide](replacement-recovery.md).
+
+Implemented operator tools use the standard library and existing SSH, Docker,
+PostgreSQL backup and OpenSSL facilities. NAS user timers collect every five
+minutes and capture at 02:30 America/New_York. The existing Mac task remains the
+copied-restore/Drive phase. A local read-only operations report has fixed routes,
+Host/CSP/no-store boundaries and explicit stale/unavailable states. Historical
+project sections remain historical. Native timers were enabled under the existing
+lingering user manager; no new administrator privilege or exposed service.
+
+Executed focused checks:
+
+- `python3 scripts/test_worker_ssh.py`: **4 passed**. Existing two-hop and new
+  direct-from-NAS modes preserve key/host policy and binary EOF behavior. The
+  first local run could not bind loopback under its restricted execution context;
+  the permitted rerun passed.
+- `python3 scripts/test_operations.py`: **10 passed**. Covers proof flags, age and
+  future timestamps, stale remote snapshots, distinct local proof overriding older
+  remote rows, missing archives, pointer escapes, metadata-only synchronization,
+  incident deduplication/recovery, config permissions and fixed HTTP/Host routes.
+- `python3 scripts/test_nas_capture.py`: **5 passed**. Same-day exact-byte reuse,
+  altered source/certificate/receipt/bytes, capacity/permissions, lock contention,
+  wrong engine and unsafe run identity refuse without live data or SSH.
+- `python3 scripts/test_recovery_capsule.py`: **7 passed** using generated keys and
+  data. Authenticated GCM succeeds; CBC, bad authentication, broad key permissions,
+  traversal/extra/link members, checksums, wrong source and corrupt OCI blobs fail.
+- `python3 scripts/test_rehearse_recovery.py`: **5 passed**. Rejects wrong/live,
+  nonempty and externally routed engines. Database health failure blocks app startup.
+- `node --test apps/web/tests/operations.browser.mjs`: **1 passed**, no skips,
+  against a standalone synthetic report server. Desktop1440/phone390/320 overflow,
+  historical navigation, literal untrusted text, keyboard refresh and stale HTTP
+  failure were checked. An initial keyboard test did not wait for enabled refresh;
+  the corrected Enter/response check passed. Screenshots were inspected in bounded
+  desktop/phone passes. No inventory record served as a browser/unit fixture.
+
+Real recovery evidence is a separate operator operation, not a feature fixture:
+
+1. The live deployment was pinned by source, Compose/owner/helper hashes, exact
+   API/database/web images, private ports, stopped Symphony and capacity. The NAS
+   took a genuinely fresh capture with brief writer stop/restart, saved matching
+   Git source/images and streamed CMS encryption using only the public certificate.
+2. The actual NAS archive was copied to the approved Mac destination. Its full
+   SHA256, authenticated envelope/decryption, exact members, every checksum,
+   expected source and saved image identities passed. No private key moved to NAS.
+3. A separate Ubuntu VM booted a freshly provisioned OS disk/kernel, with empty
+   image/container/volume stores. External default routes were removed before
+   restore. The official image checksum matched; an initial checksum-list format
+   mismatch stopped provisioning before boot and was corrected without bypassing
+   verification. Inherited temporary-key permissions were tightened before SSH use.
+4. Missing images were deliberately rejected before destination/resources were
+   created. Saved images were loaded and matched exactly. The archived source's
+   unchanged backup helper restored every row/migration/media checksum. A private
+   app test used newly generated temporary owner configuration; login returned
+   200, guests 401 and signed-in inventory 200, with no published app ports.
+5. `unless-stopped` policy preserved an intentional stop across daemon restart
+   while running services recovered. Only after that proof was the policy applied
+   to existing live app/VM containers. IDs, start times, images, environments,
+   mounts and ports were unchanged by that policy update; no live restart occurred.
+6. Exact disposable resources, temporary VM/disk/key and this successful run's
+   plaintext staging were removed. Every prior encrypted archive, key and retained
+   manual restore was preserved. A new Mac receipt was promoted with cloud status
+   **pending**; the prior verified Drive recovery point remains distinct.
+
+Native timer/service verification passed and same-day service invocation skipped
+another capture. Unrelated pre-existing user-unit permission warnings were logged;
+those units were not modified. Initial setup attempts that refused unknown units
+or stopped on private-driver substitution errors are retained, not counted as
+success. Actual API/web/guest boundaries and current staging-budget preflight
+were rechecked. Private receipts retain source/image identities and scoped cleanup.
+
+No API/Next application suite was rerun in this operator-only change; phase-one
+418 API/103 collection-browser/36 web-unit results remain historical evidence for
+unchanged app code. The new report and operator logic received the checks above.
+Physical replacement hardware, always-on external alert delivery and NAS-owned
+Drive credentials remain outside the proved VM scope. Manual validation does not
+count as the first genuinely scheduled NAS-assisted Mac-plus-Drive success.

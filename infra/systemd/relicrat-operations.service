@@ -1,0 +1,9 @@
+[Unit]
+Description=RelicRat private operations checks
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/relicrat-operations/operations.py collect --config %h/relicrat-operations/monitor.json --output %h/relicrat-operations/status.json
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=120

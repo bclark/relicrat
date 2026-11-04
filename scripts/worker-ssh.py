@@ -29,7 +29,11 @@ with socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=10) as co
 
 
 def main():
-    interactive = not sys.argv[1:]
+    arguments = sys.argv[1:]
+    from_nas = arguments[:1] == ['--from-nas']
+    if from_nas:
+        arguments = arguments[1:]
+    interactive = not arguments
     tty = '-tt' if interactive else '-T'
     remote = '/home/bclark/relicrat-worker'
     proxy = shlex.join(['docker', 'exec', '-i', 'relicrat-worker-vm-1',
@@ -39,7 +43,10 @@ def main():
              '-o', 'ConnectTimeout=10', '-o', f'UserKnownHostsFile={remote}/known_hosts',
              '-o', 'HostKeyAlias=relicrat-worker', '-i', remote + '/operator_ed25519',
              '-o', 'ProxyCommand=' + proxy,
-             '-p', '22222', 'worker@127.0.0.1', *sys.argv[1:]]
+             '-p', '22222', 'worker@127.0.0.1', *arguments]
+    if from_nas:
+        os.execvp('ssh', inner)
+        return
     os.execvp('ssh', ['ssh', tty, '-o', 'BatchMode=yes', '-o', 'ForwardAgent=no',
                      '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=10',
                      'technodrome', shlex.join(inner)])

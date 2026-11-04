@@ -85,3 +85,21 @@ was observed. A downloaded vault copy matched the original bytes and its key
 decrypted a disposable authenticated test envelope. Temporary import/download
 copies were removed; the working Mac key and vault Document were preserved.
 Routine backup runs need no vault access or repeated custody confirmation.
+
+## NAS capture and separate Mac verification
+
+The reliability workflow adds native NAS user timers: fresh encrypted capture at
+02:30 America/New_York and independent health checks every five minutes. The
+existing Mac task remains the copied-restore and connected Drive phase. When a
+completed fresh NAS capture matches today's local date and the exact deployed
+source/images/configuration, copy those already-encrypted bytes and verify them;
+do not take a duplicate capture or label an earlier point as today's backup.
+If no valid matching NAS capture exists, preserve its failure and follow the
+existing guarded fresh-capture fallback. Never guess around changed deployment
+pins. See [operating reliability](operating-reliability.md) for the boundary and
+[replacement recovery](replacement-recovery.md) for the owner procedure.
+
+The Mac still needs to be available for decryption and connected off-site work;
+NAS staging is not a claim of off-site success. Preserve the existing notification
+and key-custody rules. The private runbook records the installed source, exact
+configuration and safe handoff/cleanup steps.

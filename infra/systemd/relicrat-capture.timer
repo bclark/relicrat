@@ -1,0 +1,10 @@
+[Unit]
+Description=Capture private RelicRat inventory before the Mac verification phase
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 America/New_York
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

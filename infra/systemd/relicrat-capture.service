@@ -1,0 +1,13 @@
+[Unit]
+Description=RelicRat fresh encrypted NAS capture
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/relicrat-operations/nas-capture.py capture --config %h/relicrat-operations/capture.json
+UMask=0077
+NoNewPrivileges=true
+Nice=10
+TimeoutStartSec=infinity
+Restart=on-failure
+RestartSec=15min
