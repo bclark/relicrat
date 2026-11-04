@@ -269,3 +269,7 @@ No inventory interface, theme, collection field or ownership behavior changes.
 Native controls, escaped text, stale/unavailable states and responsive views
 were checked. See [operating contract](../operating-reliability.md) and the
 [report design record](project-dashboard.md#operations-extension--2026-11-03).
+
+### Collection browsing journey concept (2026-11-04)
+
+Owner requested a redesign of open collection → find item → view/edit and chose visual concepts before implementation. Proposed: collections in navigation, a collection-scoped search/filter row, artist/series grouping, and a read-first inspector with an explicit Edit details step. Desktop keeps browse context; phone Back should restore query, position and focus. Preserve supported theme roles, physical-copy identity, separate photo/location saves and dirty/uncertain drafts. [Three concept frames and implementation boundaries](proposals/collection-journey-2026-11-04/README.md) use fictional collection data. Status: proposed for review, not approved, implemented or deployed. Existing designer checkout and active inventory are unchanged.
