@@ -46,12 +46,26 @@ def copies_query(q=None,collection_type=None,storage_location_id=None,unassigned
     return stmt
 
 
-def copy_order(collection_type,group):
-    order=COLLECTION_TYPES[collection_type].grouping.order if group is not None and collection_type else None
-    if order=='title':
-        return (func.lower(OwnedCopy.provisional_title).asc().nulls_last(),OwnedCopy.provisional_title.asc().nulls_last(),OwnedCopy.id)
-    if order=='issue_number':
-        issue=func.nullif(func.btrim(OwnedCopy.comic_details['issue_number'].astext),'')
-        prefix=cast(func.substring(func.ltrim(issue,'#'),'^[0-9]+'),Numeric)
-        return (prefix.asc().nulls_last(),func.lower(issue).asc().nulls_last(),issue.asc().nulls_last(),OwnedCopy.id)
-    return (OwnedCopy.created_at.desc(),OwnedCopy.id.desc())
+def copy_order(collection_type, group, sort=None):
+    title = func.nullif(func.btrim(OwnedCopy.provisional_title), '')
+    title_order = (func.lower(title).asc().nulls_last(), title.asc().nulls_last())
+    order = COLLECTION_TYPES[collection_type].grouping.order if group is not None and collection_type else None
+
+    def issue_order():
+        issue = func.nullif(func.btrim(OwnedCopy.comic_details['issue_number'].astext), '')
+        prefix = cast(func.substring(func.ltrim(issue, '#'), '^[0-9]+'), Numeric)
+        return (prefix.asc().nulls_last(), func.lower(issue).asc().nulls_last(), issue.asc().nulls_last())
+
+    if sort == 'artist':
+        if collection_type != 'record':
+            raise HTTPException(422, 'Choose Albums before sorting by artist')
+        artist = group_value('record')
+        return (func.lower(artist).asc().nulls_last(), artist.asc().nulls_last(), *title_order, OwnedCopy.id)
+    if sort == 'title':
+        return (*title_order, *(issue_order() if collection_type == 'comic' else ()), OwnedCopy.id)
+    if sort is None and order == 'title':
+        return (func.lower(OwnedCopy.provisional_title).asc().nulls_last(),
+                OwnedCopy.provisional_title.asc().nulls_last(), OwnedCopy.id)
+    if sort is None and order == 'issue_number':
+        return (*issue_order(), OwnedCopy.id)
+    return (OwnedCopy.created_at.desc(), OwnedCopy.id.desc())

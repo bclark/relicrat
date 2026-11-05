@@ -94,10 +94,11 @@ def list_copies(
     custom_collection_id: UUID | None = None,
     exclude_custom: bool = False,
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
+    sort: Literal['recent', 'title', 'artist'] | None = None,
     db: Session = Depends(get_db),
 ) -> list[InventoryCopy]:
     stmt=copies_query(q,collection_type,storage_location_id,unassigned,group,custom_collection_id=custom_collection_id,exclude_custom=exclude_custom)
-    stmt=stmt.order_by(*copy_order(collection_type,group)).limit(limit).offset(offset)
+    stmt=stmt.order_by(*copy_order(collection_type,group,sort)).limit(limit).offset(offset)
     copies = list(db.scalars(stmt).all())
     # Three bounded queries per result page; never one lookup per rendered copy.
     ids = [copy.id for copy in copies]

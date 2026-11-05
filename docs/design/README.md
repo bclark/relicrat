@@ -429,3 +429,12 @@ share one Filters panel. + Add stays in the header and follows the selected
 collection. Back from a record preserves the browse context. The desktop
 rail and grouped default remain available. Status: implemented for PR review;
 deployment and the owner's next hands-on check remain pending.
+
+
+### Large-collection browsing — implemented for review (2026-11-05)
+
+Stage 2 adds server ordering before pagination and a visible summary of the
+search, storage filter and sort. Choosing a sort opens individual copies.
+The grouped view remains available. Covers limit the title preview so edition
+labels remain easy to scan on phones. Existing themes, record identities and
+draft/Back behavior carry through. Status: implemented for PR review.

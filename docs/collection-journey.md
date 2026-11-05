@@ -23,6 +23,13 @@ reset the current search, loaded group, page or browse position. Back restores
 selected-row focus when it remains in the result, otherwise the browse heading.
 A renamed copy can cease to match the search while its inspector remains open.
 
+Sort copies offers recently added and title, with artist for Albums and
+series/issue order for Comics. Choosing a sort opens individual copies, ordered
+across all matching pages. Grouped browsing retains its existing ordering.
+The applied search, storage location, and explicit sort appear above results,
+including when Filters is closed. Search and storage can be cleared separately.
+List and Covers preserve those choices when opening an item and going Back.
+
 Copy details open as a summary, including configured custom observations; unknown,
 No and None selected remain distinct. Edit details reveals the existing configured
 editor; a confirmed Save details returns to the summary. Cancel requires an
