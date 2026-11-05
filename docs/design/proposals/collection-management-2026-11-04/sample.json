@@ -1,0 +1,140 @@
+{
+  "draft_format": "relicrat-collection-proposal-1",
+  "status": "proposal-not-installable",
+  "type_definition": {
+    "id": "harbor_figure",
+    "label": "Harbor Figure",
+    "plural_label": "Harbor Figures",
+    "title": {
+      "label": "Character name",
+      "required": true,
+      "max_length": 100
+    },
+    "optional_fields": [
+      {
+        "id": "head",
+        "label": "Head variant",
+        "input": "radio",
+        "options": [
+          "Soft",
+          "Hard"
+        ],
+        "max_length": 30
+      },
+      {
+        "id": "condition",
+        "label": "Condition",
+        "input": "text",
+        "max_length": 200
+      }
+    ],
+    "shared_copy_fields": [
+      "notes",
+      "photos",
+      "storage_location"
+    ],
+    "lookup": null
+  },
+  "collection": {
+    "id": "harbor_original_ten",
+    "name": "Harbor Guild \u2014 Original ten",
+    "type_id": "harbor_figure",
+    "scope": {
+      "franchise": "Harbor Guild",
+      "manufacturer": "Example Toyworks",
+      "release_year": 1988,
+      "assortment": "Original ten figures",
+      "later_reissues_included": false
+    },
+    "completion": {
+      "unit": "checklist_entry",
+      "required_entries": 10,
+      "variants_count_separately": false,
+      "accessories_required": false,
+      "packaging_required": false,
+      "eligibility": "One authentic example per character; variants tracked separately. Fictional demonstration only."
+    },
+    "checklist": [
+      {
+        "id": "figure_1",
+        "title": "Harbor Scout",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_2",
+        "title": "Lookout",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_3",
+        "title": "Dock Keeper",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_4",
+        "title": "Navigator",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_5",
+        "title": "Lantern Guard",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_6",
+        "title": "Tide Runner",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_7",
+        "title": "Shore Captain",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_8",
+        "title": "Signal Watch",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_9",
+        "title": "Map Maker",
+        "source_ids": [
+          "fictional_source"
+        ]
+      },
+      {
+        "id": "figure_10",
+        "title": "Night Sailor",
+        "source_ids": [
+          "fictional_source"
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "fictional_source",
+      "url": "https://example.com/fictional-checklist",
+      "supports": "Fictional demonstration roster only; not evidence of real products."
+    }
+  ],
+  "uncertainties": [
+    "This entire sample collection is fictional."
+  ]
+}
