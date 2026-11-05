@@ -8,10 +8,10 @@ assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='5674
 const engine=process.env.RELICRAT_BROWSER==='webkit'?webkit:chromium;let browser;
 before(async()=>{browser=await engine.launch({headless:true,...(engine===chromium?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});});
 after(async()=>{await browser?.close();});
-async function setup(t){
+async function setup(t,{intake=true}={}){
  const context=await browser.newContext({viewport:{width:1440,height:1050}});t.after(()=>context.close());
  assert.equal((await context.request.post(base+'/api/v1/auth/login',{data:{password:'synthetic-only-owner-password'},headers:{Origin:base}})).status(),200);
- const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);await showTools(page);await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();
+ const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>assert.deepEqual(errors,[]));await page.goto(base);await showTools(page);if(intake){await showIntake(page);await page.getByRole('button',{name:'Review item',exact:true}).click();}
  return {page,context};
 }
 async function capture(page,name){
@@ -48,7 +48,7 @@ test('Movie setup, title-only intake, custom format, retained history and type c
 });
 
 test('Blu-ray.com preview, 389 synthetic imports, warnings, source evidence, retry and Movie filtering',async t=>{
- const {page,context}=await setup(t);await page.getByRole('button',{name:'Import CSV',exact:true}).click();
+ const {page,context}=await setup(t,{intake:false});await page.getByRole('button',{name:'Import CSV',exact:true}).click();
  const imports=page.getByRole('region',{name:'CSV imports',exact:true});
  async function preview(){await imports.getByLabel('Export format',{exact:true}).selectOption('bluray');await imports.getByLabel('CSV file',{exact:true}).setInputFiles({name:'synthetic-movies.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});await imports.getByRole('button',{name:'Preview import',exact:true}).click();await imports.getByRole('heading',{name:'Review the import',exact:true}).waitFor();}
  const before=await (await context.request.get(base+'/api/v1/imports')).json();await preview();
@@ -57,8 +57,9 @@ test('Blu-ray.com preview, 389 synthetic imports, warnings, source evidence, ret
  await imports.getByText(/UPC and EAN differ/).waitFor();await imports.getByText(/Unknown disc counts remain unknown/).waitFor();await capture(page,'movie-import');
  await imports.getByRole('checkbox',{name:'I reviewed the preview and want to create these 389 physical copies.',exact:true}).check();await imports.getByRole('button',{name:'Import 389 copies',exact:true}).click();
  await imports.getByRole('status').filter({hasText:'Imported 389 physical copies into Movies.'}).waitFor({timeout:35000});
+ await imports.getByRole('button',{name:'Import another file',exact:true}).click();
  await preview();await imports.getByRole('status').filter({hasText:'This exact file was already imported'}).waitFor();assert.equal(await imports.getByRole('button',{name:'Import 389 copies',exact:true}).count(),0);
- await imports.getByRole('button',{name:'Reload import history',exact:true}).click();await imports.getByRole('button',{name:/Blu-ray.com Movies · 389 copies/}).first().click();
+ await openDisclosure(page,'Import history');await imports.getByRole('button',{name:'Reload import history',exact:true}).click();await imports.getByRole('button',{name:/Blu-ray.com Movies · 389 copies/}).first().click();
  await imports.getByRole('button',{name:'Open copy from row 2, copy 1',exact:true}).waitFor();await imports.getByRole('button',{name:'Open copy from row 2, copy 1',exact:true}).click();
  await page.getByRole('heading',{name:moviePrefix+' 0',exact:true}).waitFor();
  await imports.getByRole('button',{name:'Close imports',exact:true}).click();await chooseCollection(page,'movie');await page.getByLabel('Browse view',{exact:true}).selectOption('groups');

@@ -403,3 +403,10 @@ explicit import and result inspection. It retains uncertainty, exact-file limits
 copy identity, source evidence and separate reviewed CLZ storage mapping. Status:
 proposed for visual review, separate from deployed PR82. Use two focused app PRs
 after review; no API, theme-schema or brand-default change is proposed.
+
+
+CSV import implementation, November 5, 2026. The owner approved the proposal in
+chat. Collection tools now lead through export selection, server review and a
+confirmed result. A lost response can be checked using the same selected file.
+Saved batches expose the original rows and the separate reviewed CLZ storage
+task. Status: implemented for PR review. Deploy after merge.

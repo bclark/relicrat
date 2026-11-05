@@ -2748,3 +2748,17 @@ off-site backup is claimed. Exact rollout receipts remain private.
 Final concept review scored the dark inheritance/ground fix resolved and returned
 `ship` at that scope. Documentation review required no changes. The proposed
 journeys still require owner visual review before their two application PRs.
+
+
+### Guided CSV import (November 5, 2026)
+
+`npm run build`, `npm run lint` and `npm test` passed in apps/web (36 Node
+checks). With a fresh disposable API and PostgreSQL, Chromium exercised
+`tests/import.browser.mjs` and the Blu-ray.com import case in
+`tests/movies.browser.mjs`. These runs covered 1,915 CLZ/Discogs copies, 389
+movies, invalid rows, original source rows, duplicate prevention, a confirmed
+import followed by a history outage, and inspection of the exact file after a
+committed response was lost. The CLZ mapping suite exercises reviewed moves
+and preserves existing placements. Desktop and phone-width captures were
+inspected. This is web verification against synthetic data. The full legacy
+browser suite and API pytest were outside this increment.
