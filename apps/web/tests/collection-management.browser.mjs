@@ -8,7 +8,7 @@ async function setup(t,width=1440){const browser=await chromium.launch({executab
 async function manage(page){const button=page.getByRole('button',{name:'Manage collections',exact:true});if(!await button.isVisible())await page.getByRole('button',{name:'Menu',exact:true}).click();await button.click();await page.getByRole('heading',{name:'Manage collections',exact:true}).waitFor();await page.locator('.management-list').getByRole('heading',{name:'Albums',exact:true}).waitFor();await page.getByRole('status').filter({hasText:'Loading collection choices…'}).waitFor({state:'hidden'});}
 function row(page,name){return page.locator('.management-list>li').filter({has:page.getByRole('heading',{name,exact:true})});}
 test('management: panel and authoring transitions hand keyboard focus to the revealed task',async t=>{
- const {page}=await setup(t,390);assert.equal(await page.locator('#collection-type-filter').count(),1);await manage(page);
+ const {page}=await setup(t,390);await page.getByRole('heading',{name:'Your collections',exact:true}).waitFor();await manage(page);
  const focused=async name=>{const heading=page.getByRole('heading',{name,exact:true});await heading.waitFor();await page.waitForFunction(text=>document.activeElement?.textContent===text,name);await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>{const e=document.activeElement;return e instanceof HTMLElement&&e.offsetParent!==null&&!!e.closest('#collection-management');}));};
  await page.getByRole('button',{name:'Start new collection',exact:true}).click();await focused('New collection');
  await page.getByLabel('What would you like to collect?',{exact:true}).fill('Synthetic keyboard collection');
@@ -18,7 +18,7 @@ test('management: panel and authoring transitions hand keyboard focus to the rev
  await page.getByRole('button',{name:'Back to collections',exact:true}).click();await focused('Manage collections');
  await page.getByRole('button',{name:'New-item defaults and supported types',exact:true}).click();await focused('Collection setup · Step 1 of 3');
  await page.getByRole('button',{name:'Back to collections',exact:true}).click();await focused('Manage collections');
- await page.getByRole('button',{name:'Back to inventory',exact:true}).click();const choice=page.getByLabel('Show collection',{exact:true});assert.equal(await choice.isVisible(),true);await choice.selectOption('movie');await page.getByRole('heading',{name:'Movies',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Back to inventory',exact:true}).click();await page.getByRole('navigation',{name:'Collections',exact:true}).getByRole('button',{name:'Movies',exact:true}).click();await page.getByRole('heading',{name:'Movies',exact:true}).waitFor();
 });
 async function capture(page,name){const dir=process.env.RELICRAT_CAPTURE_DIR;if(!dir)return;await mkdir(dir,{recursive:true});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:dir+'/'+name+'.png',fullPage:true});}
 async function proposal(){const p=JSON.parse(await readFile(new URL('../../../packages/collection-packs/proposals/tmnt-original-1988/collection.draft.json',import.meta.url),'utf8'));const id='management-'+randomUUID();p.type_definition.id=id;p.collection.id=id;p.collection.type_id=id;p.collection.name='Synthetic figures '+id.slice(-8);p.type_definition.optional_fields=[{id:'head',label:'Head variant',input:'radio',options:['Soft','Hard'],max_length:30}];return p;}

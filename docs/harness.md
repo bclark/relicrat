@@ -2775,3 +2775,15 @@ committed response was lost. The CLZ mapping suite exercises reviewed moves
 and preserves existing placements. Desktop and phone-width captures were
 inspected. This is web verification against synthetic data. The full legacy
 browser suite and API pytest were outside this increment.
+
+### Collection-first phone navigation (November 5, 2026)
+
+The production web build, TypeScript check and all 36 Node checks passed.
+Eleven focused Chromium cases passed against fixtures and an isolated synthetic
+API/PostgreSQL stack. The phone case covered the opening list, visible saved
+copies, search, storage/grouping controls, return focus, scoped intake and
+imports in Menu. Related cases covered nonzero scroll, drafts, collection
+pagination, group retries, and real synthetic photo and storage writes.
+Desktop, 390px and 320px captures were reviewed. The focused group retry case
+was made independent of the large-import fixture in a different test. The full
+legacy browser suite, API pytest and a new physical-phone trial were not run.

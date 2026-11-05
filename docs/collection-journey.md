@@ -4,8 +4,13 @@ Implemented for review; not deployed. The owner approved the
 [November 4 concepts](design/proposals/collection-journey-2026-11-04/README.md).
 
 Desktop has a collection navigation rail, a bounded list/cover browser and a
-read-first inspector. Phone uses a native collection chooser and a focused
-record screen. Albums, Comics, Movies, Other and named custom collections retain
+read-first inspector. Phone opens on a list of collection names, including
+All items and custom collections. Selecting a collection opens its saved copies
+directly. Search is above the list. Storage, grouping, and List/Covers are under
+Filters. The header's + Add opens intake for the selected collection; from the
+collection home it opens the existing destination picker. Collection tools and
+imports are available through Menu. A focused phone record screen returns to the
+same page, filters and scroll position. Albums, Comics, Movies, Other and named custom collections retain
 their current identities and config-driven fields. Custom choices remain paged;
 an off-page selection remains visible. No fictional image or count from the
 concept is installed as inventory.

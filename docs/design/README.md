@@ -417,3 +417,15 @@ chat. Collection tools now lead through export selection, server review and a
 confirmed result. A lost response can be checked using the same selected file.
 Saved batches expose the original rows and the separate reviewed CLZ storage
 task. Status: implemented for PR review. Deploy after merge.
+
+
+### Phone collection home — approved and implemented (2026-11-05)
+
+The owner completed the physical-phone trial and found that browsing felt
+secondary to adding. They approved the interactive collection-first concept in
+chat and asked to build it. On phones, visible collection names now open a
+list of saved items. Search stays nearby; grouping, storage and List/Covers
+share one Filters panel. + Add stays in the header and follows the selected
+collection. Back from a record preserves the browse context. The desktop
+rail and grouped default remain available. Status: implemented for PR review;
+deployment and the owner's next hands-on check remain pending.

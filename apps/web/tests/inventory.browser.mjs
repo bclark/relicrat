@@ -35,7 +35,7 @@ async function saveItem(page,double=false){
  if(result.ok())await page.getByRole('button',{name:'View item',exact:true}).click();
 }
 async function fixture(t, initial = {}) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
+  const context = await browser.newContext({ viewport: { width: initial.width || 1440, height: initial.width ? 844 : 1050 }, hasTouch: !!initial.width });
   t.after(() => context.close());
   await signIn(context);
   const typesResponse = await context.request.get(base+'/api/v1/collection-settings/types');
@@ -75,7 +75,7 @@ async function fixture(t, initial = {}) {
     } else if (path === 'collection-settings/artist-suggestions') {
       if(state.failSuggestions) {status=502;result={detail:'Suggestions unavailable'};}
       else {const q=(url.searchParams.get('q') || '').trim().toLowerCase();if(state.slowSuggestions && q==='ra') await new Promise(resolve=>setTimeout(resolve,500));result=[...new Set(state.copies.filter(copy=>copy.collection_type==='record').map(copy=>copy.record_details?.artist).filter(Boolean))].filter(artist=>artist.toLowerCase().startsWith(q)).slice(0,20);}
-    } else if (path === 'custom-collections' && request.method() === 'GET') { result = [];
+    } else if (path === 'custom-collections' && request.method() === 'GET') { result = state.customCollections || [];
     } else if (path === 'collection-settings/types') { result = types; } else if (path === 'collection-settings') {
       if(state.failSettings==='read' && method==='GET') {status=502;result={detail:'Collection settings unavailable'};}
       else if(method==='GET') result=state.settings;
@@ -94,6 +94,8 @@ async function fixture(t, initial = {}) {
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         const type=url.searchParams.get('collection_type');
         if(type) result=result.filter(item=>item.collection_type===type);
+        if(url.searchParams.has('custom_collection_id'))result=result.filter(item=>item.custom_collection_id===url.searchParams.get('custom_collection_id'));
+        if(url.searchParams.get('exclude_custom')==='true')result=result.filter(item=>!item.custom_collection_id);
         if(url.searchParams.has('storage_location_id'))result=result.filter(item=>item.storage_location_id===url.searchParams.get('storage_location_id'));
         if(url.searchParams.get('unassigned')==='true')result=result.filter(item=>!item.storage_location_id);
         result = result.slice(offset, offset + limit);
@@ -197,7 +199,12 @@ async function fixture(t, initial = {}) {
     if (result === undefined) { status = 404; result = { detail: 'Synthetic record not found' }; }
     try { await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(result) }); } catch { /* An intentionally aborted stale read may have closed. */ }
   });
-  await page.goto(base); await page.getByLabel('Browse view',{exact:true}).selectOption('copies'); await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
+  await page.goto(base);
+  if(initial.width)await page.getByRole('heading',{name:'Your collections',exact:true}).waitFor();
+  else {
+    await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
+    await page.getByRole('status').filter({ hasText: /copies on this page|copy on this page|Inventory unavailable/ }).waitFor();
+  }
   if(!initial.browseOnly&&!state.failList&&!state.copies.length){if(!initial.quickIntake)await reviewItem(page);else await showIntake(page);}
   return { page, state };
 }
@@ -1263,7 +1270,7 @@ test('collection type filters the entire list, scopes search/pages and preserves
   await page.getByRole('status').filter({hasText:'5 copies on this page'}).waitFor();
   const intake=page.getByRole('form',{name:'Add an item',exact:true});
   await showIntake(page);await intake.getByLabel('Title',{exact:true}).fill('Keep my intake draft');
-  const filter=page.getByLabel('Show collection',{exact:true});
+  const filter=page.locator('.collection-sidebar [aria-current=page]');
   await chooseCollection(page,{label:'Comics'});
   await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
   assert.equal(await page.getByText('Page 1',{exact:true}).count(),1);
@@ -1278,7 +1285,7 @@ test('collection type filters the entire list, scopes search/pages and preserves
   await page.getByRole('heading',{name:'No matching copies',exact:true}).waitFor();
   await chooseCollection(page,'comic');await page.getByRole('button',{name:'Open Shared comic #423',exact:true}).waitFor();
   await page.getByRole('button',{name:'Clear search',exact:true}).click();
-  assert.equal(await filter.inputValue(),'comic');
+  assert.equal(await filter.getAttribute('data-collection'),'comic');
   await chooseCollection(page,'other');await page.getByRole('button',{name:'Open Shared other',exact:true}).waitFor();
   await chooseCollection(page,'');await page.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
   assert.equal(state.writes.length,0);
@@ -1287,7 +1294,7 @@ test('collection type filters the entire list, scopes search/pages and preserves
 
 test('scoped creation inherits the visible collection instead of saving outside it',async t=>{
  const {page,state}=await fixture(t,{copies:[copy(1,'A comic',{collection_type:'comic'})]});
- await chooseCollection(page,'comic');await reviewItem(page);assert.equal(await page.locator('#intake-destination').count(),0);await page.getByRole('form',{name:'Add an item',exact:true}).getByLabel('Series/title',{exact:true}).fill('A scoped comic');await saveItem(page);await page.getByRole('heading',{name:'A scoped comic',exact:true}).waitFor();const found=state.copies.find(c=>c.title==='A scoped comic');assert.equal(found.collection_type,'comic');assert.equal(await page.getByLabel('Show collection',{exact:true}).inputValue(),'comic');
+ await chooseCollection(page,'comic');await reviewItem(page);assert.equal(await page.locator('#intake-destination').count(),0);await page.getByRole('form',{name:'Add an item',exact:true}).getByLabel('Series/title',{exact:true}).fill('A scoped comic');await saveItem(page);await page.getByRole('heading',{name:'A scoped comic',exact:true}).waitFor();const found=state.copies.find(c=>c.title==='A scoped comic');assert.equal(found.collection_type,'comic');assert.equal(await page.locator('.collection-sidebar [aria-current=page]').getAttribute('data-collection'),'comic');
 });
 
 test('appearance drafts preview in isolation, import safely, and apply without inventory writes', async t => {
@@ -1617,7 +1624,7 @@ test('journey: confirmed photo and nested location saves do not leave a false dr
 
 test('journey: Back restores a nonzero phone browse position',async t=>{
  const {page}=await fixture(t,{quickIntake:true,browseOnly:true,copies:Array.from({length:45},(_,i)=>copy(i+1,`Position ${i+1}`))});
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
+ await page.setViewportSize({width:390,height:844});await chooseCollection(page,'');await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2',{exact:true}).waitFor();
  const row=page.getByRole('button',{name:'Open Position 39',exact:true});await row.scrollIntoViewIfNeeded();const position=await page.evaluate(()=>window.scrollY);assert.ok(position>0);
  await row.click();await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();await page.getByRole('button',{name:'Back to collection',exact:true}).click();
  await page.waitForFunction(y=>Math.abs(window.scrollY-y)<2,position);assert.equal(await row.evaluate(el=>document.activeElement===el),true);await page.getByText('Page 2',{exact:true}).waitFor();
@@ -1684,4 +1691,73 @@ test('copy photo preview and uncertain upload recovery preserve the draft until 
   assert.equal(await input.inputValue(), '');
   assert.equal(await preview.count(), 0);
   assert.equal(state.writes.length, 1);
+});
+
+test('phone home: visible collections, direct browsing, saved filters and scoped Add', async t => {
+  const shelf = {id:id(1000),name:'Fictional shelf',parent_id:null};
+  const artist = {artist:'Mira Vale',format:'Vinyl'};
+  const album = copy(1,'Harbor Signals',{collection_type:'record',record_details:artist,storage_location_id:shelf.id});
+  const custom = {id:id(900),name:'Vintage Figures'};
+  const figure = copy(4,'Moon Scout',{custom_collection_id:custom.id,custom_collection_name:custom.name});
+  const {page,state} = await fixture(t,{width:390,browseOnly:true,locations:[shelf],customCollections:[custom],copies:[
+    album, copy(2,'Glass Coast',{collection_type:'record',record_details:artist}),
+    copy(3,'Night Courier',{collection_type:'comic'}), figure,
+  ]});
+  await page.route('**/api/v1/custom-collections/'+custom.id,route=>route.fulfill({json:custom}));
+  await page.route('**/api/v1/custom-collections/'+custom.id+'/progress',route=>route.fulfill({
+    json:{completed:0,total:2,unassigned_copies:1,entries:[]},
+  }));
+  const nav = page.getByRole('navigation',{name:'Collections',exact:true});
+  await nav.getByRole('button',{name:custom.name,exact:true}).waitFor();
+  assert.deepEqual((await nav.getByRole('button').allTextContents()).sort(),['Albums','All items','Comics','Movies','Other',custom.name].sort());
+  assert.equal(await page.getByRole('searchbox').count(),0);
+  assert.equal(await page.getByRole('combobox').count(),0);
+  assert.equal(await page.getByRole('form',{name:'Add an item'}).count(),0);
+  const capture=async name=>{
+    if(!process.env.RELICRAT_SCREENSHOTS)return;
+    const dir=resolve(process.env.RELICRAT_SCREENSHOTS);await mkdir(dir,{recursive:true});
+    await page.screenshot({path:dir+'/'+name+'.png'});
+  };
+  await capture('phone-home');
+  await nav.getByRole('button',{name:'Albums',exact:true}).tap();
+  const row=page.getByRole('button',{name:'Open Mira Vale — Harbor Signals',exact:true});
+  await row.waitFor();
+  assert.ok((await row.boundingBox()).y<500);
+  assert.equal(await nav.isVisible(),false);
+  assert.equal(await page.getByRole('combobox').count(),0);
+  await capture('phone-albums');
+  await page.getByRole('searchbox',{name:'Find a copy'}).fill('Harbor');
+  await page.getByRole('button',{name:'Search',exact:true}).tap();
+  await page.getByRole('button',{name:'Filters',exact:true}).tap();
+  await page.getByLabel('Storage location',{exact:true}).selectOption(shelf.id);
+  await page.getByRole('button',{name:'Filters (1)',exact:true}).tap();
+  await row.tap();
+  await page.getByRole('heading',{name:'Harbor Signals',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Back to collection',exact:true}).tap();
+  await page.waitForFunction(()=>document.activeElement?.id==='copy-row-00000000-0000-0000-0000-000000000001');
+  assert.equal(await page.getByRole('searchbox',{name:'Find a copy'}).inputValue(),'Harbor');
+  await page.getByRole('button',{name:'Filters (1)',exact:true}).tap();
+  assert.equal(await page.getByLabel('Storage location',{exact:true}).inputValue(),shelf.id);
+  assert.equal(await page.getByLabel('Browse view',{exact:true}).inputValue(),'copies');
+  await page.route('**/api/v1/collection-groups?**',route=>route.fulfill({
+    json:[{collection_type:'record',value:'Mira Vale',label:'Mira Vale',copy_count:1}],
+  }));
+  await page.getByLabel('Browse view',{exact:true}).selectOption('groups');
+  await page.getByRole('button',{name:/Mira Vale.*Open group/}).waitFor();
+  await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
+  await page.getByRole('button',{name:'Filters (1)',exact:true}).tap();
+  await page.getByRole('button',{name:'Add an item',exact:true}).tap();
+  await page.getByRole('heading',{name:'Add to Albums',exact:true}).waitFor();
+  assert.equal(await page.locator('#intake-destination').count(),0);
+  await page.getByRole('button',{name:'Back to Albums',exact:true}).tap();
+  await page.getByRole('button',{name:'Back to collections',exact:true}).tap();
+  await page.setViewportSize({width:320,height:800});
+  await nav.getByRole('button',{name:custom.name,exact:true}).tap();
+  await page.getByRole('button',{name:'Open Moon Scout',exact:true}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await capture('phone-custom-320');
+  await page.getByRole('button',{name:'Menu',exact:true}).tap();
+  await page.getByRole('button',{name:'Collection tools and imports',exact:true}).tap();
+  await page.getByRole('button',{name:'Import CSV',exact:true}).waitFor();
+  assert.equal(state.writes.length,0);
 });
