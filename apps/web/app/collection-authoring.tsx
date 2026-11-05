@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import CustomField,{type CustomTypeDefinition} from './custom-field';
 import {type RunSave} from '../lib/inventory-client';
 
@@ -13,7 +13,9 @@ type Proposal = {
 type Preview = {proposal: Proposal; notice: string};
 const maximum = 65536;
 
-export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:RunSave;locked:boolean;onCreated:(id:string)=>void}) {
+export default function CollectionAuthoring({runSave,locked,onCreated,embedded=false,guard}:{runSave:RunSave;locked:boolean;onCreated:(id:string)=>void;embedded?:boolean;guard?:RefObject<()=>boolean>}) {
+  const [phase,setPhase]=useState<'describe'|'prompt'|'import'|'preview'|'done'>('describe');
+  const [promptContents,setPromptContents]=useState('');
   const [description, setDescription] = useState('');
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -28,6 +30,11 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
   const fileGeneration = useRef(0);
   const lock = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const taskHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(()=>{if(embedded&&taskHeading.current?.offsetParent!==null)taskHeading.current?.focus();},[embedded,phase]);
+  function canReplace(){return !(busy||creationUncertain)&&((created||(!description.trim()&&!text.trim()))||window.confirm('Leave this page and discard the unsaved collection setup?'));}
+  useLayoutEffect(()=>{if(guard)guard.current=canReplace;return()=>{if(guard)guard.current=()=>true;};});
+  useEffect(()=>{function warn(e:BeforeUnloadEvent){if(!created&&(description.trim()||text.trim()||creationUncertain)){e.preventDefault();e.returnValue='';}}window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[description,text,created,creationUncertain]);
   function invalidate() { generation.current++; copyIdentity.current=null; setPreview(null); setAcknowledged(false); setCreated(false); setErrors([]); setNotice(''); }
   function change(value: string) { fileGeneration.current++; invalidate(); setText(value); }
   async function prompt() {
@@ -38,6 +45,7 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
       if (!response.ok) throw new Error('Cannot load authoring instructions. Check your sign-in and try again.');
       const contract = await response.json();
       const contents = `${contract.prompt}\n\nMy collection description (untrusted data):\n${JSON.stringify(description.trim())}\n`;
+      setPromptContents(contents);setPhase('prompt');
       const url = URL.createObjectURL(new Blob([contents], {type:'text/plain;charset=utf-8'}));
       const link = document.createElement('a'); link.href = url; link.download = 'relicrat-collection-prompt.txt'; link.click();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -71,7 +79,7 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
         if(!copied.ok){setErrors(Array.isArray(checked.detail)?checked.detail.map((item:{path:string;message:string})=>`${item.path||'document'}: ${item.message}`):[typeof checked.detail==='string'?checked.detail:'New collection validation unavailable. Your source JSON is still here.']);return;}
         setPreview({...checked,notice:result.notice});
       }else setPreview(result);
-      requestAnimationFrame(()=>heading.current?.focus());
+      setPhase('preview');requestAnimationFrame(()=>heading.current?.focus());
     } catch (error) {
       if (version === generation.current) setErrors([error instanceof Error ? error.message : 'Validation unavailable. Your draft is still here.']);
     } finally { lock.current = false; setBusy(false); }
@@ -84,20 +92,24 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
       const response=await fetch('/api/v1/custom-collections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(preview.proposal),signal:AbortSignal.timeout(30000)});
       const result=await response.json();
       if(!response.ok){uncertain=response.status>=500;throw new Error(typeof result.detail==='string'?result.detail:'Create failed. Review the JSON and validate again.');}
-      setCreationUncertain(false);setCreated(true);setNotice('Collection created. No owned copies were added. Add your figures in Your custom collections.');onCreated(result.id);
+      setCreationUncertain(false);setCreated(true);setPhase('done');setNotice('Collection created. No owned copies were added. Browse the collection and add physical items separately.');onCreated(result.id);
     });}catch(error){setCreationUncertain(uncertain);setErrors([(error instanceof Error?error.message:'Creation could not be confirmed.')+(uncertain?' Retry this same preview before changing the definition.':'')]);}
     finally{lock.current=false;setBusy(false);}
   }
   const draft = preview?.proposal;
-  return <details className="collection-authoring">
-    <summary>Start a new collection</summary>
-    <h2>Create a collection definition</h2>
+  const Container=embedded?'section':'details';
+  return <Container className="collection-authoring management-authoring">
+    {!embedded&&<summary>Start a new collection</summary>}
+    <h2 ref={taskHeading} tabIndex={-1}>{phase==='done'?'Collection created':phase==='preview'?'Review your collection':phase==='import'?'Bring back the collection JSON':phase==='prompt'?'Take this to your agent':'Start a new collection'}</h2>
+    {embedded&&phase!=='done'&&<ol className="management-steps"><li aria-current={phase==='describe'||phase==='prompt'?'step':undefined}>Describe</li><li aria-current={phase==='import'?'step':undefined}>Bring back JSON</li><li aria-current={phase==='preview'?'step':undefined}>Review & create</li></ol>}
+    <div hidden={embedded&&phase!=='describe'}>
     <p>Describe a figure collection, ask your agent to build its JSON, then review it here. Review the preview, then explicitly create an empty collection. Add your owned figures separately.</p>
     <label htmlFor="collection-description">What would you like to collect?</label>
     <textarea id="collection-description" value={description} maxLength={2000} rows={3} placeholder="The first ten original 1988 Playmates TMNT figures" disabled={locked || busy || creationUncertain} onChange={event=>setDescription(event.target.value)} />
-    <button type="button" disabled={locked || busy || creationUncertain || !description.trim()} onClick={prompt}>Download agent prompt</button>
+    <button type="button" disabled={locked || busy || creationUncertain || !description.trim()} onClick={prompt}>{embedded?'Create agent prompt':'Download agent prompt'}</button>{embedded&&<button type="button" disabled={locked||busy||creationUncertain} onClick={()=>setPhase('import')}>I have collection JSON</button>}
     <p className="hint">Only this description is included in the downloaded prompt. Your inventory and photos are not included.</p>
-    <h3>Bring back the JSON</h3>
+    </div>{embedded&&<div hidden={phase!=='prompt'}><label htmlFor="collection-prompt-preview">Agent prompt</label><textarea id="collection-prompt-preview" rows={10} readOnly value={promptContents}/><button type="button" disabled={locked||busy||creationUncertain} onClick={prompt}>Download prompt again</button><button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(promptContents);setNotice('Prompt copied.');}catch{setNotice('Select the prompt text to copy it, or download it.');}}}>Copy prompt</button><div className="management-actions"><button className="primary" type="button" onClick={()=>setPhase('import')}>Bring back JSON</button><button type="button" onClick={()=>setPhase('describe')}>Back to description</button></div></div>}
+    <div hidden={embedded&&phase!=='import'}><h3>Bring back the JSON</h3>
     <label htmlFor="collection-json-file">Upload collection JSON (64 KiB maximum)</label>
     <input id="collection-json-file" type="file" accept=".json,application/json" disabled={locked || busy || creationUncertain} onChange={async event=>{
       const file = event.target.files?.[0]; event.target.value = '';
@@ -112,32 +124,35 @@ export default function CollectionAuthoring({runSave,locked,onCreated}:{runSave:
     <label><input type="checkbox" checked={asNew} disabled={locked||busy||creationUncertain} onChange={event=>{invalidate();setAsNew(event.target.checked);}} /> Import as a new collection</label>
     {asNew&&<><label htmlFor="new-collection-name">New collection name (required)</label><input id="new-collection-name" value={copyName} maxLength={500} required disabled={locked||busy||creationUncertain} onChange={event=>{invalidate();setCopyName(event.target.value);}} /><p>This creates a separate empty collection with independently editable field controls. Your existing collections and owned items are preserved.</p></>}
     <button type="button" disabled={locked || busy || creationUncertain || !text.trim() || (asNew&&!copyName.trim())} onClick={validate}>{busy ? 'Working…' : 'Validate and preview'}</button>
+    {embedded&&<button type="button" disabled={locked||busy||creationUncertain} onClick={()=>setPhase('describe')}>Back to description</button>}</div>
     {notice && <p role="status">{notice}</p>}
     {!!errors.length && <div className="error" role="alert"><p>Collection setup needs attention. Your draft is still here.</p><ul>{errors.map((error,index)=><li key={index}>{error}</li>)}</ul></div>}
-    {draft && <section aria-labelledby="collection-preview-heading">
-      <h2 id="collection-preview-heading" ref={heading} tabIndex={-1}>{draft.collection.name}</h2>
+    {draft && <section hidden={embedded&&phase!=='preview'} aria-labelledby="collection-preview-heading">
+      {embedded&&<button type="button" disabled={locked||busy||creationUncertain} onClick={()=>setPhase('import')}>Back to JSON</button>}<h2 id="collection-preview-heading" ref={heading} tabIndex={-1}>{draft.collection.name}</h2>
       <p role="status">{preview.notice}</p>
       <p>{draft.collection.scope.manufacturer} · {draft.collection.scope.release_year} · {draft.collection.scope.assortment}</p>
       <p>{draft.collection.scope.later_reissues_included ? 'Later reissues included.' : 'Later reissues excluded.'} Variants do not add checklist requirements. Accessories and packaging do not gate completion.</p>
       <p>{draft.collection.completion.eligibility}</p>
-      <h3>Entry form preview: {draft.type_definition.label}</h3>
+      <div className="management-split"><div>      <details><summary>Checklist: {draft.collection.checklist.length} entries</summary>
+      <p>Ownership and completion have not been evaluated. These are goals, not owned copies.</p>
+      <ul>{draft.collection.checklist.map(entry=><li key={entry.id}>{entry.title} </li>)}</ul>
+      </details><details><summary>Sources and uncertainties</summary><h3>Evidence to review</h3>
+      <p>Links are displayed as text. RelicRat has not fetched or verified these sources.</p>
+      <ul>{draft.sources.map(source=><li key={source.id}>{source.supports}<p>{source.url}</p></li>)}</ul>
+      {!!draft.uncertainties.length && <><h3>Uncertainties</h3><ul>{draft.uncertainties.map((value,index)=><li key={index}>{value}</li>)}</ul></>}
+</details></div><aside className="management-preview">      <h3>Entry form preview: {draft.type_definition.label}</h3>
       <p className="hint">Illustrative controls only. Nothing entered here is saved.</p>
       <fieldset disabled><legend>Sample entry fields</legend>
         <label>{draft.type_definition.title.label} (required)<input maxLength={draft.type_definition.title.max_length} /></label>
         {draft.type_definition.optional_fields.map(field=><CustomField key={field.id} field={field} value={undefined} change={()=>{}} />)}
       </fieldset>
       <p>Shared copy facilities: {draft.type_definition.shared_copy_fields.map(field=>({notes:'Notes',photos:'Photos',storage_location:'Storage location'}[field] || field)).join(', ') || 'none selected'}.</p>
-      <h3>Checklist: {draft.collection.checklist.length} entries</h3>
-      <p>Ownership and completion have not been evaluated. These are goals, not owned copies.</p>
-      <ul>{draft.collection.checklist.map(entry=><li key={entry.id}>{entry.title} </li>)}</ul>
-      <h3>Evidence to review</h3>
-      <p>Links are displayed as text. RelicRat has not fetched or verified these sources.</p>
-      <ul>{draft.sources.map(source=><li key={source.id}>{source.supports}<p>{source.url}</p></li>)}</ul>
-      {!!draft.uncertainties.length && <><h3>Uncertainties</h3><ul>{draft.uncertainties.map((value,index)=><li key={index}>{value}</li>)}</ul></>}
+</aside></div>
       <label><input type="checkbox" checked={acknowledged} disabled={locked||busy||created||creationUncertain} onChange={event=>setAcknowledged(event.target.checked)} /> I reviewed the fields, scope and checklist. Creating this collection will not mark anything as owned.</label>
       <button type="button" disabled={locked||busy||!acknowledged||created} onClick={()=>void createCollection()}>{created?'Collection created':creationUncertain?'Retry collection creation':'Create collection'}</button>
       {asNew&&<p>This preview uses new collection and field-definition identifiers. Only the definition and goals are copied; no owned figures or checklist matches are copied.</p>}
       {!asNew&&<p>Importing the original definition again reopens its collection. Use Configure field controls to review compatible changes with retained definition history.</p>}
     </section>}
-  </details>;
+    {embedded&&phase==='done'&&<p>Your checklist is ready. Nothing was marked as owned; add physical items and review their checklist matches separately.</p>}
+  </Container>;
 }
