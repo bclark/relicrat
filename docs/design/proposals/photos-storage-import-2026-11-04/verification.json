@@ -1,0 +1,32 @@
+{
+  "synthetic": true,
+  "implemented": false,
+  "deployed": false,
+  "viewports": [
+    1440,
+    390,
+    320
+  ],
+  "light_and_dark": true,
+  "page_errors": [],
+  "api_or_non_get_requests": [],
+  "photo_selection_and_recovery": true,
+  "immediate_storage_confirmation": true,
+  "location_creation_does_not_assign": true,
+  "retained_navigation_drafts": true,
+  "all_three_import_presets": true,
+  "acknowledgement_before_creation": true,
+  "exact_file_duplicate_reopens": true,
+  "unknown_import_inspection_without_retry": true,
+  "storage_mapping_review_and_preservation": true,
+  "invalid_file_and_source_change_invalidation": true,
+  "dark_palette_source": "apps/api/relicrat/theme_values.py:After hours",
+  "dark_minimum_sampled_text_contrast": 10.57,
+  "dark_full_document_ground_verified": true,
+  "screenshot_origins_embedded": true,
+  "finish_review": {
+    "disposition": "ship",
+    "scope": "scored dark inheritance and full-page ground fix resolved"
+  },
+  "documentation_review": "No changes required"
+}
