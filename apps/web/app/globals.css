@@ -896,7 +896,6 @@ footer {
 .collection-journey .inventory-results .copy-row .copy-edition { white-space:normal; align-self:center; }
 .collection-journey .inventory-results.bricks .copy-row .copy-identity { display:flex; }
 .collection-journey .copy-inspector summary { cursor:pointer; }
-.copy-photos,.storage-editor { padding-block:16px; border-bottom:1px solid var(--rule); }
 .catalog-sources img { display:block; }
 @media(max-width:759px) { .collection-journey .workspace .collection { padding:16px; } .collection-journey .copy-inspector { padding:16px; } }
 /* Keep the same hierarchy when browser text is enlarged. */
@@ -938,7 +937,6 @@ footer {
 .copy-record .copy-summary { margin:24px 0; gap:12px 24px; grid-template-columns:minmax(100px,150px) minmax(0,1fr); }
 .copy-record .item-section { clear:both; border-top:1px solid var(--rule); margin-top:28px; padding-top:24px; }
 .collection-journey .copy-inspector .item-section h3 { margin:0 0 12px; font-size:1.25rem; }
-.item-section .copy-photos { border:0; padding:0; }
 .copy-operations[hidden],.item-reading[hidden] { display:none!important; }
 .copy-record .edit-actions { position:static; margin-top:24px; padding-top:20px; border-top:1px solid var(--rule); }
 .save-inspection { border:1px solid var(--error); border-radius:var(--radius); padding:16px; margin:16px 0; }
@@ -986,3 +984,24 @@ footer {
 .management-navigation { min-width:0; }
 .management-preview input:disabled,.management-preview select:disabled,.management-preview textarea:disabled { opacity:1; color:var(--ink); }
 @media(max-width:759px) { .management-navigation { display:none; } }
+
+
+.copy-media-storage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0 24px;
+}
+.copy-media-storage > section { min-width: 0; }
+
+.copy-photo-preview {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.copy-photo-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  border-radius: var(--radius);
+}

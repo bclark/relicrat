@@ -396,6 +396,13 @@ commit `147cb6d`; exact preservation, fresh capture/offline restore, private acc
 and operations-profile evidence is retained privately. Prior Mac/Drive receipts
 still identify their own actual source; this rollout claims no new cloud backup.
 
+Photos and storage implementation, November 5, 2026. The owner approved the
+proposal in chat. The item record shows the two tasks together at desktop widths
+and in reading order on phones. Choosing a photo creates a local preview;
+uploading and moving remain separate saves. Recovery shows saved physical photos
+and location alongside any retained draft. Status: implemented for PR review.
+Deploy after merge.
+
 The [two-journey interactive proposal](proposals/photos-storage-import-2026-11-04/README.md)
 extends the approved visual system: local photo preview plus explicit upload,
 immediate storage selection and confirmation, and preset-driven CSV preview,
