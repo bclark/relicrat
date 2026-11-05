@@ -166,7 +166,7 @@ export default function InventoryClient() {
           </section>
           <aside className="copy-inspector" hidden={!detailOpen} aria-label="Selected copy">
             <button type="button" className="text-button back-to-collection" disabled={busy} onClick={backToCollection}>Back to collection</button>
-            {selected ? <CopyDetail active={detailOpen} guard={detailGuard} copyId={selected} runSave={runSave} busy={busy} blocked={false} changed={changed} types={types} movieFields={settings?.movie_fields || ['media_format','studio','edition','notes']} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
+            {selected ? <CopyDetail key={selected} active={detailOpen} guard={detailGuard} copyId={selected} runSave={runSave} busy={busy} blocked={false} changed={changed} types={types} movieFields={settings?.movie_fields || ['media_format','studio','edition','notes']} comicFields={settings?.comic_fields || []} recordFields={settings?.record_fields || []} />
               : <div className="record-placeholder"><h2>Open a copy to edit it</h2><p>Choose a saved copy to edit its title, edition, photos and storage.</p></div>}
           </aside>
         </div>

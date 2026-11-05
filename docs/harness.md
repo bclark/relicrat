@@ -2657,6 +2657,19 @@ cleanup evidence are retained privately. Review and merge precede deployment.
 
 Final focused browser run passed all four cases with zero skips; the seven existing journey cases also passed. Independent review scored its cancellation fix resolved and returned ship at that scope.
 
+### Item photos and storage (November 5, 2026)
+
+`npm run build`, `npm run lint` and `npm test` passed in apps/web (36 Node
+checks). With the isolated owner fixture and installed Chromium, eight targeted
+cases in `tests/inventory.browser.mjs` passed for photo selection, upload,
+immediate location changes, pagination, stale revisions and ambiguous responses.
+The upload test confirms that inspection shows the newly saved physical photo,
+and that a failed reload keeps the selected file. All four cases in
+`tests/item-edit.browser.mjs` also passed with the real disposable API and
+PostgreSQL during the implementation. The final layout was inspected at desktop
+and 320px widths. The full legacy browser suite and API pytest were outside this
+web-only verification. Review and merge precede deployment.
+
 ### Unified collection management (November 4, 2026)
 
 The approved management concept is implemented for review. See

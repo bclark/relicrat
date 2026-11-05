@@ -141,10 +141,13 @@ async function fixture(t, initial = {}) {
         result = item;
       } else if (parts[2] === 'photos' && method === 'GET') {
         if (parts.length === 4) { await route.fulfill({ status: 200, contentType: 'image/png', body: png }); return; }
-        result = state.photos[cid] || [];
+        if (state.failPhotoList) { status = 502; result = { detail: 'Photo list unavailable' }; }
+        else result = state.photos[cid] || [];
       } else if (parts[2] === 'photos' && method === 'POST') {
         if (state.failPhoto) { status = 422; result = { detail: 'Invalid image' }; }
-        else { result = { id: id(500 + state.writes.length), owned_copy_id: cid, content_type: 'image/png', byte_size: png.length }; state.photos[cid] = [result, ...(state.photos[cid] || [])]; status = 201; }
+        else { result = { id: id(500 + state.writes.length), owned_copy_id: cid, content_type: 'image/png', byte_size: png.length }; state.photos[cid] = [result, ...(state.photos[cid] || [])]; status = 201;
+          if (state.uncertainPhoto) { status = 502; result = { detail: 'Upload could not be confirmed' }; }
+        }
       } else if (parts[2] === 'detail-history') {
         const offset = Number(url.searchParams.get('offset') || 0), limit = Number(url.searchParams.get('limit') || 50);
         result = (state.edits[cid] || []).slice(offset, offset + limit);
@@ -198,22 +201,20 @@ async function fixture(t, initial = {}) {
   if(!initial.browseOnly&&!state.failList&&!state.copies.length){if(!initial.quickIntake)await reviewItem(page);else await showIntake(page);}
   return { page, state };
 }
-async function reloadCopy(page){
+async function reloadCopy(page,{edit=true}={}){
  const advanced=await page.getByText('Advanced: catalog matching',{exact:true}).evaluate(el=>el.parentElement.open);
  const accept=dialog=>dialog.accept();page.on('dialog',accept);
  await page.getByRole('button',{name:'Reload copy',exact:true}).click();
- await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();page.off('dialog',accept);
+ await page.waitForFunction(()=>!document.querySelector('#copy-edit')?.disabled && !!document.querySelector('#copy-edit'));page.off('dialog',accept);
  if(advanced)await page.getByText('Advanced: catalog matching',{exact:true}).click();
- for(const name of ['Photos of your copy','Change storage'])await page.getByText(name,{exact:true}).click();
- await page.getByRole('button',{name:'Edit details',exact:true}).click();
+ if(edit)await editCopy(page);
 }
-async function open(page, title, edition = '') {
+async function open(page, title, edition = '', {edit=true}={}) {
   if(await page.locator('.item-intake').isVisible())await page.locator('.item-intake').getByRole('button',{name:/^Back to /}).click();
   await page.getByRole('button', { name: `Open ${title}${edition ? ` · ${edition}` : ''}`, exact: true }).click();
   await page.getByRole('heading', { name: title, exact: true }).waitFor();
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
-  await editCopy(page);
+  if(edit)await editCopy(page);
 }
 
 async function catalog(page) {
@@ -244,9 +245,7 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   await page.getByLabel('Notes (optional)', { exact: true }).fill('');
   await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
   await saveItem(page,true);
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
-  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.copies.length, 1); assert.equal(state.writes.filter(write => write.path === 'inventory').length, 1);
   assert.equal(state.copies[0].description, null);
   assert.equal(state.copies[0].edition_label, null);
@@ -270,11 +269,12 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   await page.getByLabel('Location', { exact: true }).selectOption(state.locations[1].id);
   await page.getByRole('status').filter({ hasText: 'Added to Comic box A.' }).waitFor();
   assert.equal(state.copies[0].id, cid); assert.equal(state.copies[0].storage_location_id, state.locations[1].id);
+  await page.getByRole('button', { name: 'Back to collection', exact: true }).click();
   await page.getByLabel('Find a copy', { exact: true }).fill('does not match');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('heading', { name: 'No matching copies' }).waitFor();
   await page.getByRole('button', { name: 'Clear search', exact: true }).click();
-  await page.getByRole('button', { name: 'Open Synthetic blue-cover comic', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Open Synthetic blue-cover comic', exact: true }).click();
   await page.getByLabel('Location', { exact: true }).selectOption('');
   await page.getByRole('status').filter({ hasText: 'Copy is now unassigned.' }).waitFor();
   assert.equal(state.copies[0].storage_revision, 2); assert.equal(state.moves[cid].length, 2);
@@ -306,9 +306,7 @@ test('API outages and failed photos stay distinct from empty inventory and faile
   assert.equal(await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).inputValue(), 'Retained title');
   state.failCreate = ''; state.failPhoto = true;
   await saveItem(page);
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
-  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   const count = state.writes.length;
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'empty.png', mimeType: 'image/png', buffer: Buffer.alloc(0) });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
@@ -343,7 +341,7 @@ test('storage conflicts require reload; location and history pages are not silen
   const item = copy(1, 'Stored find', { storage_location_id: places[101].id });
   const movements = Array.from({ length: 12 }, (_, index) => ({ id: id(index + 700), before_location_id: null, after_location_id: places[0].id, after_revision: index + 1, created_at: item.created_at }));
   const { page, state } = await fixture(t, { copies: [item], locations: places, moves: { [item.id]: movements }, conflict: true });
-  await open(page, 'Stored find');
+  await open(page, 'Stored find', '', {edit:false});
   assert.equal(await page.getByLabel('Location', { exact: true }).inputValue(), places[101].id);
   await page.getByRole('button', { name: 'Load more locations', exact: true }).click();
   await page.getByText('102 locations loaded.', { exact: true }).waitFor();
@@ -353,7 +351,7 @@ test('storage conflicts require reload; location and history pages are not silen
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
   await page.getByRole('alert').filter({ hasText: 'changed elsewhere' }).waitFor();
   assert.ok(await page.getByLabel('Location', { exact: true }).isDisabled()); assert.equal(state.writes.length, 1);
-  await reloadCopy(page);
+  await reloadCopy(page,{edit:false});
   await page.getByLabel('Location', { exact: true }).waitFor();
   await page.getByLabel('Location', { exact: true }).selectOption(places[0].id);
   await page.getByRole('status').filter({ hasText: 'Added to Place 0.' }).waitFor();
@@ -365,7 +363,7 @@ test('storage selection saves once, confirms the box nearby, and keeps confirmed
   const item = copy(1, 'Auto-save trial');
   const place = { id: id(1000), name: 'Comic box B', parent_id: null };
   const { page, state } = await fixture(t, { copies: [item], locations: [place] });
-  await open(page, item.title);
+  await open(page, item.title, '', {edit:false});
   const location = page.getByLabel('Location', { exact: true });
   assert.equal(await page.getByRole('button', { name: 'Save location', exact: true }).count(), 0);
   assert.equal(state.writes.length, 0, 'Loading a copy must not save');
@@ -382,7 +380,7 @@ test('storage selection saves once, confirms the box nearby, and keeps confirmed
   assert.equal(state.writes[0].body.expected_storage_revision, 0);
   assert.equal(state.moves[item.id].length, 1);
   state.failHistory = false;
-  await reloadCopy(page);
+  await reloadCopy(page,{edit:false});
   await location.waitFor();
   assert.equal(await location.inputValue(), place.id);
   assert.equal(state.writes.length, 1, 'Reloading must not retry a confirmed save');
@@ -403,7 +401,7 @@ for (const failure of ['validation', 'uncertain']) test(`storage ${failure} fail
   const places = [{ id: id(1000), name: 'Box A', parent_id: null }, { id: id(1001), name: 'Box B', parent_id: null }];
   const item = copy(1, 'Failed move', { storage_location_id: places[0].id });
   const { page, state } = await fixture(t, { copies: [item], locations: places, failMove: failure });
-  await open(page, item.title);
+  await open(page, item.title, '', {edit:false});
   const location = page.getByLabel('Location', { exact: true });
   await location.selectOption(places[1].id);
   await page.getByRole('alert').filter({ hasText: failure === 'validation' ? 'Synthetic location rejected' : 'Save could not be confirmed' }).first().waitFor();
@@ -413,7 +411,7 @@ for (const failure of ['validation', 'uncertain']) test(`storage ${failure} fail
   assert.equal(await location.isDisabled(), failure === 'uncertain');
   state.failMove = '';
   if (failure === 'uncertain') {
-    await reloadCopy(page);
+    await reloadCopy(page,{edit:false});
     await location.waitFor();
     assert.equal(await location.inputValue(), places[1].id, 'Reload reconciles the actual committed move');
     assert.equal(state.writes.length, 1);
@@ -568,9 +566,7 @@ test('real browser preserves three physical copies across shared editions, photo
   let title = 'Synthetic browser trial comic';
   await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).fill(title);
   await saveItem(page);
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
-  await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
   await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
   await page.getByAltText(`Photo 1 of ${title}`).waitFor();
@@ -648,7 +644,6 @@ test('real browser preserves three physical copies across shared editions, photo
     await page.getByLabel('Notes (optional)', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await saveItem(page);
     await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
-    await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
     const created = await page.evaluate(async title => (await (await fetch('/api/v1/inventory')).json()).find(item => item.title === title), copyTitle);
     assert.ok(created?.id); added.push(created);
     await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: `copy-${index + 2}.png`, mimeType: 'image/png', buffer: png });
@@ -1194,7 +1189,6 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic Press');
   await saveItem(page);
   await page.getByRole('heading',{name:display,exact:true}).waitFor();
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic-comic.png',mimeType:'image/png',buffer:png});
   await page.getByRole('button',{name:'Upload photo',exact:true}).click();
   await page.getByAltText('Photo 1 of '+display).waitFor();
@@ -1209,7 +1203,6 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   assert.deepEqual(original.comic_details,{issue_number:'423',publisher:'Synthetic Comic Press'});
   await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Open '+display,exact:true}).click();
-  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByAltText('Photo 1 of '+display).waitFor();
   assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
   await reviewItem(page);
@@ -1612,7 +1605,7 @@ test('journey: available artwork uses authenticated copy media and missing art s
 test('journey: confirmed photo and nested location saves do not leave a false draft warning',async t=>{
  const first=copy(1,'First saved copy'),second=copy(2,'Next copy');
  const {page,state}=await fixture(t,{browseOnly:true,quickIntake:true,copies:[first,second],locations:[{id:id(500),name:'Study',parent_id:null}]});
- await page.getByRole('button',{name:'Open '+first.title,exact:true}).click();await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
+ await page.getByRole('button',{name:'Open '+first.title,exact:true}).click();
  await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
  await page.getByRole('button',{name:'Upload photo',exact:true}).click();await page.getByText('Photo saved. The copy and its existing history are unchanged.',{exact:true}).waitFor();
  await openDisclosure(page,'Create a storage location');await page.getByLabel('Location name',{exact:true}).fill('Box B');await page.getByLabel('Inside another location',{exact:true}).selectOption(id(500));
@@ -1634,4 +1627,61 @@ test('journey: custom observations are readable before entering the editor',asyn
  const collection=id(90),item=copy(1,'Synthetic figure',{custom_collection_id:collection,custom_collection_name:'Synthetic figures',custom_details:{head:'Soft',signed:false,accessories:[]}});
  const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[item]});await page.route('**/api/v1/custom-collections/'+collection,route=>route.fulfill({json:{id:collection,type_revision:0,name:'Synthetic figures',proposal:{collection:{name:'Synthetic figures',checklist:[],completion:{eligibility:'Synthetic fixture only'}},type_definition:{id:'figure',label:'Figure',title:{label:'Figure name',max_length:100},optional_fields:[{id:'head',label:'Head Variant',input:'radio',options:['Soft','Hard'],max_length:50},{id:'signed',label:'Signed',input:'checkbox',max_length:50},{id:'accessories',label:'Accessories',input:'checkboxes',options:['Sword'],max_length:50}]}}}}));
  await page.getByRole('button',{name:'Open Synthetic figure',exact:true}).click();await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();const summary=page.locator('dl[aria-label="Collection details"]');await summary.getByText('Soft',{exact:true}).waitFor();await summary.getByText('No',{exact:true}).waitFor();await summary.getByText('None selected',{exact:true}).waitFor();assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(state.writes.length,0);
+});
+
+test('copy photo preview and uncertain upload recovery preserve the draft until a successful reload', async t => {
+  const item = copy(1, 'Synthetic sleeve');
+  const shelf = { id: id(1000), name: 'Fictional shelf', parent_id: null };
+  item.storage_location_id = shelf.id;
+  const { page, state } = await fixture(t, {
+    copies: [item], locations: [shelf], uncertainPhoto: true,
+    photos: { [item.id]: [{ id: id(90), role: 'catalog_cover' }] },
+  });
+  await page.getByRole('button', { name: 'Open Synthetic sleeve', exact: true }).click();
+  const input = page.getByLabel('Photo file', { exact: true });
+  const sample = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240; canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#24483d'; ctx.fillRect(0, 0, 240, 160);
+    ctx.fillStyle = '#f4efe1'; ctx.font = '20px sans-serif';
+    ctx.fillText('SYNTHETIC PHOTO', 20, 85);
+    return canvas.toDataURL().split(',')[1];
+  });
+  await input.setInputFiles({ name: 'sleeve.png', mimeType: 'image/png', buffer: Buffer.from(sample,'base64') });
+  const preview = page.getByRole('img', { name: 'Preview of the selected photo' });
+  await preview.waitFor();
+  assert.match(await preview.getAttribute('src'), /^blob:/);
+  await preview.evaluate(img => img.decode());
+  assert.equal(state.writes.length, 0);
+  if (process.env.RELICRAT_SCREENSHOTS) {
+    const dir = resolve(process.env.RELICRAT_SCREENSHOTS);
+    await mkdir(dir, { recursive: true });
+    await page.screenshot({ path: dir + '/photo-desktop.png', fullPage: true });
+    await page.setViewportSize({ width: 320, height: 800 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: dir + '/photo-phone.png', fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Upload photo', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Upload could not be confirmed' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Upload photo', exact: true }).isDisabled(), true);
+  await page.getByRole('button', { name: 'Inspect saved details', exact: true }).click();
+  const recovery = page.getByRole('region', { name: 'Save recovery' });
+  await recovery.getByRole('link', { name: /View photo 1/ }).waitFor();
+  await recovery.getByText(shelf.name, { exact: true }).waitFor();
+  await recovery.getByText('Saved catalog covers: 1', { exact: true }).waitFor();
+  state.failPhotoList = true;
+  const accept = dialog => dialog.accept();
+  page.on('dialog', accept);
+  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Any local draft is still here' }).waitFor();
+  assert.equal(await input.evaluate(el => el.files[0]?.name), 'sleeve.png');
+  assert.equal(await preview.isVisible(), true);
+  state.failPhotoList = false;
+  await page.getByRole('button', { name: 'Reload copy', exact: true }).click();
+  await recovery.waitFor({ state: 'hidden' });
+  page.off('dialog', accept);
+  assert.equal(await input.inputValue(), '');
+  assert.equal(await preview.count(), 0);
+  assert.equal(state.writes.length, 1);
 });
