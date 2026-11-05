@@ -253,3 +253,47 @@ def test_collection_type_filter_search_pagination_and_legacy_default(client):
     assert [copy['id'] for copy in api.get('/api/v1/inventory',params={'collection_type':'other'}).json()]==[other]
     for invalid in ('','album','comic OR true','%','../../secret'):
         assert api.get('/api/v1/inventory',params={'collection_type':invalid}).status_code==422
+
+
+def test_sort_orders_the_filtered_collection_before_pagination(client):
+    api, _ = client
+    path = '/api/v1/inventory'
+    data = [('Shared Z', 'alpha'), ('Shared C', 'Beta'), ('Shared B', 'alpha'),
+            ('Shared A', None), ('Shared B', 'alpha')]
+    created = []
+    for title, artist in data:
+        response = api.post(path, json={'title': title, 'collection_type': 'record',
+                                       'record_details': {'artist': artist} if artist else {}})
+        assert response.status_code == 201, response.text
+        created.append(response.json()['id'])
+    assert api.post(path, json={'title': 'Shared AA', 'collection_type': 'movie'}).status_code == 201
+
+    def ordered(sort):
+        params = {'q': 'Shared', 'collection_type': 'record', 'sort': sort, 'limit': 2, 'unassigned': True}
+        rows = []
+        for offset in (0, 2, 4):
+            response = api.get(path, params={**params, 'offset': offset})
+            assert response.status_code == 200, response.text
+            rows.extend(response.json())
+        return [row['id'] for row in rows]
+
+    ties = sorted([created[2], created[4]])
+    assert ordered('artist') == [*ties, created[0], created[1], created[3]]
+    assert ordered('title') == [created[3], *ties, created[1], created[0]]
+    default = api.get(path, params={'q': 'Shared', 'collection_type': 'record'}).json()
+    assert ordered('recent') == [row['id'] for row in default]
+    assert api.get(path, params={'sort': 'artist'}).status_code == 422
+    assert api.get(path, params={'sort': 'invalid'}).status_code == 422
+
+
+def test_comic_series_sort_keeps_issue_order_within_a_series(client):
+    api, _ = client
+    path = '/api/v1/inventory'
+    for title, issue in [('Willow', '1'), ('Ash', '10'), ('Ash', '2'), ('Ash', 'Annual')]:
+        response = api.post(path, json={'title': title, 'collection_type': 'comic',
+                                       'comic_details': {'issue_number': issue}})
+        assert response.status_code == 201, response.text
+    rows = api.get(path, params={'sort': 'title', 'collection_type': 'comic'}).json()
+    assert [(row['title'], row['comic_details']['issue_number']) for row in rows] == [
+        ('Ash', '2'), ('Ash', '10'), ('Ash', 'Annual'), ('Willow', '1'),
+    ]

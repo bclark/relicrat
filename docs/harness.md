@@ -2787,3 +2787,18 @@ pagination, group retries, and real synthetic photo and storage writes.
 Desktop, 390px and 320px captures were reviewed. The focused group retry case
 was made independent of the large-import fixture in a different test. The full
 legacy browser suite, API pytest and a new physical-phone trial were not run.
+
+### Whole-collection sorting and filters (November 5, 2026)
+
+The PostgreSQL suite passed 424 tests, including stable ordering across pages,
+missing artist ordering and natural comic issue ordering within a series.
+`python3 scripts/test-api-remote.py relicrat-worker` completed the disposable
+upgrade, downgrade to base and upgrade. The first attempt stopped at network
+creation because the worker's automatic address pool was exhausted. The successful
+run used a measured unused subnet in a temporary test Compose copy.
+
+The production web build, TypeScript and 36 Node checks passed. Six focused
+Chromium cases passed, including a real synthetic API-backed test of two sorted
+pages, clearable search/storage, 320px Covers with missing art and two editions,
+and returning to the same sorted page. Desktop and phone captures were reviewed.
+No physical-phone run or deployment is claimed.

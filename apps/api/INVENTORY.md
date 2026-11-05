@@ -412,6 +412,17 @@ backups include these tables. Migration downgrade refuses any retained batch;
 retain provenance or use a verified pre-import recovery copy. There is no batch
 delete/undo API or automatic matching across revised exports.
 
+## Sort inventory copies
+
+`GET /api/v1/inventory` accepts optional `sort=recent|title|artist`. Ordering
+applies to the full filtered set before `limit` and `offset`. `recent` orders by
+creation time descending. `title` uses the saved provisional title
+case-insensitively, with missing titles last. For Comics it uses the existing
+issue-number order within each series/title. `artist` requires
+`collection_type=record`, uses saved artist followed by title, and places missing
+artists last. All options have stable UUID tie breaks. Omitting `sort` preserves
+the existing individual and group-member defaults. Sorting changes no records.
+
 ## Grouped browsing
 
 Owner-only `GET /api/v1/collection-groups` returns collection-type counts when

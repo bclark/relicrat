@@ -894,14 +894,14 @@ footer {
  .collection-journey .bricks .inventory-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .collection-journey .bricks .copy-thumbnail { height:110px; }
 }
-.browse-toolbar { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(150px,1fr); grid-template-areas:"mode mode" "search storage"; gap:20px; margin:18px 0; align-items:start; }
+.browse-toolbar { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(150px,1fr); grid-template-areas:"mode sorter" "search storage"; gap:20px; margin:18px 0; align-items:start; }
 .collection-journey .browse-toolbar .search { grid-area:search; margin:0; padding:0; border:0; }
 .browse-options { display:contents; }
 .browse-toolbar .storage-filter { grid-area:storage; margin:0; }
 .browse-toolbar .browse-mode { grid-area:mode; margin:0; }
 .browse-toolbar .storage-filter .hint { margin:8px 0; font-size:.75rem; }
 .browse-toolbar select { margin:0; }
-@media(max-width:1279px) { .browse-toolbar { grid-template-columns:1fr; grid-template-areas:"mode" "search" "storage"; gap:14px; } }
+@media(max-width:1279px) { .browse-toolbar { grid-template-columns:1fr; grid-template-areas:"mode" "search" "storage" "sorter"; gap:14px; } }
 .collection-journey .workspace .collection { background:var(--paper); padding:24px; border:0; }
 .collection-journey .copy-inspector { background:var(--paper); padding:20px; border:0; }
 .collection-journey .inventory-results .copy-row .copy-identity { display:grid; grid-template-columns:44px minmax(0,1fr); grid-template-rows:auto auto; gap:0 12px; }
@@ -1021,7 +1021,7 @@ footer {
 }
 
 /* On phones, the same collection navigation becomes the opening screen. */
-.phone-add,.phone-imports,.phone-back,.phone-filters,.phone-copy-meta { display:none; }
+.phone-add,.phone-imports,.phone-back,.phone-filters,.collection-journey .copy-row .phone-copy-meta { display:none; }
 .browse-checklist { margin-top:24px; padding-top:12px; border-top:1px solid var(--rule); }
 @media(max-width:759px) {
  .collection-journey .masthead { flex-wrap:nowrap; padding:8px 16px; gap:12px; }
@@ -1054,7 +1054,23 @@ footer {
  .collection-journey .list .copy-row { grid-template-columns:minmax(0,1fr); }
  .collection-journey .list .copy-row :is(.copy-edition,.copy-location),
  .collection-journey .pagination[data-single-page=true] { display:none; }
- .collection-journey .list .phone-copy-meta { display:inline; }
+ .collection-journey .list .copy-row .phone-copy-meta { display:inline; }
  .collection-journey .list .copy-row .copy-identity :is(strong,small) { white-space:normal; overflow-wrap:anywhere; line-height:1.35; }
  .collection-journey .list .copy-thumbnail.no-art { display:grid; place-items:center; }
+}
+
+/* Sort is applied before pagination. Active search and storage remain visible. */
+.browse-sort { grid-area:sorter; min-width:0; }
+.browse-active { display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px; margin:12px 0; color:var(--muted); font-size:.875rem; overflow-wrap:anywhere; }
+.browse-active > div { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; }
+.browse-active strong { color:var(--ink); }
+.browse-active .text-button { min-height:44px; }
+.collection-journey .inventory-results.bricks .copy-row .copy-identity { min-width:0; }
+.collection-journey .bricks .copy-row .copy-identity :is(strong,small) { white-space:normal; overflow-wrap:anywhere; line-height:1.35; }
+.collection-journey .bricks .copy-row .copy-identity strong {
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;
+}
+.collection-journey .bricks .copy-thumbnail.no-art { display:grid; place-items:center; }
+@media(max-width:759px) {
+ .collection-journey .browse-options > :is(.storage-filter,.browse-mode,.browse-sort) { grid-area:auto; }
 }
