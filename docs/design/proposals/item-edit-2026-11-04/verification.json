@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "deployed": false,
+  "desktop_width": 1440,
+  "phone_width": 390,
+  "overflow_widths": [
+    320,
+    390,
+    1440
+  ],
+  "draft_back_preserved": true,
+  "search_back_preserved": true,
+  "save_confirmation": true,
+  "unknown_inspection": true,
+  "independent_storage_preserved": true,
+  "cleared_boolean_preserved": true,
+  "custom_controls": true,
+  "dark_preview": true,
+  "page_errors": []
+}
