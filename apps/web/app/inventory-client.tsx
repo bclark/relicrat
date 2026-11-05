@@ -2,9 +2,7 @@
 
 import ItemIntake,{type IntakeStart} from './item-intake';
 import SignOut from './sign-out';
-import CollectionSetup from './collection-setup';
-import CollectionAuthoring from './collection-authoring';
-import CustomCollections,{type CollectionIntakeEvent} from './custom-collections';
+import CollectionManager from './collection-manager';
 import CollectionFilter from './collection-filter';
 import ChecklistProgress from './checklist-progress';
 import Appearance from './appearance';
@@ -58,7 +56,8 @@ export default function InventoryClient() {
     else setSettingsPanel(panel);
     setMenuOpen(false);
   }
-  const [createdCollection,setCreatedCollection]=useState<CollectionIntakeEvent>({id:'',sequence:0});
+  const [collectionVersion,setCollectionVersion]=useState(0);
+  const managementGuard=useRef<()=>boolean>(()=>true);
   const [appearanceStyles, setAppearanceStyles] = useState<CSSProperties>({});
   const [settings,setSettings]=useState<CollectionSettings|null>(null),[types,setTypes]=useState<CollectionTypes|null>(null);
   const [settingsError,setSettingsError]=useState(''),[settingsVersion,setSettingsVersion]=useState(0);
@@ -112,7 +111,7 @@ export default function InventoryClient() {
     event.preventDefault(); setQuery(draftQuery.trim()); setPage(0); changed();
   }
   return (
-    <div className="themed-app collection-journey" style={appearanceStyles} onClickCapture={event=>{const target=(event.target as HTMLElement).closest('a.brand,button');if((target?.matches('a.brand')||target?.textContent==='Sign out')&&!detailGuard.current()){event.preventDefault();event.stopPropagation();}}}>
+    <div className="themed-app collection-journey" style={appearanceStyles} onClickCapture={event=>{const target=(event.target as HTMLElement).closest('a.brand,button');if((target?.matches('a.brand')||target?.textContent==='Sign out')&&(!detailGuard.current()||!managementGuard.current())){event.preventDefault();event.stopPropagation();}}}>
       <a className="skip-link" href="#add-find" onClick={()=>{startIntake();}}>Skip to adding a find</a>
       <header className="masthead">
         <a className="brand" href="/">RelicRat</a><span className="brand-tagline">Your collection, one copy at a time.</span>
@@ -124,22 +123,19 @@ export default function InventoryClient() {
           <button className="menu-toggle quiet" ref={menuButton} type="button" aria-expanded={menuOpen} aria-controls="account-actions" onClick={() => setMenuOpen(value => !value)}>Menu</button>
           <div id="account-actions" className="account-actions" data-open={menuOpen}>
             <button id="appearance-control" className="quiet" type="button" aria-expanded={settingsPanel === 'appearance'} aria-controls="appearance-editor" onClick={() => toggleSettings('appearance')}>{settingsPanel === 'appearance' ? 'Close appearance' : 'Appearance'}</button>
-            {settings && types?.record && types?.comic && <button id="collection-control" className="quiet" type="button" disabled={busy} aria-expanded={settingsPanel === 'collection'} aria-controls="collection-editor" onClick={() => toggleSettings('collection')}>{settings.status === 'not_started' ? 'Set up your collection' : 'Collection settings'}</button>}
+            {<button id="collection-control" className="quiet" type="button" disabled={busy} aria-expanded={settingsPanel === 'collection'} aria-controls="collection-management" onClick={() => toggleSettings('collection')}>Manage collections</button>}
             <SignOut />
           </div>
         </div>
       </header>
       <main className="collection-main">
         <Appearance applied={setAppearanceStyles} open={settingsPanel === 'appearance'} />
-        {settings && types?.record && types?.comic && <CollectionSetup types={types} key={settingsVersion} settings={settings} open={settingsPanel === 'collection'} close={closeSettings} runSave={runSave} locked={busy} saved={setSettings} reload={()=>setSettingsVersion(value=>value+1)} />}
+        <CollectionManager open={settingsPanel==='collection'} close={closeSettings} guard={managementGuard} types={types} settings={settings} runSave={runSave} busy={busy} saved={setSettings} changed={()=>{changed();setCollectionVersion(v=>v+1);}} browse={value=>{chooseCollection(value);setSettingsPanel(null);}}/>
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{if(!detailGuard.current()||!intakeGuard.current())return;setTypes(old=>old||({other:{schema_version:1,id:'other',label:'Other',plural_label:'Other finds',title:{key:'title',label:'Title',max_length:500,placeholder:'',suggested:true},fields:[{key:'notes',label:'Notes',max_length:10000,placeholder:'',suggested:true}],entry_order:['title','notes'],grouping:null}} as CollectionTypes));setSettings({status:'skipped',default_type:'other',records_enabled:false,record_fields:[],revision:0});setBrowseCollection('other');setIntakeStart(old=>({target:'other',scope:'other',name:'Other finds',sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
-        <details className="collection-tools" ref={toolsPanel}><summary>Collection tools and imports</summary>        <CollectionAuthoring runSave={runSave} locked={busy} onCreated={id=>setCreatedCollection(event=>({id,sequence:event.sequence+1}))} />
-        <CustomCollections refresh={refresh} createdEvent={createdCollection} runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} onIntake={(id,entryId)=>{startIntake("custom:"+id,entryId);}} />
-        <CsvImport runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} />
-</details>
-        <div className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
-          <aside className="collection-sidebar"><CollectionFilter value={browseCollection} change={chooseCollection} types={types} busy={busy} refresh={createdCollection.sequence} /></aside>
+        <details className="collection-tools" ref={toolsPanel} hidden={settingsPanel==='collection'}><summary>Collection tools and imports</summary><CsvImport runSave={runSave} locked={busy} changed={changed} openCopy={openCopy}/></details>
+        <div hidden={settingsPanel==='collection'} className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
+          <aside className="collection-sidebar"><CollectionFilter value={browseCollection} change={chooseCollection} types={types} busy={busy} refresh={collectionVersion} /></aside>
           <ItemIntake start={intakeStart} visible={intakeVisible} guard={intakeGuard} close={closeIntake} openCopy={openCopy} types={types} settings={settings} busy={busy} runSave={runSave} saved={()=>changed()}/>
           <section className="collection" hidden={intakeVisible} aria-labelledby="collection-title">
             <div className="section-heading collection-heading"><h1 id="collection-title" tabIndex={-1} ref={collectionHeading}>{browseTitle}</h1><div className="view-controls" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Covers</button></div></div>

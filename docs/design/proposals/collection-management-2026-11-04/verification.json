@@ -1,0 +1,21 @@
+{
+  "synthetic": true,
+  "implemented": false,
+  "deployed": false,
+  "desktop_width": 1440,
+  "phone_width": 390,
+  "overflow_widths": [
+    320,
+    390,
+    1440
+  ],
+  "shared_control_compatibility": true,
+  "review_invalidated_on_change": true,
+  "markdown_url_error": true,
+  "acknowledged_empty_collection_creation": true,
+  "entry_preferences": true,
+  "other_readonly": true,
+  "unknown_preference_inspection": true,
+  "unknown_field_inspection": true,
+  "page_errors": []
+}

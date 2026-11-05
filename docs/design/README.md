@@ -363,3 +363,27 @@ one revision-checked details write; immediate storage confirmation, independent
 photo upload, read-only notes and explicit ownership/checklist rules remain.
 See [behavior contract](../item-editing.md). Status: implemented for review;
 verification is recorded in the harness and PR; not deployed by this change.
+
+### Collection management — proposed visual concept (2026-11-04)
+
+Owner accepted exploring collection setup/management next. The
+[interactive proposal](proposals/collection-management-2026-11-04/README.md) places
+built-in and custom collections in one management list, with entry preferences or
+custom controls, explicit shared-definition impact, and a describe → external
+agent prompt → JSON review → empty collection creation path. Scope, evidence,
+uncertainties, compatibility and no-ownership creation remain explicit. The
+existing figure pilot, type defaults, revision/unknown-save rules and actual
+server validation must remain during implementation. Fictional page-memory data
+only. Status: proposed for owner review; no app or deployment change.
+
+### Collection management — approved implementation (2026-11-04)
+
+Owner approved the interactive concept and requested implementation. Manage
+collections now gathers the paginated built-in/custom list, scoped entry
+preferences, the complete existing defaults/setup workflow, and figure JSON
+creation into one task. Custom controls retain compatibility/revision checks,
+live previews, explicit review and history; shared impact uses the server's
+confirmed count rather than guessed names. Creation ends with an empty-collection
+confirmation and explicit Browse action. [Behavior contract](../collection-management.md).
+Status: implemented for review; checks and limits belong in the harness/PR.
+No app deployment or theme-contract change is implied by this implementation.

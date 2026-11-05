@@ -952,3 +952,37 @@ footer {
  .copy-record .edit-actions .primary { width:100%; }
  .copy-record .section-heading { flex-wrap:wrap; }
 }
+
+/* Collection management reuses the same bounded reading and task surfaces. */
+.collection-management { display:grid; grid-template-columns:200px minmax(0,960px); gap:28px; align-items:start; margin:28px 0 40px; max-width:1188px; }
+.management-body { min-width:0; background:var(--paper); padding:28px 32px; border-radius:var(--panel-radius); }
+.collection-management h1 { font-size:1.8rem; line-height:1.2; letter-spacing:-.03em; margin:16px 0 24px; overflow-wrap:anywhere; }
+.management-intro { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:28px; }
+.management-list { list-style:none; margin:0; padding:0; }
+.management-list>li { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:22px 0; border-top:1px solid var(--rule); }
+.management-list h2 { font-size:1.2rem; margin:0 0 6px; }
+.management-list p { font-size:.9rem; color:var(--muted); margin:0; }
+.management-list button { flex-shrink:0; }
+.management-pages,.management-actions { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin:24px 0; }
+.management-pages { font-size:.85rem; }
+.management-split { display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,.9fr); gap:32px; align-items:start; }
+.management-preview { background:var(--soft); padding:20px; min-width:0; }
+.management-preview h3 { font-size:1.15rem; margin:0 0 16px; }
+.management-preview fieldset { margin:0; }
+.management-preview .hint { font-size:.85rem; }
+.collection-management fieldset { min-width:0; border:0; padding:0; }
+.collection-management label { margin-top:16px; }
+.collection-management input,.collection-management textarea,.collection-management select { font-weight:400; }
+.collection-management .field-control { margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid var(--rule); }
+.collection-management .definition-review { border-top:1px solid var(--rule); padding-top:20px; margin:28px 0; }
+.collection-management details { margin:24px 0; padding-top:18px; border-top:1px solid var(--rule); }
+.collection-management summary { color:var(--accent); min-height:44px; cursor:pointer; }
+.collection-management .management-authoring { margin:0; padding:0; border:0; }
+.management-steps { list-style:none; display:flex; flex-wrap:wrap; gap:20px; padding:0; margin:20px 0 28px; color:var(--muted); font-size:.85rem; }
+.management-steps [aria-current=step] { font-weight:700; color:var(--ink); }
+.collection-management[hidden],.collection-management [hidden],.workspace[hidden] { display:none!important; }
+@media(max-width:1279px) { .collection-management { grid-template-columns:180px minmax(0,1fr); gap:22px; } }
+@media(max-width:759px) { .collection-management { display:block; margin:20px 0; } .management-body { padding:20px; } .management-split { grid-template-columns:1fr; gap:28px; } .management-intro,.management-list>li { align-items:flex-start; flex-direction:column; gap:12px; } .management-intro>.primary,.management-list button { width:100%; } }
+.management-navigation { min-width:0; }
+.management-preview input:disabled,.management-preview select:disabled,.management-preview textarea:disabled { opacity:1; color:var(--ink); }
+@media(max-width:759px) { .management-navigation { display:none; } }

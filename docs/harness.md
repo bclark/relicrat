@@ -2656,3 +2656,48 @@ not physical phone or camera certification. Logs, screenshots and exact syntheti
 cleanup evidence are retained privately. Review and merge precede deployment.
 
 Final focused browser run passed all four cases with zero skips; the seven existing journey cases also passed. Independent review scored its cancellation fix resolved and returned ship at that scope.
+
+### Unified collection management (November 4, 2026)
+
+The approved management concept is implemented for review. See
+`docs/collection-management.md` for its behavior and recovery boundaries.
+No owner inventory was used and no deployment was performed.
+
+Executed checks on an isolated worker project with a measured non-overlapping
+network and disposable synthetic database/media:
+
+- `sh scripts/test-api.sh`: 422 passed; upgrade → downgrade to base → upgrade passed.
+- `node --test tests/*.test.mjs` in the built web image: 36 passed.
+- `npm run lint --prefix apps/web` and the production Compose web build passed.
+- `node --test --test-concurrency=1 apps/web/tests/collection-management.browser.mjs apps/web/tests/item-edit.browser.mjs`:
+  11 passed, zero skips. Seven management cases cover scoped/global preferences,
+  real prompt download, JSON correction, acknowledged empty creation, shared-field
+  compatibility, lost-save inspection, exact independent-creation retry, failed
+  pagination, retained drafts, keyboard transitions and phone navigation. Four
+  existing focused editor cases cover built-in/custom edits and recovery.
+- Seven existing inventory cases selected with `--test-name-pattern='journey:'`
+  passed for collection scope, artwork, storage/photos, guarded drafts, read-first
+  custom details and nonzero phone Back position.
+
+An early management assertion used the wrong built-in row label and was corrected.
+The first editor regression run exposed a hidden duplicate phone selector from the
+management rail; the rail now omits that unused selector. Independent review found
+missing focus handoffs between hidden panels; task headings now receive focus and
+the added keyboard test verifies subsequent Tab navigation. The corrected combined
+run passed all 11 cases. The full legacy browser suite, other feature-specific
+browser files and physical phone/camera checks were not run in this increment.
+
+Light desktop/390px and additional 320px/actual dark-preset captures are private
+responsive-browser evidence. The existing CSS compatibility warning remains;
+there is no API, migration, dependency or theme-schema change.
+
+After a second review finding, the management rail became a normal-flow grid item
+so a long collection list contributes to page height rather than overlapping the
+footer. The seven management cases passed again after that correction. Final
+light/dark desktop and phone captures include 16 additional synthetic collections;
+320/390/1440px checks found no horizontal overflow or sidebar/footer overlap.
+An intermediate capture with a settings-load error was retained separately; final
+captures waited for successful settings/type reads (both HTTP 200 JSON). Independent
+review returned `ship` for the scored focus, phone-selector and sidebar/footer
+fixes. Documentation review required no further corrections. Logs, captures and
+exact synthetic cleanup evidence are retained privately.
