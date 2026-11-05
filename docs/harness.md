@@ -2617,3 +2617,42 @@ were verified removed, along with its temporary worker source and Mac bridge.
 Prior resources and the deployed owner trial were preserved. Private logs, review
 receipts and final synthetic captures are retained outside Git. No API/schema,
 dependency, live migration or deployment change is included.
+
+## Focused item viewing and editing (2026-11-04, implemented for review)
+
+The approved concept is implemented using the existing details endpoint, field
+controls, photo upload and storage assignment. The copy occupies the browser's
+content area; browsing stays mounted. No migration, API contract or dependency
+change. Notes remain read-only and storage/photos remain independent writes.
+
+Executed on an isolated worker stack with synthetic inventory and no published
+ports: `sh scripts/test-api.sh` passed 422 tests and its migration upgrade →
+downgrade-to-base → upgrade sequence. A measured non-overlapping test subnet was
+used for the disposable runner. `node --test tests/*.test.mjs` in the web image
+passed 36 unit tests. `npm run lint --prefix apps/web` and production builds
+passed; the existing CSS compatibility warning remains.
+
+`node --test --test-concurrency=1 apps/web/tests/item-edit.browser.mjs` exercises
+real synthetic API writes: Albums/Comics/Movies, separate storage/photo preservation,
+Back drafts/search, a committed response lost in transit with locked inspection,
+and custom controls/cleared boolean/definition revision recovery. A focused
+cancel-and-reopen assertion verifies that both a radio choice and cleared boolean
+are discarded on confirmed Cancel, while definition reload still preserves them.
+Seven existing browser cases selected with `--test-name-pattern='^journey:'`
+passed for collection scope, artwork, guarded replacement, photos/storage,
+nonzero phone scroll and custom read-first observations. The full legacy browser
+suite and other feature-specific browser files were not run in this increment.
+
+Early runs retained private evidence: one custom assertion matched two “Not
+recorded” elements and was scoped to its boolean group; a rebuilt test container
+initially used the wrong preview origin, and the legacy runner needed the explicit
+installed Chromium path. Those test-environment failures did not affect the owner
+trial. Independent review found a custom Cancel reset omission; it was corrected
+without resetting drafts during field-definition reload.
+
+Desktop and 390px runtime captures were inspected together. Additional 320px and
+the actual After hours preset were checked; this is Chromium responsive evidence,
+not physical phone or camera certification. Logs, screenshots and exact synthetic
+cleanup evidence are retained privately. Review and merge precede deployment.
+
+Final focused browser run passed all four cases with zero skips; the seven existing journey cases also passed. Independent review scored its cancellation fix resolved and returned ship at that scope.

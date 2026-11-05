@@ -211,7 +211,7 @@ async function open(page, title, edition = '') {
   if(await page.locator('.item-intake').isVisible())await page.locator('.item-intake').getByRole('button',{name:/^Back to /}).click();
   await page.getByRole('button', { name: `Open ${title}${edition ? ` · ${edition}` : ''}`, exact: true }).click();
   await page.getByRole('heading', { name: title, exact: true }).waitFor();
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   await editCopy(page);
 }
@@ -244,7 +244,7 @@ test('add-first workflow keeps one copy across photo, immediate nested storage, 
   await page.getByLabel('Notes (optional)', { exact: true }).fill('');
   await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).fill('Synthetic blue-cover comic');
   await saveItem(page,true);
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.copies.length, 1); assert.equal(state.writes.filter(write => write.path === 'inventory').length, 1);
@@ -306,7 +306,7 @@ test('API outages and failed photos stay distinct from empty inventory and faile
   assert.equal(await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).inputValue(), 'Retained title');
   state.failCreate = ''; state.failPhoto = true;
   await saveItem(page);
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   await page.getByRole('button',{name:'Edit details',exact:true}).click();
   const count = state.writes.length;
@@ -465,14 +465,14 @@ test('a saved copy edits its existing title and edition in one form without cata
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({ path: `${output}/copy-mobile.png`, fullPage: true, animations: 'disabled' });
   }
-  await form.getByRole('button', { name: 'Save details', exact: true }).dblclick();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await form.getByRole('button', { name: 'Save changes', exact: true }).dblclick();
+  await page.getByRole('status').filter({ hasText: 'Changes saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.writes.length, 1); assert.equal(state.writes[0].path, `inventory/${original.id}/details`);
   assert.equal(state.copies[0].title, before.title); assert.equal(state.copies[0].edition_label, 'Blue vinyl');
   for (const key of ['id', 'created_at', 'catalog_item_id', 'release_id', 'identification_revision', 'storage_location_id', 'storage_revision', 'ownership_status']) assert.equal(state.copies[0][key], before[key]);
   assert.deepEqual(state.photos[original.id], [photo]);
   await form.getByLabel('Title', { exact: true }).fill('Harbor Lights');
-  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await form.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('heading', { name: 'Harbor Lights', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Open Harbor Lights · Blue vinyl', exact: true }).waitFor();
   assert.equal(state.copies.length, 1); assert.equal(state.edits[original.id].length, 2);
@@ -490,11 +490,11 @@ for (const failure of ['validation', 'conflict', 'uncertain']) test(`copy edit $
   await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await form.getByLabel('Title', { exact: true }).fill('Changed copy');
   await form.getByLabel('Edition', { exact: true }).fill('Copper cover');
-  await form.getByRole('button', { name: 'Save details', exact: true }).click();
+  await form.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: failure === 'validation' ? 'Synthetic copy edit rejected' : failure === 'conflict' ? 'changed elsewhere' : 'Save could not be confirmed' }).first().waitFor();
   assert.equal(state.writes.length, 1);
   assert.equal(await form.getByLabel('Title', { exact: true }).isDisabled(), failure !== 'validation');
-  assert.equal(await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).count(), 0);
+  assert.equal(await page.getByRole('status').filter({ hasText: 'Changes saved.' }).count(), 0);
   if (failure !== 'validation') assert.equal(await page.getByText('Unsaved changes to this copy.', { exact: true }).count(), 0, 'Uncertain outcomes must not claim the changes were not saved');
   state.failDetails = ''; state.uncertainDetails = false;
   if (failure !== 'validation') {
@@ -514,13 +514,13 @@ test('a matched edition remains intact when only the copy title changes', async 
   await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await form.getByLabel('Title', { exact: true }).fill('My annotated album');
   assert.equal(await form.getByLabel('Edition', { exact: true }).inputValue(), release.name);
-  await form.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await form.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Changes saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.writes[0].body.edition_label, null);
   assert.equal(state.copies[0].release_id, release.id); assert.equal(state.copies[0].catalog_item_id, item.id);
   await form.getByLabel('Edition', { exact: true }).fill('My handwritten blue label');
-  await form.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor(); await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await form.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByRole('status').filter({hasText:'Changes saved.'}).waitFor(); await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Your edition label is used for this copy. Shared catalog information is under Advanced.', { exact: true }).waitFor();
   assert.equal(state.releases[0].name, release.name); assert.equal(state.copies[0].release_id, release.id);
 });
@@ -534,7 +534,7 @@ test('unavailable matched edition cannot be saved as an empty copy label', async
   await page.getByRole('alert').filter({ hasText: 'Synthetic edition lookup unavailable' }).waitFor();
   await editCopy(page);const form = page.getByRole('form', { name: 'Edit copy details', exact: true });
   assert.ok(await form.getByLabel('Title', { exact: true }).isDisabled());
-  assert.ok(await form.getByRole('button', { name: 'Save details', exact: true }).isDisabled());
+  assert.ok(await form.getByRole('button', { name: 'Save changes', exact: true }).isDisabled());
   assert.equal(state.writes.length, 0);
   state.failEditionRead = false;
   await page.getByRole('button', { name: 'Reload edition', exact: true }).click();
@@ -568,7 +568,7 @@ test('real browser preserves three physical copies across shared editions, photo
   let title = 'Synthetic browser trial comic';
   await page.getByRole('form', { name: 'Add an item', exact: true }).getByLabel('Title', { exact: true }).fill(title);
   await saveItem(page);
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file', { exact: true }).waitFor();
   await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
@@ -578,8 +578,8 @@ test('real browser preserves three physical copies across shared editions, photo
   await editCopy(page);const copyForm = page.getByRole('form', { name: 'Edit copy details', exact: true });
   await copyForm.getByLabel('Title', { exact: true }).fill('Updated synthetic browser trial comic');
   await copyForm.getByLabel('Edition', { exact: true }).fill('My blue copy');
-  await copyForm.getByRole('button', { name: 'Save details', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: 'Copy details saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await copyForm.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Changes saved.' }).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   title = 'Updated synthetic browser trial comic';
   const edited = await page.evaluate(() => fetch('/api/v1/inventory').then(response => response.json()));
   assert.equal(edited.length, 1); assert.equal(edited[0].id, initialCopy.id); assert.equal(edited[0].created_at, initialCopy.created_at); assert.equal(edited[0].edition_label, 'My blue copy');
@@ -648,7 +648,7 @@ test('real browser preserves three physical copies across shared editions, photo
     await page.getByLabel('Notes (optional)', { exact: true }).fill(`Three-copy regression: physical object ${index + 2}`);
     await saveItem(page);
     await page.getByRole('heading', { name: copyTitle, exact: true }).waitFor();
-    await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+    await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
     const created = await page.evaluate(async title => (await (await fetch('/api/v1/inventory')).json()).find(item => item.title === title), copyTitle);
     assert.ok(created?.id); added.push(created);
     await page.getByLabel('Photo file', { exact: true }).setInputFiles({ name: `copy-${index + 2}.png`, mimeType: 'image/png', buffer: png });
@@ -990,7 +990,7 @@ test('hidden record fields keep saved values editable and searchable without rew
   assert.equal(await editForm.getByLabel('Artist or band (optional)',{exact:true}).inputValue(),'Example band');
   assert.equal(await page.getByRole('form',{name:'Add an item',exact:true}).getByLabel('Artist or band (optional)',{exact:true}).count(),0);
   await editForm.getByLabel('Album title',{exact:true}).fill('Corrected album');
-  await editForm.getByRole('button',{name:'Save details',exact:true}).click();
+  await editForm.getByRole('button',{name:'Save changes',exact:true}).click();
   await page.getByRole('heading',{name:'Example band — Corrected album',exact:true}).waitFor();
   assert.deepEqual(state.copies[0].record_details,item.record_details);
   await page.getByLabel('Find a copy',{exact:true}).fill('Example band');await page.getByRole('button',{name:'Search',exact:true}).click();
@@ -1097,8 +1097,8 @@ test('Record entry suggests saved artists, orders artist before title and accept
   await editCopy(page);const edit=page.getByRole('form',{name:'Edit copy details',exact:true});
   assert.equal(await edit.getByLabel('Other format',{exact:true}).inputValue(),'Reel-to-reel');
   await edit.getByLabel('Format (optional)',{exact:true}).selectOption('CD');
-  await edit.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await edit.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Changes saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.equal(state.copies[0].record_details.format,'CD');
 });
 
@@ -1133,8 +1133,8 @@ test('Album labels reach type selection and history while stored identities stay
   await open(page,item.title);
   await editCopy(page);const form=page.getByRole('form',{name:'Edit copy details',exact:true});
   await form.getByLabel('Collection type',{exact:true}).selectOption({label:'Album'});
-  await form.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await form.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Changes saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   await page.getByText('Copy edit history',{exact:true}).click();
   await page.getByText('Type: Other to Album',{exact:true}).waitFor();
   assert.equal(state.copies[0].collection_type,'record');
@@ -1165,11 +1165,11 @@ test('Comics setup previews without writes; series-only and issue/publisher entr
   await form.getByLabel('Publisher (optional)',{exact:true}).fill('');
   await editCopy(page);const editor=page.getByRole('form',{name:'Edit copy details',exact:true});
   await editor.getByLabel('Issue number (optional)',{exact:true}).fill('Annual 1');
-  await editor.getByRole('button',{name:'Save details',exact:true}).click();
+  await editor.getByRole('button',{name:'Save changes',exact:true}).click();
   await page.getByRole('heading',{name:'Example heroes #Annual 1',exact:true}).waitFor();await editCopy(page);
   await editor.getByLabel('Collection type',{exact:true}).selectOption('other');
-  await editor.getByRole('button',{name:'Save details',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
+  await editor.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Changes saved.'}).waitFor();await page.getByRole('button',{name:'Edit details',exact:true}).click();
   assert.deepEqual(state.copies[0].comic_details,{issue_number:'Annual 1',publisher:'Example Press'});
   assert.equal(await editor.getByLabel('Publisher (optional)',{exact:true}).inputValue(),'Example Press');
   await reviewItem(page);await form.getByLabel('Series/title',{exact:true}).fill('Series title only');
@@ -1194,7 +1194,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   await intake.getByLabel('Publisher (optional)',{exact:true}).fill('Synthetic Comic Press');
   await saveItem(page);
   await page.getByRole('heading',{name:display,exact:true}).waitFor();
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic-comic.png',mimeType:'image/png',buffer:png});
   await page.getByRole('button',{name:'Upload photo',exact:true}).click();
   await page.getByAltText('Photo 1 of '+display).waitFor();
@@ -1209,7 +1209,7 @@ test('real Comics persist issue publisher photo and storage across reload',{skip
   assert.deepEqual(original.comic_details,{issue_number:'423',publisher:'Synthetic Comic Press'});
   await page.reload(); await page.getByLabel('Browse view',{exact:true}).selectOption('copies');
   await page.getByRole('button',{name:'Open '+display,exact:true}).click();
-  await openDisclosure(page,'Photos of your copy');await openDisclosure(page,'Change storage');
+  await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
   await page.getByAltText('Photo 1 of '+display).waitFor();
   assert.equal(await page.getByLabel('Location',{exact:true}).inputValue(),box);
   await reviewItem(page);
@@ -1577,20 +1577,20 @@ test('journey: collection navigation, read-first details and a preserved phone e
  const target=page.getByRole('button',{name:'Open Mira Vale — Harbor 21',exact:true});await target.click();
  await page.getByRole('button',{name:'Edit details',exact:true}).waitFor();assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);await capture('phone-view');
  await page.getByRole('button',{name:'Edit details',exact:true}).click();await page.locator('#copy-title').fill('Preserved phone draft');await capture('phone-edit');
- await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+ await page.getByRole('button',{name:'Back to item',exact:true}).click();await page.getByRole('button',{name:'Back to collection',exact:true}).click();
  assert.equal(await page.locator('#query').inputValue(),'Harbor');await page.getByText('Page 2',{exact:true}).waitFor();assert.equal(await target.evaluate(el=>document.activeElement===el),true);
- await target.click();assert.equal(await page.locator('#copy-title').inputValue(),'Preserved phone draft');
- await page.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('status').filter({hasText:'Copy details saved.'}).waitFor();
- await page.waitForFunction(()=>document.activeElement?.id==='copy-edit');assert.equal(await page.getByText('Copy details saved.',{exact:true}).count(),1);assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
+ await target.click();await page.getByRole('button',{name:'Continue editing',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Preserved phone draft');
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByRole('status').filter({hasText:'Changes saved.'}).waitFor();
+ await page.waitForFunction(()=>document.activeElement?.id==='copy-edit');assert.equal(await page.getByText('Changes saved.',{exact:true}).count(),1);assert.equal(await page.getByLabel('Edit copy details',{exact:true}).isVisible(),false);assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:320,height:844});await capture('phone-320');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:1440,height:1050});await capture('desktop-view');
 });
 
 test('journey: replacing dirty or unconfirmed edits never silently drops a draft', async t=>{
  const {page,state}=await fixture(t,{quickIntake:true,browseOnly:true,copies:[copy(1,'First copy',{barcode:{}}),copy(2,'Second copy',{barcode:{}})]});
  await page.getByRole('button',{name:'Open First copy',exact:true}).click();await page.getByRole('button',{name:'Edit details',exact:true}).click();await page.locator('#copy-title').fill('Keep this draft');
- page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');
- state.uncertainDetails=true;await page.getByRole('button',{name:'Save details',exact:true}).click();await page.getByRole('alert').filter({hasText:'Save could not be confirmed'}).waitFor();
- page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
+ await page.getByRole('button',{name:'Back to item',exact:true}).click();await page.getByRole('button',{name:'Back to collection',exact:true}).click();page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');
+ await page.getByRole('button',{name:'Open First copy',exact:true}).click();await page.getByRole('button',{name:'Continue editing',exact:true}).click();state.uncertainDetails=true;await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByRole('alert').filter({hasText:'Save could not be confirmed'}).waitFor();
+ await page.getByRole('button',{name:'Back to item',exact:true}).click();await page.getByRole('button',{name:'Back to collection',exact:true}).click();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Open Second copy',exact:true}).click();assert.equal(await page.locator('#copy-title').inputValue(),'Keep this draft');assert.equal(state.writes.filter(w=>w.path.endsWith('/details')).length,1);
 });
 
 test('journey: collection browsing and storage preserve scope without showing stale rows on failure', async t=>{
@@ -1612,14 +1612,14 @@ test('journey: available artwork uses authenticated copy media and missing art s
 test('journey: confirmed photo and nested location saves do not leave a false draft warning',async t=>{
  const first=copy(1,'First saved copy'),second=copy(2,'Next copy');
  const {page,state}=await fixture(t,{browseOnly:true,quickIntake:true,copies:[first,second],locations:[{id:id(500),name:'Study',parent_id:null}]});
- await open(page,first.title);
+ await page.getByRole('button',{name:'Open '+first.title,exact:true}).click();await openDisclosure(page,'Add or view photos');await openDisclosure(page,'Change storage');
  await page.getByLabel('Photo file',{exact:true}).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:png});
  await page.getByRole('button',{name:'Upload photo',exact:true}).click();await page.getByText('Photo saved. The copy and its existing history are unchanged.',{exact:true}).waitFor();
  await openDisclosure(page,'Create a storage location');await page.getByLabel('Location name',{exact:true}).fill('Box B');await page.getByLabel('Inside another location',{exact:true}).selectOption(id(500));
  await page.getByRole('button',{name:'Create location',exact:true}).click();await page.getByRole('status').filter({hasText:'Box B created.'}).waitFor();
  const box=state.locations.find(v=>v.name==='Box B');assert.ok(box);await page.getByLabel('Location',{exact:true}).selectOption(box.id);await page.getByRole('status').filter({hasText:'Added to Box B.'}).waitFor();
  const dialogs=[];page.on('dialog',async d=>{dialogs.push(d.message());await d.dismiss();});
- await page.getByRole('button',{name:'Open Next copy',exact:true}).click();await page.getByRole('heading',{name:'Next copy',exact:true}).waitFor();assert.deepEqual(dialogs,[]);assert.equal(state.copies[0].storage_location_id,box.id);assert.equal(state.photos[first.id].length,1);
+ await page.getByRole('button',{name:'Back to collection',exact:true}).click();await page.getByRole('button',{name:'Open Next copy',exact:true}).click();await page.getByRole('heading',{name:'Next copy',exact:true}).waitFor();assert.deepEqual(dialogs,[]);assert.equal(state.copies[0].storage_location_id,box.id);assert.equal(state.photos[first.id].length,1);
 });
 
 test('journey: Back restores a nonzero phone browse position',async t=>{

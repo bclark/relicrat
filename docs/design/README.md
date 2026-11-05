@@ -342,3 +342,24 @@ creation preserve drafts, uncertain outcomes and explicit ownership rules.
 See [item intake](../item-intake.md) for the behavior contract and
 [verification](../harness.md) for evidence and limits. Desktop, 390px and dark-theme
 synthetic captures were reviewed. Status: implemented for PR review; not deployed.
+
+### Item view and editing — proposed visual concept (2026-11-04)
+
+Owner accepted exploring focused editing after PR80 intake. The
+[interactive concept](proposals/item-edit-2026-11-04/README.md) extends that approved
+world: read-first item, explicit Edit details, configured fields, one details save,
+clear confirmation and context-preserving Back. It covers built-in and custom
+examples on desktop and phone. Existing immediate storage confirmation and
+separate photo upload remain explicit; notes stay read-only under the current API.
+Fictional page-memory data only. Status: proposed for owner review; no app or
+deployment change. Implementation must reuse actual configs and revision guards.
+
+### Item view and editing — approved implementation (2026-11-04)
+
+Owner approved the interactive concept and requested implementation. The item now
+uses the browser content area, with read-first observations and a focused Edit
+details task. Back retains the detail draft and browse context. Save changes is
+one revision-checked details write; immediate storage confirmation, independent
+photo upload, read-only notes and explicit ownership/checklist rules remain.
+See [behavior contract](../item-editing.md). Status: implemented for review;
+verification is recorded in the harness and PR; not deployed by this change.
