@@ -2701,3 +2701,50 @@ captures waited for successful settings/type reads (both HTTP 200 JSON). Indepen
 review returned `ship` for the scored focus, phone-selector and sidebar/footer
 fixes. Documentation review required no further corrections. Logs, captures and
 exact synthetic cleanup evidence are retained privately.
+
+### Photos/storage and CSV concepts (November 4, 2026)
+
+The owner requested PR82 deployment and the next two visual-first journeys.
+The [interactive proposal](design/proposals/photos-storage-import-2026-11-04/README.md)
+extends the existing interface system with fictional browser-memory state only.
+It is separate from deployed PR82 and does not implement the new application UI.
+
+A local Chromium interaction script passed: photo selection versus explicit
+upload, rejected/unknown-upload retention and separate saved-photo inspection,
+last-confirmed location during unknown moves, immediate location confirmation,
+independent location creation, Back-retained drafts, all three CSV presets,
+review acknowledgement before copy creation, exact-file reopen, lost-response
+inspection without another import, source invalidation, unsupported fictional
+file rejection, and reviewed CLZ storage mapping with preserved placed copies.
+Requests were checked: no API request or non-GET request was made. No private
+export or owner photo was used; the image fixture is a labeled canvas test card.
+
+Twelve PROPOSED captures cover desktop 1440px, phone 390px, additional 320px,
+normal/recovery/result views and the existing After hours palette. No horizontal
+overflow was found. The one detector pass reported dark-palette and small-type
+advisories: dark colors now match `theme_values.py`; .95/.85rem remain intentional
+native-control/hint sizes within this incumbent extension. No detector rerun or
+global design-system/sidecar repair was performed.
+
+Independent review found a dark-variable inheritance issue. Explicit body
+foreground/background and containment of the final collapsing margin corrected
+the unreadable text and light bottom strip. The same desktop/phone dark views
+were recaptured. Sampled dark text/control/notice contrast is at least 10.57:1,
+and body coverage reaches the full document height with fractional-pixel rounding.
+Every shipped screenshot has embedded origin metadata; scan: 12 rasters, zero
+missing. These are concept interaction/responsive checks, not application/API
+verification or physical phone/camera certification. App unit, API and full
+browser suites were not rerun for this proposal-only change.
+
+PR82's separate operator rollout used merged `147cb6d`, verified archived web
+source bytes against the built image, freshly captured the existing data and
+verified an offline copied restore before switching both frontends. The API,
+database container, all row/media fingerprints, owner settings and private
+network boundaries were preserved. Mac/private-HTTPS login/guest checks and all
+13 operating checks passed; backup/monitor pins were updated and prior recovery
+resources retained. No migration, new port, credential change or new verified
+off-site backup is claimed. Exact rollout receipts remain private.
+
+Final concept review scored the dark inheritance/ground fix resolved and returned
+`ship` at that scope. Documentation review required no changes. The proposed
+journeys still require owner visual review before their two application PRs.

@@ -387,3 +387,19 @@ confirmed count rather than guessed names. Creation ends with an empty-collectio
 confirmation and explicit Browse action. [Behavior contract](../collection-management.md).
 Status: implemented for review; checks and limits belong in the harness/PR.
 No app deployment or theme-contract change is implied by this implementation.
+
+### Collection management rollout and next journeys (2026-11-04)
+
+Owner authorized deployment after PR82 merged and requested the photos/storage
+and CSV follow-ups. PR82 is deployed to the existing private trial from merged
+commit `147cb6d`; exact preservation, fresh capture/offline restore, private access
+and operations-profile evidence is retained privately. Prior Mac/Drive receipts
+still identify their own actual source; this rollout claims no new cloud backup.
+
+The [two-journey interactive proposal](proposals/photos-storage-import-2026-11-04/README.md)
+extends the approved visual system: local photo preview plus explicit upload,
+immediate storage selection and confirmation, and preset-driven CSV preview,
+explicit import and result inspection. It retains uncertainty, exact-file limits,
+copy identity, source evidence and separate reviewed CLZ storage mapping. Status:
+proposed for visual review, separate from deployed PR82. Use two focused app PRs
+after review; no API, theme-schema or brand-default change is proposed.
