@@ -38,15 +38,19 @@ test('whole-collection groups browse large synthetic Comics/Albums and preserve 
 
 test('storage filters apply to group counts and copies; errors retry and obsolete reads are ignored',async t=>{
  const {page,context}=await setup(t);let fail=true;let held=false;
+ const baseline=await context.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{
+  title:'Synthetic filter baseline album',collection_type:'record',record_details:{artist:'Synthetic filter baseline artist'},
+ }});
+ assert.equal(baseline.status(),201,await baseline.text());
  await page.route('**/api/v1/collection-groups?**',async route=>{const url=new URL(route.request().url());if(fail){await route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({detail:'Synthetic group read failed'})});return;}if(url.searchParams.get('q')==='Old'){held=true;await new Promise(r=>setTimeout(r,600));}await route.continue();});
- await page.goto(base);await showTools(page);await page.getByRole('alert').filter({hasText:'Synthetic group read failed'}).waitFor();fail=false;await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByRole('button',{name:/^Albums \d+ copies · Browse collection$/}).waitFor();
+ await page.goto(base);await showTools(page);await page.getByRole('alert').filter({hasText:'Synthetic group read failed'}).waitFor();fail=false;await page.getByRole('alert').getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('button',{name:/^Albums .* · Browse collection$/}).waitFor();
  const location=await context.request.post(base+'/api/v1/storage-locations',{headers:{Origin:base},data:{name:'Synthetic grouping box'}});const box=(await location.json()).id;
  const r=await context.request.post(base+'/api/v1/inventory',{headers:{Origin:base},data:{title:'Synthetic shelved album',collection_type:'record',record_details:{artist:'Shelved artist'}}});const copy=await r.json();
  const move=await context.request.post(base+`/api/v1/inventory/${copy.id}/location`,{headers:{Origin:base},data:{storage_location_id:box,expected_storage_revision:0}});assert.equal(move.status(),200,await move.text());
  await page.getByRole('button',{name:'Reload inventory',exact:true}).click();await page.getByLabel('Storage location',{exact:true}).selectOption(box);await page.getByRole('button',{name:'Albums 1 copy · Browse collection',exact:true}).click();await page.getByRole('button',{name:'Shelved artist 1 copy · Open group',exact:true}).click();await page.getByRole('button',{name:'Open Shelved artist — Synthetic shelved album',exact:true}).waitFor();
- await page.getByLabel('Storage location',{exact:true}).selectOption('unassigned');await page.getByRole('button',{name:'Synthetic artist 00 11 copies · Open group',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/^Shelved artist/}).count(),0);
+ await page.getByLabel('Storage location',{exact:true}).selectOption('unassigned');await page.getByRole('button',{name:'Synthetic filter baseline artist 1 copy · Open group',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/^Shelved artist/}).count(),0);
  const oldSeen=page.waitForRequest(r=>r.url().includes('collection-groups?')&&new URL(r.url()).searchParams.get('q')==='Old');await page.getByLabel('Find a copy',{exact:true}).fill('Old');await page.getByRole('button',{name:'Search',exact:true}).click();await oldSeen;
- await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic album 000');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Synthetic artist 00 1 copy · Open group',exact:true}).waitFor();await page.waitForTimeout(700);assert.equal(await page.getByRole('button',{name:'Synthetic artist 00 1 copy · Open group',exact:true}).count(),1);
+ await page.getByLabel('Find a copy',{exact:true}).fill('Synthetic filter baseline album');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('button',{name:'Synthetic filter baseline artist 1 copy · Open group',exact:true}).waitFor();await page.waitForTimeout(700);assert.equal(await page.getByRole('button',{name:'Synthetic filter baseline artist 1 copy · Open group',exact:true}).count(),1);
 });
 
 test('filter locations can page beyond 100 and failed pages require retry rather than skipping',async t=>{

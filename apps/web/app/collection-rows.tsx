@@ -6,9 +6,14 @@ type Props={items:InventoryCopy[];busy:boolean;selected:string|null;open:(id:str
 export default function CollectionRows({items,busy,selected,open,groupByType=false,types}:Props){
  const headingId=useId();
  function rows(copies:InventoryCopy[]){
+  function metadata(copy:InventoryCopy){
+   const creator=copy.record_details.artist||copy.movie_details?.media_format||copy.comic_details?.publisher||'';
+   const extra=[copy.record_details.format,copy.edition_label,copy.storage_location_name].filter(Boolean);
+   return <small>{creator}<span className="phone-copy-meta">{extra.length?(creator?' · ':'')+extra.join(' · '):''}</span></small>;
+  }
   return <><div className="copy-columns" aria-hidden="true"><span>Item</span><span>Edition</span><span>Location</span></div><ul className="inventory-list">{copies.map(copy=><li key={copy.id}>
    <button disabled={busy} className="inventory-row copy-row" id={`copy-row-${copy.id}`} aria-label={`Open ${copyName(copy)}${copy.edition_label?` · ${copy.edition_label}`:''}`} aria-pressed={copy.id===selected} onClick={()=>open(copy.id)}>
-    <span className="copy-identity">{copy.preview_photo_id?<img className="copy-thumbnail" src={`/api/v1/inventory/${copy.id}/photos/${copy.preview_photo_id}`} alt={copy.preview_photo_role==='catalog_cover'?'Catalog artwork':'Photo of your copy'} loading="lazy"/>:<span className="copy-thumbnail no-art" aria-label="No artwork">{(copy.title||'').slice(0,1)||'—'}</span>}<strong title={copyName(copy)}>{copy.collection_type==='record'?(copy.title||copyName(copy)):copyName(copy)}</strong><small>{copy.record_details.artist||copy.movie_details?.media_format||copy.comic_details?.publisher||''}</small></span>
+    <span className="copy-identity">{copy.preview_photo_id?<img className="copy-thumbnail" src={`/api/v1/inventory/${copy.id}/photos/${copy.preview_photo_id}`} alt={copy.preview_photo_role==='catalog_cover'?'Catalog artwork':'Photo of your copy'} loading="lazy"/>:<span className="copy-thumbnail no-art" aria-label="No artwork">{(copy.title||'').slice(0,1)||'—'}</span>}<strong title={copyName(copy)}>{copy.collection_type==='record'?(copy.title||copyName(copy)):copyName(copy)}</strong>{metadata(copy)}</span>
     <span className="copy-edition" title={copy.edition_label||undefined}>{copy.edition_label||'Not entered'}</span>
     <span className="copy-location">{copy.storage_location_name||(copy.storage_location_id?'Location assigned':'Unassigned')}</span>
    </button>
