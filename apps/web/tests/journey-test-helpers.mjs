@@ -21,7 +21,7 @@ export async function editCopy(page){
  if(await page.locator('.item-intake').isVisible())await page.locator('.item-intake').getByRole('button',{name:/^Back to /}).click();
  if(!(await page.locator('.copy-inspector').isVisible()))await page.locator('.copy-row[aria-pressed="true"]').click();
  const form=page.getByRole('form',{name:'Edit copy details',exact:true});
- if(!(await form.isVisible()))await page.getByRole('button',{name:'Edit details',exact:true}).click();
+ if(!(await form.isVisible()))await page.getByRole('button',{name:/^(Edit details|Continue editing)$/,exact:true}).click();
 }
 
 export async function openDisclosure(page,name){

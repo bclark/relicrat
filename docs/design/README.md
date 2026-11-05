@@ -353,3 +353,13 @@ examples on desktop and phone. Existing immediate storage confirmation and
 separate photo upload remain explicit; notes stay read-only under the current API.
 Fictional page-memory data only. Status: proposed for owner review; no app or
 deployment change. Implementation must reuse actual configs and revision guards.
+
+### Item view and editing — approved implementation (2026-11-04)
+
+Owner approved the interactive concept and requested implementation. The item now
+uses the browser content area, with read-first observations and a focused Edit
+details task. Back retains the detail draft and browse context. Save changes is
+one revision-checked details write; immediate storage confirmation, independent
+photo upload, read-only notes and explicit ownership/checklist rules remain.
+See [behavior contract](../item-editing.md). Status: implemented for review;
+verification is recorded in the harness and PR; not deployed by this change.
