@@ -438,3 +438,10 @@ search, storage filter and sort. Choosing a sort opens individual copies.
 The grouped view remains available. Covers limit the title preview so edition
 labels remain easy to scan on phones. Existing themes, record identities and
 draft/Back behavior carry through. Status: implemented for PR review.
+
+### List and Covers outside Filters (2026-11-05)
+
+The owner asked in chat to keep List and Covers out of Filters. On phones the
+view buttons sit beside Filters, and the Filters count excludes display mode.
+Desktop keeps the buttons beside the collection heading. Status: implemented
+for review; deployment pending. See [collection browsing](../collection-journey.md).

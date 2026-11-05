@@ -6,8 +6,8 @@ Implemented for review; not deployed. The owner approved the
 Desktop has a collection navigation rail, a bounded list/cover browser and a
 read-first inspector. Phone opens on a list of collection names, including
 All items and custom collections. Selecting a collection opens its saved copies
-directly. Search is above the list. Storage, grouping, and List/Covers are under
-Filters. The header's + Add opens intake for the selected collection; from the
+directly. Search is above the results. List and Covers sit beside Filters on
+phones. Filters holds storage, grouping and sorting. The header's + Add opens intake for the selected collection; from the
 collection home it opens the existing destination picker. Collection tools and
 imports are available through Menu. A focused phone record screen returns to the
 same page, filters and scroll position. Albums, Comics, Movies, Other and named custom collections retain
