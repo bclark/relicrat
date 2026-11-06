@@ -462,3 +462,10 @@ read-only comparison shipped. The owner selects one copy from each import.
 Archive requires an explicit keeper and confirmation. Decision history is
 available from either import and contains the undo action. Status is
 implemented for review. Deployment is pending.
+
+### Duplicate review before import (2026-11-06)
+
+The owner approved moving the duplicate comparison into the guided import
+preview. The preview lists flagged rows with current edition and storage
+evidence, asks for a decision per row, and updates the count before confirmation.
+Status is implemented for review. Deployment is pending.

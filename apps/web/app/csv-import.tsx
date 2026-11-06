@@ -3,7 +3,12 @@ import {useEffect,useRef,useState} from 'react';
 import ImportStorage from './import-storage';
 import {api,ApiError,errorText,jsonSave,type CollectionTypeId,type RunSave} from '../lib/inventory-client';
 type Batch={id:string;source:'clz'|'discogs'|'bluray';row_count:number;copy_count:number;created_at:string};
-type Preview={sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
+type PreviewDuplicateReview = {
+ digest:string;
+ rows:{row:number;group:number;quantity:number;title:string;edition:string|null;issue:string|null}[];
+ groups:{count:number;copies:{copy_id:string;title:string|null;edition:string|null;format:string|null;storage:string|null}[]}[];
+};
+type Preview={duplicate_review:PreviewDuplicateReview|null;sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
 type DuplicateGroup = {anchor:string; title:string|null; selected_count:number; other_count:number};
 type DuplicateCopy = {
  copy_id:string; updated_at:string; selected_import:boolean; imported_at:string; row:number; copy_number:number;
@@ -23,6 +28,16 @@ function copyLabel(copy:DuplicateCopy) {
   'row '+copy.row+', copy '+copy.copy_number]
   .filter(Boolean).join(' · ');
 }
+function skippedRowsMask(choices:Record<number,'skip'|'import'>) {
+ const mask = new Uint8Array(625);
+ for(const [row,choice] of Object.entries(choices)){
+  if(choice==='skip'){
+   const bit=Number(row)-2;
+   mask[bit >> 3] |= 1 << (bit % 8);
+  }
+ }
+ return Array.from(mask,value=>value.toString(16).padStart(2,'0')).join('');
+}
 const matchLabels = {clz:'CLZ comic ID',discogs:'Discogs release ID',bluray:'Blu-ray.com product ID'};
 type SourceRow={copy_id:string;row:number;copy_number:number;source:Record<string,string>};
 const names={clz:'CLZ Comics',discogs:'Discogs Albums',bluray:'Blu-ray.com Movies'};
@@ -32,6 +47,8 @@ const steps = ['Choose export', 'Review', 'Result'] as const;
 type Step = 'choose' | 'review' | 'result' | 'recover';
 export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId)=>void}){
  const [open,setOpen]=useState(false),[source,setSource]=useState<'clz'|'discogs'|'bluray'>('clz'),[file,setFile]=useState<File|null>(null);
+ const [previewChoices,setPreviewChoices] = useState<Record<number,'skip'|'import'>>({});
+ const [previewPage,setPreviewPage] = useState(0);
  const [preview,setPreview]=useState<Preview|null>(null),[reviewed,setReviewed]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [batches,setBatches]=useState<Batch[]>([]),[batchPage,setBatchPage]=useState(0),[historyLoaded,setHistoryLoaded]=useState(false),[selected,setSelected]=useState<Batch|null>(null),[rows,setRows]=useState<SourceRow[]>([]),[rowPage,setRowPage]=useState(0);
  const [duplicates,setDuplicates] = useState<{batch:Batch; page:number; groups:DuplicateGroup[]} | null>(null);
@@ -50,7 +67,11 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  const input=useRef<HTMLInputElement>(null), heading=useRef<HTMLHeadingElement>(null);
  const pending=useRef(false);const disabled=locked||working;
  useEffect(()=>{if(open)heading.current?.focus();},[open,step]);
- function reset(){setPreview(null);setReviewed(false);setError('');setNotice('');}
+ const duplicateReview=preview?.duplicate_review;
+ const remaining=duplicateReview?.rows.filter(row=>!previewChoices[row.row]).length ?? 0;
+ const skippedCopies=duplicateReview?.rows.reduce((total,row)=>total+(previewChoices[row.row]==='skip'?row.quantity:0),0) ?? 0;
+ const copyCount=(preview?.copy_count??0)-skippedCopies;
+ function reset(){setPreview(null);setPreviewChoices({});setPreviewPage(0);setReviewed(false);setError('');setNotice('');}
  async function task(action:()=>Promise<void>){if(pending.current||locked)return;pending.current=true;setWorking(true);setError('');try{await action();}catch(e){setError(errorText(e));}finally{pending.current=false;setWorking(false);}}
  async function history(page:number){const result=await api<Batch[]>(`imports?limit=21&offset=${page*20}`);setBatches(result);setBatchPage(page);setHistoryLoaded(true);}
  async function sourceRows(batch:Batch,page:number){const result=await api<SourceRow[]>(`imports/${batch.id}/rows?limit=21&offset=${page*20}`);setRows(result);setSelected(batch);setRowPage(page);}
@@ -136,7 +157,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
   await task(async()=>{
    if(!selectedFile.size||selectedFile.size>4*1024*1024)throw new Error('Choose a nonempty UTF-8 CSV file of at most 4 MiB.');
    const checked=await api<Preview>(`imports/preview?source=${source}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:selectedFile});
-   setReviewed(false);setNotice('');setPreview(checked);setStep('review');
+   setPreviewChoices({});setPreviewPage(0);setReviewed(false);setNotice('');setPreview(checked);setStep('review');
    if(step==='recover'&&!checked.existing_batch)setNotice('No completed import was found for this file. Review this fresh preview before deciding whether to import.');
   });
  }
@@ -145,11 +166,13 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
   setError('');setNotice('');setStep('result');
  }
  async function commit(){
-  if(step!=='review'||!file||!preview||!reviewed||preview.errors.length||preview.existing_batch)return;
+  if(step!=='review'||!file||!preview||!duplicateReview||remaining||!copyCount||!reviewed||preview.errors.length||preview.existing_batch)return;
   await task(async()=>{
    try{
     await runSave(async()=>{
-     const saved=await api<{batch:Batch;already_imported:boolean}>(`imports/commit?source=${source}&reviewed_sha256=${preview.sha256}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:file});
+     const query=new URLSearchParams({source,reviewed_sha256:preview.sha256,
+      duplicate_digest:duplicateReview.digest,skip_mask:skippedRowsMask(previewChoices)});
+     const saved=await api<{batch:Batch;already_imported:boolean}>(`imports/commit?${query}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:file});
      showResult(saved.batch,saved.already_imported);changed();
     });
    }catch(problem){
@@ -180,7 +203,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <h3 ref={heading} tabIndex={-1} id="csv-review-heading">Review the import</h3>
     <p>{file?.name}</p>
     <p><strong>{preview.row_count} valid rows → {preview.copy_count} physical copies in {collections[source]}.</strong></p>
-    <p>A changed export can duplicate previously imported items. Repeated catalog IDs remain separate physical copies.</p>
+    <p>A shared catalog ID may refer to more than one physical copy.</p>
     <p>Every original column is retained as source information, including storage labels, prices and external IDs.</p>
     {source==='bluray'&&<p>A movie or box set counts as one owned item, regardless of disc count.</p>}
     {!!preview.warnings?.length&&<div role="status"><p>Review these notes (up to 50):</p><ul>{preview.warnings.map((warning,index)=><li key={index}>Row {warning.row}: {warning.message}</li>)}</ul></div>}
@@ -188,9 +211,48 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <details><summary>Field mapping and retained columns</summary><dl>{Object.entries(preview.mapping).map(([from,to])=><div key={from}><dt>{from}</dt><dd>{to}</dd></div>)}</dl><p>{preview.preserved_columns.join(', ')}</p></details>
     <ol className="csv-sample" aria-label="Sample from the export">{preview.sample.map(r=><li key={r.row}><strong>{r.record_details.artist?`${r.record_details.artist} — `:''}{r.title}{r.comic_details.issue_number?` #${r.comic_details.issue_number}`:''}</strong><p>{r.edition_label||r.movie_details?.media_format||r.record_details.format||'Edition not specified'} · {r.quantity} {r.quantity===1?'copy':'copies'} · CSV row {r.row}</p></li>)}</ol>
     {preview.errors.length>0&&<div className="error" role="alert"><p>No import is available until every row is valid. Showing up to 50 errors.</p><ul>{preview.errors.map(e=><li key={e.row}>Row {e.row}: {e.message}</li>)}</ul></div>}
+    {!!duplicateReview?.rows.length&&<section className="duplicate-review" aria-labelledby="preview-matches">
+     <h4 id="preview-matches">Review possible duplicates before importing</h4>
+     <p role="status">{remaining} of {duplicateReview.rows.length} rows still need a decision.</p>
+     <p>Matches share a {matchLabels[source]}. Skip a whole CSV row or add its copies to your collection.</p>
+     <ul className="duplicate-groups">{duplicateReview.rows.slice(previewPage*20,(previewPage+1)*20).map(row=>{
+      const group=duplicateReview.groups[row.group];
+      return <li key={row.row}>
+       <strong>Row {row.row} · {row.title}{row.issue?' #'+row.issue:''}</strong>
+       <p>{row.edition||'Edition not entered'} · {row.quantity} {row.quantity===1?'copy':'copies'} in the file</p>
+       <p>{group.count} matching {group.count===1?'copy':'copies'} in your collection{group.count>group.copies.length?' · showing '+group.copies.length:''}</p>
+       <ul>{group.copies.map(copy=><li key={copy.copy_id}>
+        {copy.title||'Untitled copy'} · {copy.edition||copy.format||'Edition not entered'} · {copy.storage||'Unassigned'}
+       </li>)}</ul>
+       <label htmlFor={`preview-duplicate-${row.row}`}>Decision for row {row.row}</label>
+       <select id={`preview-duplicate-${row.row}`} disabled={disabled} value={previewChoices[row.row]||''}
+        onChange={event=>{
+         const choice=event.target.value;
+         setPreviewChoices(previous=>{
+          const next={...previous};
+          if(choice==='skip'||choice==='import')next[row.row]=choice;
+          else delete next[row.row];
+          return next;
+         });
+         setReviewed(false);
+        }}>
+        <option value="">Choose what to do</option>
+        <option value="skip">Skip row</option>
+        <option value="import">{row.quantity===1?'Import as another copy':'Import these copies'}</option>
+       </select>
+      </li>;
+     })}</ul>
+     {duplicateReview.rows.length>20&&<nav className="form-actions" aria-label="Duplicate preview pages">
+      <button disabled={disabled||previewPage===0} onClick={()=>setPreviewPage(page=>page-1)}>Previous matches</button>
+      <span>Page {previewPage+1} of {Math.ceil(duplicateReview.rows.length/20)}</span>
+      <button disabled={disabled||(previewPage+1)*20>=duplicateReview.rows.length} onClick={()=>setPreviewPage(page=>page+1)}>Next matches</button>
+     </nav>}
+     {skippedCopies>0&&<p>Skipping {skippedCopies} {skippedCopies===1?'copy':'copies'}. Once confirmed, this exact file will count as imported.</p>}
+     {copyCount===0&&<p>Nothing selected to import. Change a row decision to continue.</p>}
+    </section>}
     {preview.existing_batch?<><p role="status">This exact file was already imported ({preview.existing_batch.copy_count} copies). No additional copies will be created.</p>
       <button disabled={disabled} onClick={()=>showResult(preview.existing_batch!,true)}>View previous import</button></>
-      :!preview.errors.length&&<><label><input type="checkbox" checked={reviewed} disabled={disabled} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the preview and want to create these {preview.copy_count} physical copies.</label><button className="primary" disabled={disabled||!reviewed} onClick={()=>void commit()}>Import {preview.copy_count} copies</button></>}
+      :!preview.errors.length&&<><label><input type="checkbox" checked={reviewed} disabled={disabled||!duplicateReview||!!remaining||!copyCount} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the preview and want to create these {copyCount} physical copies.</label><button className="primary" disabled={disabled||!duplicateReview||!!remaining||!copyCount||!reviewed} onClick={()=>void commit()}>Import {copyCount} copies</button></>}
    </section>}
    {step==='recover'&&<section aria-labelledby="csv-recover-heading">
     <h3 ref={heading} tabIndex={-1} id="csv-recover-heading">Import result needs checking</h3>

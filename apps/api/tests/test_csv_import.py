@@ -273,3 +273,50 @@ def test_duplicate_decisions_are_pair_scoped_retry_safe_and_reversible(client, t
     assert api.post(decisions, json=archive).json()['undone_at']
     with Session(bind=connection) as db:
         assert db.scalar(select(func.count()).select_from(OwnedCopy)) == 3
+
+
+def test_preview_choices_skip_only_reviewed_rows_and_require_fresh_evidence(client):
+    api, _ = client
+    original = encoded('clz', [{'Variant Description': 'Silver cover'}])
+    prior = post(api, 'commit', original, reviewed_sha256=hashlib.sha256(original).hexdigest()).json()['batch']
+    existing, = api.get(f"/api/v1/imports/{prior['id']}/rows").json()
+
+    changed = encoded('clz', [
+        {'Variant Description': 'Copper cover', 'Quantity': '2'},
+        {'Variant Description': 'Gold cover'},
+        {'Core ComicID': 'new', 'Series': 'New series'},
+    ])
+    preview = post(api, 'preview', changed).json()
+    review = preview['duplicate_review']
+    assert [(row['row'], row['quantity']) for row in review['rows']] == [(2, 2), (3, 1)]
+    assert review['groups'][0]['copies'][0]['edition'] == 'Silver cover'
+    assert len(api.get('/api/v1/inventory').json()) == 1
+
+    params = {'reviewed_sha256': preview['sha256'], 'duplicate_digest': review['digest']}
+    assert post(api, 'commit', changed, **params).status_code == 422
+    assert post(api, 'commit', changed, **params, skip_mask='04'+'00'*624).status_code == 422
+    shelf = api.post('/api/v1/storage-locations', json={'name': 'Comparison shelf'}).json()
+    assert api.post(f"/api/v1/inventory/{existing['copy_id']}/location", json={
+        'storage_location_id': shelf['id'], 'expected_storage_revision': 0,
+    }).status_code == 200
+    assert post(api, 'commit', changed, **params, skip_mask='01'+'00'*624).status_code == 409
+    refreshed = post(api, 'preview', changed).json()['duplicate_review']
+    assert refreshed['groups'][0]['copies'][0]['storage'] == 'Comparison shelf'
+    params.update(duplicate_digest=refreshed['digest'], skip_mask='01'+'00'*624)
+    response = post(api, 'commit', changed, **params)
+    assert response.status_code == 200, response.text
+    batch = response.json()['batch']
+    assert (batch['row_count'], batch['copy_count']) == (2, 2)
+    rows = api.get(f"/api/v1/imports/{batch['id']}/rows").json()
+    assert [row['row'] for row in rows] == [3, 4]
+    assert rows[0]['source']['Variant Description'] == 'Gold cover'
+    assert post(api, 'commit', changed, **params).json()['already_imported']
+    assert post(api, 'preview', changed).json()['existing_batch']['id'] == batch['id']
+    assert len(api.get('/api/v1/inventory').json()) == 3
+
+    all_skipped = encoded('clz', [{'Variant Description': 'Another cover'}])
+    empty_preview = post(api, 'preview', all_skipped).json()
+    assert post(api, 'commit', all_skipped, reviewed_sha256=empty_preview['sha256'],
+                duplicate_digest=empty_preview['duplicate_review']['digest'],
+                skip_mask='01'+'00'*624).status_code == 422
+    assert post(api, 'preview', all_skipped).json()['existing_batch'] is None

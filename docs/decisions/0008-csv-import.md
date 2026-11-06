@@ -52,3 +52,15 @@ Migration 0017 adds the decision history table and leaves existing inventory
 untouched. Downgrade is allowed while the table is empty. Once it records a
 decision, downgrade requires a verified pre-migration backup to preserve the
 audit trail and avoid stranding archived copies.
+
+The guided CSV preview also flags incoming rows whose retained source catalog ID
+matches active owned copies from the same import source. It shows a count and up
+to three examples with their current edition and storage. The owner chooses
+whether to skip each flagged row or add its copies. A skip applies to the whole
+row, including a CLZ quantity. A completed partial import reserves the exact
+file digest and retains original row numbers for the copies it created.
+
+The guided commit binds the original bytes and the displayed match evidence to
+the review. Source-scoped transaction locks serialize imports before the
+evidence is checked again. Existing digest-only API clients remain compatible.
+No database migration is required.
