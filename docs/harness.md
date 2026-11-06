@@ -2823,3 +2823,12 @@ exact-request retries, pair scoping, dismissal, archive, and undo from the other
 import. It verified that the original copy ID, CSV row, and photo bytes survive.
 The production web build and 37 Node checks passed. Chromium checked the comparison at desktop and 320px widths, then exercised
 Keep both, archive confirmation, and Undo at 320px using synthetic imports. The full legacy browser suite was outside this change.
+
+### Duplicate review before import (November 6, 2026)
+
+The disposable PostgreSQL run passed all 40 CSV import, storage and movie tests,
+followed by downgrade and upgrade. The review test verified evidence recheck,
+whole-row skipping, original row numbers, no-op rejection and exact-file retry.
+The production web build and 37 Node checks passed. Chromium checked the preview
+at desktop and 320px widths and exercised a partial import with synthetic data.
+The full API and legacy browser suites were outside this increment.

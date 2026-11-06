@@ -4,10 +4,10 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import AwareDatetime, BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from relicrat.models import ImportBatch, ImportCopy, ImportDuplicateDecision, OwnedCopy
+from relicrat.models import ImportBatch, ImportCopy, ImportDuplicateDecision, OwnedCopy, Release, StorageLocation
 
 EXTERNAL_ID_COLUMNS = {'clz': 'Core ComicID', 'discogs': 'release_id', 'bluray': 'Product ID'}
 ID_WHITESPACE = ' \t\r\n\v\f'
@@ -106,3 +106,36 @@ def undo_decision(db: Session, batch_id: UUID, decision_id: UUID):
         archived.deleted_at = None
     decision.undone_at = datetime.now(timezone.utc)
     return decision
+
+def import_match_evidence(db: Session, source: str, identifiers: set[str]):
+    """Return up to three current examples per source ID, with the total match count."""
+    if not identifiers:
+        return {}
+    identifier = func.btrim(ImportCopy.source_row[EXTERNAL_ID_COLUMNS[source]].astext, ID_WHITESPACE)
+    matches = (
+        select(
+            identifier.label('identifier'), OwnedCopy.id.label('copy_id'),
+            OwnedCopy.provisional_title.label('title'),
+            func.coalesce(OwnedCopy.edition_label, Release.name).label('edition'),
+            func.coalesce(OwnedCopy.record_details['format'].astext,
+                          OwnedCopy.movie_details['media_format'].astext).label('format'),
+            StorageLocation.name.label('storage'),
+            func.count().over(partition_by=identifier).label('count'),
+            func.row_number().over(partition_by=identifier, order_by=OwnedCopy.id).label('position'),
+        )
+        .select_from(OwnedCopy)
+        .join(ImportCopy, ImportCopy.owned_copy_id == OwnedCopy.id)
+        .join(ImportBatch, ImportBatch.id == ImportCopy.batch_id)
+        .outerjoin(Release, Release.id == OwnedCopy.release_id)
+        .outerjoin(StorageLocation, StorageLocation.id == OwnedCopy.storage_location_id)
+        .where(ImportBatch.source == source, identifier.in_(identifiers),
+               OwnedCopy.deleted_at.is_(None), OwnedCopy.ownership_status == 'owned')
+        .subquery()
+    )
+    evidence = {}
+    for row in db.execute(select(matches).where(matches.c.position <= 3)
+                          .order_by(matches.c.identifier, matches.c.position)).mappings():
+        item = evidence.setdefault(row['identifier'], {'count': row['count'], 'copies': []})
+        item['copies'].append({k: row[k] for k in ('title', 'edition', 'format', 'storage')}
+                              | {'copy_id': str(row['copy_id'])})
+    return evidence

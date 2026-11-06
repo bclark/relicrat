@@ -175,3 +175,54 @@ test('compare possible duplicates across imports on desktop and phone', async t 
  await copies.nth(1).getByRole('button',{name:'Open copy',exact:true}).click();
  await page.getByRole('heading',{name:'Synthetic comparison',exact:true}).waitFor();
 });
+
+test('preview reviews existing matches before importing only the selected rows', async t => {
+ const {page,context}=await pageFor(t);
+ const header='Series,Issue,Publisher,Quantity,Collection Status,Core ComicID,Variant Description';
+ const original=header+'\nSynthetic preview series,7,Test Press,1,In Collection,preview-7,Silver cover';
+ const {createHash}=await import('node:crypto');
+ const digest=createHash('sha256').update(original).digest('hex');
+ const committed=await context.request.post(base+'/api/v1/imports/commit?source=clz&reviewed_sha256='+digest,{
+  headers:{Origin:base,'Content-Type':'text/csv'},data:original,
+ });
+ assert.ok(committed.ok(),await committed.text());
+ const prior=(await committed.json()).batch;
+ const rows=await context.request.get(base+`/api/v1/imports/${prior.id}/rows`);
+ const [{copy_id}]=await rows.json();
+ const storage=await context.request.post(base+'/api/v1/storage-locations',{
+  headers:{Origin:base},data:{name:'Synthetic preview shelf'},
+ });
+ assert.ok(storage.ok());
+ const shelf=await storage.json();
+ const move=await context.request.post(base+`/api/v1/inventory/${copy_id}/location`,{
+  headers:{Origin:base},data:{storage_location_id:shelf.id,expected_storage_revision:0},
+ });
+ assert.ok(move.ok());
+ const changed=[
+  header,
+  'Synthetic preview series,7,Test Press,2,In Collection,preview-7,Copper cover',
+  'Synthetic preview series,7,Test Press,1,In Collection,preview-7,Gold cover',
+  'Synthetic new series,1,Test Press,1,In Collection,preview-new,First print',
+ ].join('\n');
+ await upload(page,'clz',changed);
+ const review=page.getByRole('region',{name:'Review possible duplicates before importing'});
+ await review.getByText(/Silver cover · Synthetic preview shelf/).first().waitFor();
+ assert.equal(await page.getByRole('button',{name:'Import 4 copies',exact:true}).isDisabled(),true);
+ if(process.env.RELICRAT_SCREENSHOTS){
+  await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});
+  await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/preview-duplicates-desktop.png'});
+ }
+ await page.setViewportSize({width:320,height:840});
+ await review.getByLabel('Decision for row 2',{exact:true}).selectOption('skip');
+ assert.equal(await page.getByRole('button',{name:'Import 2 copies',exact:true}).isDisabled(),true);
+ await review.getByLabel('Decision for row 3',{exact:true}).selectOption('import');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ if(process.env.RELICRAT_SCREENSHOTS)
+  await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/preview-duplicates-phone.png'});
+ await page.getByRole('checkbox',{name:'I reviewed the preview and want to create these 2 physical copies.',exact:true}).check();
+ await page.getByRole('button',{name:'Import 2 copies',exact:true}).click();
+ await page.getByText('Imported 2 physical copies into Comics.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'View original rows',exact:true}).click();
+ await page.getByRole('button',{name:'Open copy from row 3, copy 1',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Open copy from row 2, copy 1',exact:true}).count(),0);
+});

@@ -10,13 +10,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import ValidationError
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, cast, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 from relicrat.database import get_db
 from relicrat.import_duplicates import (
     EXTERNAL_ID_COLUMNS, ID_WHITESPACE, DuplicateDecisionRequest, record_decision, undo_decision,
+    import_match_evidence,
 )
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.models import ImportBatch, ImportCopy, ImportDuplicateDecision, OwnedCopy, StorageLocation
@@ -124,26 +125,74 @@ def batch_info(batch):
     return {'id':str(batch.id),'source':batch.source,'sha256':batch.sha256,'parser_version':batch.parser_version,'row_count':batch.row_count,'copy_count':batch.copy_count,'created_at':batch.created_at}
 
 
+def review_duplicates(db, source, parsed):
+    column = EXTERNAL_ID_COLUMNS[source]
+    rows = [(number, original.get(column, '').strip(ID_WHITESPACE), payload, quantity)
+            for number, original, payload, quantity in parsed['rows']]
+    evidence = import_match_evidence(db, source, {identifier for _, identifier, _, _ in rows if identifier})
+    groups = list(evidence.values())
+    indexes = {identifier: index for index, identifier in enumerate(evidence)}
+    flagged = [
+        {'row': number, 'group': indexes[identifier], 'quantity': quantity,
+         'title': payload.title, 'edition': payload.edition_label or payload.record_details.format
+         or payload.movie_details.media_format, 'issue': payload.comic_details.issue_number}
+        for number, identifier, payload, quantity in rows if identifier in evidence
+    ]
+    digest = hashlib.sha256(json.dumps([source, parsed['sha256'], evidence],
+                                       sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return {'digest': digest, 'rows': flagged, 'groups': groups}
+
+
+def skip_duplicate_rows(mask: str) -> set[int]:
+    # One bit per possible source row keeps 5,000 independent choices within URL limits.
+    return {2 + byte * 8 + bit for byte, value in enumerate(bytes.fromhex(mask))
+            for bit in range(8) if value & (1 << bit)}
+
+
+
 def preview_import(source,raw,db):
     parsed=parse_csv(source,raw)
     existing=db.scalar(select(ImportBatch).where(ImportBatch.source==source,ImportBatch.sha256==parsed['sha256']))
-    return {'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'warnings':parsed['warnings'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':MAPPINGS[source],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump()} for n,_,p,q in parsed['rows'][:10]]}
+    review = None if existing or parsed['errors'] else review_duplicates(db, source, parsed)
+    return {'duplicate_review':review,'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'warnings':parsed['warnings'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':MAPPINGS[source],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump()} for n,_,p,q in parsed['rows'][:10]]}
 
 
-def commit_import(source,raw,reviewed_sha256,db):
+def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=None):
     parsed=parse_csv(source,raw)
     if reviewed_sha256!=parsed['sha256']:
         raise HTTPException(409,'The file changed. Preview it again before importing.')
     if parsed['errors']:
         raise HTTPException(422,'Correct every reported row before importing. No copies were imported.')
+    if (duplicate_digest is None) != (skip_mask is None):
+        raise HTTPException(422, 'Submit the reviewed duplicate choices together')
     try:
-        # The unique insert serializes simultaneous retries, including an uncertain
-        # response. Everything is committed together; matching catalog IDs do not deduplicate ownership.
-        ident=db.scalar(insert(ImportBatch).values(id=uuid.uuid4(),source=source,sha256=parsed['sha256'],parser_version=1,row_count=len(parsed['rows']),copy_count=parsed['copy_count']).on_conflict_do_nothing(index_elements=['source','sha256']).returning(ImportBatch.id))
+        # Serialize imports from the same source, including older clients, so a
+        # changed export cannot slip between duplicate review and commit.
+        db.execute(text('SELECT pg_advisory_xact_lock(737701, :source)'),
+                   {'source': ('clz', 'discogs', 'bluray').index(source)})
+        rows = parsed['rows']
+        if duplicate_digest is not None:
+            batch = db.scalar(select(ImportBatch).where(
+                ImportBatch.source == source, ImportBatch.sha256 == parsed['sha256']))
+            if batch is not None:
+                result = {'batch': batch_info(batch), 'already_imported': True}
+                db.commit()
+                return result
+            review = review_duplicates(db, source, parsed)
+            if review['digest'] != duplicate_digest:
+                raise HTTPException(409, 'Existing matches changed. Preview the file again before importing.')
+            skipped = skip_duplicate_rows(skip_mask)
+            if not skipped <= {row['row'] for row in review['rows']}:
+                raise HTTPException(422, 'Skip only rows with reviewed matches')
+            rows = [row for row in rows if row[0] not in skipped]
+            if not rows:
+                raise HTTPException(422, 'Choose at least one row to import')
+        # Retain the unique source/digest constraint as the exact-file retry boundary.
+        ident=db.scalar(insert(ImportBatch).values(id=uuid.uuid4(),source=source,sha256=parsed['sha256'],parser_version=1,row_count=len(rows),copy_count=sum(row[3] for row in rows)).on_conflict_do_nothing(index_elements=['source','sha256']).returning(ImportBatch.id))
         if ident is None:
             batch=db.scalar(select(ImportBatch).where(ImportBatch.source==source,ImportBatch.sha256==parsed['sha256']))
             result={'batch':batch_info(batch),'already_imported':True};db.commit();return result
-        for number,original,payload,quantity in parsed['rows']:
+        for number,original,payload,quantity in rows:
             for index in range(1,quantity+1):
                 copy=stage_copy(db,payload);db.flush()
                 db.add(ImportCopy(owned_copy_id=copy.id,batch_id=ident,row_number=number,copy_number=index,source_row=original))
@@ -169,9 +218,14 @@ async def preview(request: Request,source: Source,db: Session=Depends(get_db)):
 
 
 @router.post('/commit')
-async def commit(request: Request,source: Source,reviewed_sha256: str=Query(pattern='^[0-9a-f]{64}$'),db: Session=Depends(get_db)):
-    raw=await csv_body(request)
-    return await run_in_threadpool(commit_import,source,raw,reviewed_sha256,db)
+async def commit(
+    request: Request, source: Source, reviewed_sha256: str = Query(pattern='^[0-9a-f]{64}$'),
+    duplicate_digest: str | None = Query(default=None, pattern='^[0-9a-f]{64}$'),
+    skip_mask: str | None = Query(default=None, pattern='^[0-9a-f]{1250}$'),
+    db: Session = Depends(get_db),
+):
+    raw = await csv_body(request)
+    return await run_in_threadpool(commit_import, source, raw, reviewed_sha256, db, duplicate_digest, skip_mask)
 
 
 @router.get('')
