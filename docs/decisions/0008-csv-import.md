@@ -29,3 +29,12 @@ existing copies and history are unchanged. Full database backups retain source
 rows. Downgrade refuses any batch rather than discarding provenance. A reviewed
 release must rehearse the migration against a verified backup before live use.
 No hard-delete undo or automatic cross-export deduplication is included.
+
+Possible duplicate review uses retained CLZ comic IDs, Discogs release IDs and
+Blu-ray.com product IDs to find owned copies that share a catalog reference
+across distinct imports from the same source. One result groups all eligible
+copies for that ID, including physical copies created from a quantity. The
+comparison is read-only and uses current edition and physical storage alongside
+source row provenance. The catalog reference alone cannot establish physical
+identity. Matches require a shared ID in retained data, so manually entered
+copies and imports without those IDs are outside this review.

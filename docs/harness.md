@@ -2802,3 +2802,14 @@ Chromium cases passed, including a real synthetic API-backed test of two sorted
 pages, clearable search/storage, 320px Covers with missing art and two editions,
 and returning to the same sorted page. Desktop and phone captures were reviewed.
 No physical-phone run or deployment is claimed.
+
+### Possible duplicates across CSV imports (November 5, 2026)
+
+The disposable PostgreSQL run passed all 25 CSV import and storage tests and
+completed upgrade, downgrade and upgrade. The worker's automatic subnet pool was
+full, so the successful run used a measured unused subnet in a temporary test
+Compose configuration. The production web build and 36 Node checks passed.
+A focused Chromium run exercised the comparison against real synthetic imports,
+including the two editions, current physical storage, and opening the selected
+copy. The desktop and 320px phone captures were inspected. The full API and
+browser suites and a physical phone trial were outside this increment.

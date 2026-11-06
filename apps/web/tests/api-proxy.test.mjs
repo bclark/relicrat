@@ -72,9 +72,10 @@ test('only fixed inventory/storage routes and their methods can reach the API', 
   }
   assert.equal((await forwardApi(request('inventory', { method: 'DELETE' }), ['inventory'])).status, 405);
   assert.equal((await forwardApi(request(`inventory/${id}`, post()), ['inventory', id])).status, 405);
+  assert.equal((await forwardApi(request(`imports/${id}/possible-duplicates`, post()), ['imports', id, 'possible-duplicates'])).status, 405);
   assert.equal(observed.length, count);
   for (const path of [`inventory/${id}`, `inventory/${id}/photos`, `inventory/${id}/reconciliations`,
-    `inventory/${id}/locations`, 'storage-locations', `storage-locations/${id}`]) {
+    `inventory/${id}/locations`, `imports/${id}/possible-duplicates`, 'storage-locations', `storage-locations/${id}`]) {
     assert.equal((await forwardApi(request(path), path.split('/'))).status, 200);
   }
 });

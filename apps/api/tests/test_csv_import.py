@@ -156,3 +156,49 @@ def test_provenance_constraints_and_restrictive_references(client):
         with pytest.raises(DBAPIError):
             with connection.begin_nested():connection.execute(text(statement),{'id':ident})
     assert api.get('/api/v1/imports/'+batch+'/rows').json()[0]['copy_id']==copy
+
+
+def test_possible_duplicates_use_same_source_across_batches_and_keep_copy_identity(client):
+    api, connection = client
+
+    def import_rows(source, rows):
+        raw = encoded(source, rows)
+        response = post(api, 'commit', raw, source, reviewed_sha256=hashlib.sha256(raw).hexdigest())
+        assert response.status_code == 200, response.text
+        return response.json()['batch']['id']
+
+    earlier = import_rows('clz', [{'Variant Description': 'Silver cover'}])
+    selected = import_rows('clz', [
+        {'Core ComicID': ' shared ', 'Quantity': '2'},
+        {'Core ComicID': ''},
+        {'Core ComicID': 'only-in-this-file', 'Quantity': '2'},
+    ])
+    other_source = import_rows('discogs', [{}])
+    earlier_copy = api.get(f'/api/v1/imports/{earlier}/rows').json()[0]['copy_id']
+    unrelated = api.get(f'/api/v1/imports/{other_source}/rows').json()[0]['copy_id']
+    shelf = api.post('/api/v1/storage-locations', json={'name': 'Test shelf'}).json()
+    move = api.post(f'/api/v1/inventory/{earlier_copy}/location', json={
+        'storage_location_id': shelf['id'], 'expected_storage_revision': 0,
+    })
+    assert move.status_code == 200, move.text
+
+    path = f'/api/v1/imports/{selected}/possible-duplicates'
+    response = api.get(path)
+    assert response.status_code == 200, response.text
+    group, = response.json()
+    assert (group['selected_count'], group['other_count']) == (2, 1)
+    assert api.get(path, params={'limit': 1, 'offset': 1}).json() == []
+    assert api.get(path, params={'anchor': unrelated}).status_code == 404
+
+    copies = api.get(path, params={'anchor': group['anchor']}).json()
+    assert [copy['selected_import'] for copy in copies] == [True, True, False]
+    assert len({copy['copy_id'] for copy in copies}) == 3
+    assert copies[2]['copy_id'] == earlier_copy
+    assert copies[2]['edition'] == 'Silver cover'
+    assert copies[2]['storage'] == 'Test shelf'
+    assert api.get(path, params={'anchor': group['anchor'], 'offset': 2, 'limit': 1}).json() == copies[2:]
+    with Session(bind=connection) as db:
+        assert db.scalar(select(func.count()).select_from(OwnedCopy)) == 7
+    api.cookies.clear()
+    api.headers.pop('authorization', None)
+    assert api.get(path).status_code == 401

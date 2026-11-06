@@ -445,3 +445,12 @@ The owner asked in chat to keep List and Covers out of Filters. On phones the
 view buttons sit beside Filters, and the Filters count excludes display mode.
 Desktop keeps the buttons beside the collection heading. Status: implemented
 for review; deployment pending. See [collection browsing](../collection-journey.md).
+
+### Possible duplicates after CSV import (2026-11-05)
+
+The collection management follow-up discussed with the owner adds a comparison
+from the import result and history. A shared catalog ID across exports from the
+same source produces a possible match. The comparison shows current edition,
+format and storage with the original row and copy numbers. Desktop shows copies
+alongside one another and phones stack them. Status is implemented for review.
+Deployment is pending.

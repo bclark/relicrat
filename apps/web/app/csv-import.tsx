@@ -4,6 +4,12 @@ import ImportStorage from './import-storage';
 import {api,ApiError,errorText,type CollectionTypeId,type RunSave} from '../lib/inventory-client';
 type Batch={id:string;source:'clz'|'discogs'|'bluray';row_count:number;copy_count:number;created_at:string};
 type Preview={sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
+type DuplicateGroup = {anchor:string; title:string|null; selected_count:number; other_count:number};
+type DuplicateCopy = {
+ copy_id:string; selected_import:boolean; imported_at:string; row:number; copy_number:number;
+ title:string|null; edition:string|null; artist:string|null; issue:string|null; format:string|null; storage:string|null;
+};
+const matchLabels = {clz:'CLZ comic ID',discogs:'Discogs release ID',bluray:'Blu-ray.com product ID'};
 type SourceRow={copy_id:string;row:number;copy_number:number;source:Record<string,string>};
 const names={clz:'CLZ Comics',discogs:'Discogs Albums',bluray:'Blu-ray.com Movies'};
 const collections={clz:'Comics',discogs:'Albums',bluray:'Movies'};
@@ -14,6 +20,9 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  const [open,setOpen]=useState(false),[source,setSource]=useState<'clz'|'discogs'|'bluray'>('clz'),[file,setFile]=useState<File|null>(null);
  const [preview,setPreview]=useState<Preview|null>(null),[reviewed,setReviewed]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [batches,setBatches]=useState<Batch[]>([]),[batchPage,setBatchPage]=useState(0),[historyLoaded,setHistoryLoaded]=useState(false),[selected,setSelected]=useState<Batch|null>(null),[rows,setRows]=useState<SourceRow[]>([]),[rowPage,setRowPage]=useState(0);
+ const [duplicates,setDuplicates] = useState<{batch:Batch; page:number; groups:DuplicateGroup[]} | null>(null);
+ const [comparison,setComparison] = useState<{group:DuplicateGroup; page:number; copies:DuplicateCopy[]} | null>(null);
+ const duplicateHeading = useRef<HTMLHeadingElement>(null);
  const [mappingBatch,setMappingBatch]=useState<Batch|null>(null);
  const [step,setStep]=useState<Step>('choose');
  const [result,setResult]=useState<{batch:Batch;reopened:boolean}|null>(null);
@@ -24,10 +33,21 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  async function task(action:()=>Promise<void>){if(pending.current||locked)return;pending.current=true;setWorking(true);setError('');try{await action();}catch(e){setError(errorText(e));}finally{pending.current=false;setWorking(false);}}
  async function history(page:number){const result=await api<Batch[]>(`imports?limit=21&offset=${page*20}`);setBatches(result);setBatchPage(page);setHistoryLoaded(true);}
  async function sourceRows(batch:Batch,page:number){const result=await api<SourceRow[]>(`imports/${batch.id}/rows?limit=21&offset=${page*20}`);setRows(result);setSelected(batch);setRowPage(page);}
+ async function loadDuplicates(batch:Batch,page:number){
+  const groups = await api<DuplicateGroup[]>(`imports/${batch.id}/possible-duplicates?limit=21&offset=${page*20}`);
+  setDuplicates({batch,page,groups});
+  setComparison(null);
+  requestAnimationFrame(()=>duplicateHeading.current?.focus());
+ }
+ async function compare(batch:Batch,group:DuplicateGroup,page:number){
+  const copies = await api<DuplicateCopy[]>(`imports/${batch.id}/possible-duplicates?anchor=${group.anchor}&limit=21&offset=${page*20}`);
+  setComparison({group,page,copies});
+  requestAnimationFrame(()=>duplicateHeading.current?.focus());
+ }
  function chooseFile(clear=false){
   reset();
   if(clear){
-   setFile(null);setSelected(null);setMappingBatch(null);
+   setFile(null);setSelected(null);setMappingBatch(null);setDuplicates(null);setComparison(null);
    if(input.current)input.current.value='';
   }
   setResult(null);setStep('choose');
@@ -43,7 +63,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
   });
  }
  function showResult(batch:Batch,reopened:boolean){
-  setResult({batch,reopened});setSelected(null);setMappingBatch(null);
+  setResult({batch,reopened});setSelected(null);setMappingBatch(null);setDuplicates(null);setComparison(null);
   setError('');setNotice('');setStep('result');
  }
  async function commit(){
@@ -105,6 +125,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <div className="form-actions">
      <button className="primary" disabled={disabled} onClick={()=>{setOpen(false);browse(collectionTypes[result.batch.source]);}}>View {collections[result.batch.source]}</button>
      <button disabled={disabled} onClick={()=>void task(()=>sourceRows(result.batch,0))}>View original rows</button>
+     <button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(result.batch,0))}>Review possible duplicates</button>
      {result.batch.source==='clz'&&<button disabled={disabled} onClick={()=>setMappingBatch(result.batch)}>Review imported storage labels</button>}
      <button disabled={disabled} onClick={()=>chooseFile(true)}>Import another file</button>
     </div>
@@ -112,7 +133,42 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
    {working&&<p role="status">Working… Keep this page open.</p>}{notice&&<p role="status">{notice}</p>}
    {error&&<p className="error" role="alert">{error}{step==='recover'?' Preview the same file again to check whether an import completed.':''}</p>}
    <details className="csv-history"><summary>Import history</summary><button disabled={disabled} onClick={()=>void task(()=>history(0))}>Reload import history</button>
-   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button>{b.source==='clz'?<button disabled={disabled} onClick={()=>setMappingBatch(b)}>Map storage boxes</button>:<span> · {b.source==='discogs' ? 'Discogs folders are source information, not physical locations.' : 'Original packaging and disc details are retained as source information.'}</span>}</li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}</details>
+   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button><button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(b,0))}>Review possible duplicates</button>{b.source==='clz'?<button disabled={disabled} onClick={()=>setMappingBatch(b)}>Map storage boxes</button>:<span> · {b.source==='discogs' ? 'Discogs folders are source information, not physical locations.' : 'Original packaging and disc details are retained as source information.'}</span>}</li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}</details>
+   {duplicates&&<section className="duplicate-review" aria-labelledby="duplicate-review-heading">
+    <h3 id="duplicate-review-heading" tabIndex={-1} ref={duplicateHeading}>{comparison?'Compare copies':'Possible duplicates'}</h3>
+    <p>{names[duplicates.batch.source]} · {new Date(duplicates.batch.created_at).toLocaleString()}</p>
+    <p>Matches share a {matchLabels[duplicates.batch.source]} across imports. You may own more than one copy of the same release.</p>
+    {comparison?<>
+     <button type="button" className="text-button" disabled={disabled} onClick={()=>{
+      setComparison(null);
+      requestAnimationFrame(()=>duplicateHeading.current?.focus());
+     }}>Back to possible duplicates</button>
+     <ul className="duplicate-copies" aria-label="Copies that share the source ID">{comparison.copies.slice(0,20).map(copy=><li key={copy.copy_id}>
+      <p>{copy.selected_import?'Selected import':'Another import'} · {new Date(copy.imported_at).toLocaleString()}</p>
+      <h4>{copy.artist?copy.artist+' — ':''}{copy.title||'Untitled copy'}{copy.issue?' #'+copy.issue:''}</h4>
+      <dl>
+       <div><dt>Edition</dt><dd>{copy.edition||'Not entered'}</dd></div>
+       {copy.format&&<div><dt>Format</dt><dd>{copy.format}</dd></div>}
+       <div><dt>Storage</dt><dd>{copy.storage||'Unassigned'}</dd></div>
+       <div><dt>CSV source</dt><dd>Row {copy.row}, copy {copy.copy_number}</dd></div>
+      </dl>
+      <button type="button" disabled={disabled} onClick={()=>openCopy(copy.copy_id)}>Open copy</button>
+     </li>)}</ul>
+     {(comparison.page>0||comparison.copies.length>20)&&<nav className="form-actions" aria-label="Matching copy pages">
+      <button disabled={disabled||!comparison.page} onClick={()=>void task(()=>compare(duplicates.batch,comparison.group,comparison.page-1))}>Previous copies</button>
+      <button disabled={disabled||comparison.copies.length<=20} onClick={()=>void task(()=>compare(duplicates.batch,comparison.group,comparison.page+1))}>Next copies</button>
+     </nav>}
+    </>:<>
+     {duplicates.groups.length?<ul className="duplicate-groups">{duplicates.groups.slice(0,20).map(group=><li key={group.anchor}>
+      <button type="button" className="text-button" disabled={disabled} onClick={()=>void task(()=>compare(duplicates.batch,group,0))}>{group.title||'Untitled copy'}</button>
+      <p>{group.selected_count} in this import · {group.other_count} in other imports</p>
+     </li>)}</ul>:<p role="status">No copies with shared source IDs were found across imports.</p>}
+     {(duplicates.page>0||duplicates.groups.length>20)&&<nav className="form-actions" aria-label="Possible duplicate pages">
+      <button disabled={disabled||!duplicates.page} onClick={()=>void task(()=>loadDuplicates(duplicates.batch,duplicates.page-1))}>Previous matches</button>
+      <button disabled={disabled||duplicates.groups.length<=20} onClick={()=>void task(()=>loadDuplicates(duplicates.batch,duplicates.page+1))}>Next matches</button>
+     </nav>}
+    </>}
+   </section>}
    {mappingBatch&&<ImportStorage key={mappingBatch.id} batchId={mappingBatch.id} locked={disabled} runSave={runSave} changed={changed}/>}
    {selected&&<><h4>Original source rows · {names[selected.source]}</h4><ul>{rows.slice(0,20).map(r=><li key={r.copy_id}><button disabled={disabled} onClick={()=>openCopy(r.copy_id)}>Open copy from row {r.row}, copy {r.copy_number}</button><details><summary>View retained fields</summary><dl>{Object.entries(r.source).map(([key,value])=><div key={key}><dt>{key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{value||'(empty)'}</dd></div>)}</dl></details></li>)}</ul><nav aria-label="Source row pages"><button disabled={disabled||!rowPage} onClick={()=>void task(()=>sourceRows(selected,rowPage-1))}>Previous source rows</button><span>Page {rowPage+1}</span><button disabled={disabled||rows.length<=20} onClick={()=>void task(()=>sourceRows(selected,rowPage+1))}>Next source rows</button></nav></>}
   </div>

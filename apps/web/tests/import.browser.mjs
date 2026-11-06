@@ -92,3 +92,59 @@ test('invalid rows block confirmation; changing source invalidates preview; ambi
  await page.getByRole('button',{name:'View Albums',exact:true}).click();
  await page.getByRole('heading',{name:'Albums',exact:true}).waitFor();
 });
+
+test('compare possible duplicates across imports on desktop and phone', async t => {
+ const {page,context}=await pageFor(t);
+ const seed = async (edition) => {
+  const csvText = [
+   'Series,Issue,Publisher,Quantity,Collection Status,Core ComicID,Variant Description',
+   `Synthetic comparison,7,Test Press,1,In Collection,compare-7,${edition}`,
+  ].join('\n');
+  const {createHash}=await import('node:crypto');
+  const digest=createHash('sha256').update(csvText).digest('hex');
+  const response=await context.request.post(base+'/api/v1/imports/commit?source=clz&reviewed_sha256='+digest,{
+   headers:{Origin:base,'Content-Type':'text/csv'},data:csvText,
+  });
+  assert.ok(response.ok(),await response.text());
+  return (await response.json()).batch;
+ };
+ const earlier=await seed('Silver cover');
+ await seed('Copper cover');
+ const sourceRows=await context.request.get(base+`/api/v1/imports/${earlier.id}/rows`);
+ const [{copy_id}]=await sourceRows.json();
+ const shelfResponse=await context.request.post(base+'/api/v1/storage-locations',{
+  headers:{Origin:base},data:{name:'Synthetic shelf'},
+ });
+ assert.ok(shelfResponse.ok());
+ const shelf=await shelfResponse.json();
+ const move=await context.request.post(base+`/api/v1/inventory/${copy_id}/location`,{
+  headers:{Origin:base},data:{storage_location_id:shelf.id,expected_storage_revision:0},
+ });
+ assert.ok(move.ok());
+
+ await page.getByText('Import history',{exact:true}).click();
+ await page.getByRole('button',{name:'Reload import history',exact:true}).click();
+ await page.getByRole('button',{name:'Review possible duplicates',exact:true}).first().click();
+ await page.getByRole('button',{name:'Synthetic comparison',exact:true}).click();
+ const review=page.getByRole('region',{name:'Compare copies'});
+ const copies=review.getByRole('listitem');
+ await copies.nth(1).getByText('Silver cover',{exact:true}).waitFor();
+ assert.equal(await copies.count(),2);
+ assert.equal(await copies.nth(0).getByText('Copper cover',{exact:true}).isVisible(),true);
+ assert.equal(await copies.nth(1).getByText('Synthetic shelf',{exact:true}).isVisible(),true);
+ const desktop=await Promise.all([copies.nth(0).boundingBox(),copies.nth(1).boundingBox()]);
+ assert.ok(desktop[0].x<desktop[1].x);
+ if(process.env.RELICRAT_SCREENSHOTS){
+  await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});
+  await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/duplicates-desktop.png'});
+ }
+
+ await page.setViewportSize({width:320,height:840});
+ const phone=await Promise.all([copies.nth(0).boundingBox(),copies.nth(1).boundingBox()]);
+ assert.ok(phone[0].y<phone[1].y);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ if(process.env.RELICRAT_SCREENSHOTS)
+  await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/duplicates-phone.png'});
+ await copies.nth(1).getByRole('button',{name:'Open copy',exact:true}).click();
+ await page.getByRole('heading',{name:'Synthetic comparison',exact:true}).waitFor();
+});

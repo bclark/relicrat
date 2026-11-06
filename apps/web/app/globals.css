@@ -648,6 +648,11 @@ footer {
 .csv-import .form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .csv-sample p { margin-block: 0 8px; }
 .csv-history { margin-block-start: 24px; }
+.duplicate-review { margin-block-start: 24px; border-block-start: 1px solid var(--rule); overflow-wrap: anywhere; }
+.duplicate-groups, .duplicate-copies { list-style: none; padding: 0; }
+.duplicate-groups li, .duplicate-copies li { min-width: 0; border-block-start: 1px solid var(--rule); padding-block: 12px; }
+.duplicate-groups p, .duplicate-copies :is(h4,p) { margin-block: 0 8px; }
+.duplicate-copies { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 
 .collection-setup { overflow-wrap:anywhere; }
 .collection-setup:has(#collection-editor),.collection-setup:has(.error),.collection-setup:has(.notice:not(:empty)) { margin-bottom:var(--space); padding-bottom:24px; border-bottom:1px solid var(--rule); }

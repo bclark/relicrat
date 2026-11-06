@@ -10,12 +10,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.intake import CreateProvisionalCopy, stage_copy
-from relicrat.models import ImportBatch, ImportCopy
+from relicrat.models import ImportBatch, ImportCopy, OwnedCopy, StorageLocation
 from relicrat.barcodes import BarcodeReading
 
 router=APIRouter(prefix='/api/v1/imports',tags=['imports'])
@@ -27,6 +27,8 @@ MAPPINGS={
  'discogs':{'Title':'Title','Artist':'Artist','Format':'Format (full description)','Collection Notes':'Notes'},
 }
 REQUIRED={'bluray':{'Title','Studio','UPC','EAN','Product ID','Blu-ray discs','DVD discs'},'clz':{'Series','Issue','Publisher','Quantity','Collection Status'},'discogs':{'Title','Artist','Format','release_id'}}
+
+EXTERNAL_ID_COLUMNS = {'clz': 'Core ComicID', 'discogs': 'release_id', 'bluray': 'Product ID'}
 
 
 def movie_row(value):
@@ -90,21 +92,19 @@ def parse_csv(source: Source, raw: bytes):
                         raise ValueError('Quantity must be a whole number from 1 to 10,000')
                     quantity=int(q)
                     payload=CreateProvisionalCopy(title=value('Series'),collection_type='comic',comic_details={k:v for k,v in {'issue_number':value('Issue'),'publisher':value('Publisher')}.items() if v},edition_label=value('Variant Description') or value('Variant') or None,description=value('Notes') or None)
-                    external=value('Core ComicID')
                 elif source=='bluray':
                     quantity=1
                     payload,messages=movie_row(value)
                     warnings.extend({'row':number,'message':message} for message in messages if len(warnings)<50)
-                    external=value('Product ID')
                 else:
                     quantity=1
                     payload=CreateProvisionalCopy(title=value('Title'),collection_type='record',record_details={k:v for k,v in {'artist':value('Artist'),'format':value('Format')}.items() if v},description=value('Collection Notes') or None)
-                    external=value('release_id')
                 if not payload.title:
                     raise ValueError('A title is required')
             except (ValueError,ValidationError):
                 if len(errors)<50: errors.append({'row':number,'message':'Check title, field lengths, ownership status and positive whole quantity.'})
                 continue
+            external = value(EXTERNAL_ID_COLUMNS[source])
             if external:
                 repeated+=external in ids;ids.add(external)
             retained_bytes+=len(json.dumps(original).encode())*quantity
@@ -181,3 +181,70 @@ def batches(limit: int=Query(default=20,ge=1,le=100),offset: int=Query(default=0
 def source_rows(batch_id: UUID,limit: int=Query(default=20,ge=1,le=100),offset: int=Query(default=0,ge=0),db: Session=Depends(get_db)):
     if db.get(ImportBatch,batch_id) is None: raise HTTPException(404,'Import batch not found')
     return [{'copy_id':str(r.owned_copy_id),'row':r.row_number,'copy_number':r.copy_number,'source':r.source_row} for r in db.scalars(select(ImportCopy).where(ImportCopy.batch_id==batch_id).order_by(ImportCopy.row_number,ImportCopy.copy_number).limit(limit).offset(offset))]
+
+@router.get('/{batch_id}/possible-duplicates')
+def possible_duplicates(
+    batch_id: UUID,
+    anchor: UUID | None = None,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    batch = db.get(ImportBatch, batch_id)
+    if batch is None:
+        raise HTTPException(404, 'Import batch not found')
+
+    column = EXTERNAL_ID_COLUMNS[batch.source]
+    identifier = func.btrim(ImportCopy.source_row[column].astext, ' \t\r\n\v\f')
+    in_batch = ImportCopy.batch_id == batch_id
+    eligible = (
+        select(ImportCopy)
+        .join(ImportBatch, ImportBatch.id == ImportCopy.batch_id)
+        .join(OwnedCopy, OwnedCopy.id == ImportCopy.owned_copy_id)
+        .where(ImportBatch.source == batch.source, OwnedCopy.deleted_at.is_(None),
+               OwnedCopy.ownership_status == 'owned')
+    )
+    if anchor is None:
+        selected_ids = eligible.with_only_columns(identifier).where(in_batch, identifier != '').distinct()
+        # Group before paging so repeated quantities never create a cross product.
+        group_query = (
+            eligible.with_only_columns(
+                func.min(cast(ImportCopy.owned_copy_id, String)).filter(in_batch).label('anchor'),
+                func.min(OwnedCopy.provisional_title).filter(in_batch).label('title'),
+                func.count().filter(in_batch).label('selected_count'),
+                func.count().filter(~in_batch).label('other_count'),
+            )
+            .where(identifier.in_(selected_ids))
+            .group_by(identifier)
+            .having(func.count().filter(~in_batch) > 0)
+            .order_by(identifier)
+        )
+        return [dict(row) for row in db.execute(group_query.limit(limit).offset(offset)).mappings()]
+
+    shared_id = db.scalar(
+        eligible.with_only_columns(identifier)
+        .where(in_batch, ImportCopy.owned_copy_id == anchor)
+    )
+    if not shared_id:
+        raise HTTPException(404, 'Import comparison no longer available')
+    matches = eligible.where(identifier == shared_id)
+    if not db.scalar(select(matches.where(~in_batch).exists())):
+        raise HTTPException(404, 'Import comparison no longer available')
+    rows = db.execute(
+        matches.with_only_columns(ImportCopy, OwnedCopy, ImportBatch.created_at, StorageLocation.name)
+        .outerjoin(StorageLocation, OwnedCopy.storage_location_id == StorageLocation.id)
+        .order_by(in_batch.desc(), ImportBatch.created_at.desc(), ImportCopy.batch_id,
+                  ImportCopy.row_number, ImportCopy.copy_number)
+        .limit(limit).offset(offset)
+    )
+    return [
+        {
+            'copy_id': copy.id, 'selected_import': source.batch_id == batch_id,
+            'imported_at': imported_at, 'row': source.row_number, 'copy_number': source.copy_number,
+            'title': copy.provisional_title, 'edition': copy.edition_label,
+            'artist': copy.record_details.get('artist'), 'issue': copy.comic_details.get('issue_number'),
+            'format': copy.record_details.get('format') or copy.movie_details.get('media_format'),
+            'storage': storage,
+        }
+        for source, copy, imported_at, storage in rows
+    ]
