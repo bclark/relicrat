@@ -202,3 +202,74 @@ def test_possible_duplicates_use_same_source_across_batches_and_keep_copy_identi
     api.cookies.clear()
     api.headers.pop('authorization', None)
     assert api.get(path).status_code == 401
+
+
+def test_duplicate_decisions_are_pair_scoped_retry_safe_and_reversible(client, tmp_path, monkeypatch):
+    from test_media_api import png_bytes
+
+    api, connection = client
+    monkeypatch.setenv('MEDIA_ROOT', str(tmp_path / 'media'))
+
+    def import_batch(edition, quantity='1'):
+        raw = encoded('clz', [{'Variant Description': edition, 'Quantity': quantity}])
+        response = post(api, 'commit', raw, reviewed_sha256=hashlib.sha256(raw).hexdigest())
+        assert response.status_code == 200, response.text
+        return response.json()['batch']['id']
+
+    prior = import_batch('Silver')
+    current = import_batch('Copper', '2')
+    review = f'/api/v1/imports/{current}/possible-duplicates'
+    decisions = f'/api/v1/imports/{current}/duplicate-decisions'
+    other_history = f'/api/v1/imports/{prior}/duplicate-decisions'
+    group, = api.get(review).json()
+    a, b, older = api.get(review, params={'anchor': group['anchor']}).json()
+
+    def payload(first, second, archive_id=None):
+        return {'request_id': str(uuid.uuid4()), 'first_id': first['copy_id'], 'second_id': second['copy_id'],
+                'first_updated_at': first['updated_at'], 'second_updated_at': second['updated_at'],
+                'archive_id': archive_id}
+
+    assert api.post(decisions, json=payload(a, b)).status_code == 422
+    assert api.post(decisions, json=payload(a, older, str(uuid.uuid4()))).status_code == 422
+    first = payload(a, older)
+    response = api.post(decisions, json=first)
+    assert response.status_code == 200, response.text
+    assert api.post(decisions, json=first).json() == response.json()
+    assert api.post(decisions, json=first | {'archive_id': older['copy_id']}).status_code == 409
+    assert len(api.get(review).json()) == 1
+    second = payload(b, older)
+    assert api.post(decisions, json=second).status_code == 200
+    assert api.get(review).json() == []
+    assert len(api.get('/api/v1/inventory').json()) == 3
+
+    def undo(request):
+        return api.post(f"{other_history}/{request['request_id']}/undo")
+
+    assert len(api.get(other_history).json()) == 2
+    assert undo(first).status_code == 200
+    assert len(api.get(review).json()) == 1
+
+    photo_path = f"/api/v1/inventory/{older['copy_id']}/photos"
+    photo = api.post(photo_path, files={'file': ('synthetic.png', png_bytes(), 'image/png')})
+    assert photo.status_code == 201, photo.text
+    photo_url = f"{photo_path}/{photo.json()['id']}"
+    before = api.get('/api/v1/inventory/'+older['copy_id']).json()
+    archive = payload(a, older, older['copy_id'])
+    stale = archive | {'first_updated_at': '2000-01-01T00:00:00Z'}
+    assert api.post(decisions, json=stale).status_code == 409
+    saved = api.post(decisions, json=archive)
+    assert saved.status_code == 200, saved.text
+    assert api.post(decisions, json=archive).json() == saved.json()
+    assert api.get('/api/v1/inventory/'+older['copy_id']).status_code == 404
+    assert api.get(photo_url).status_code == 404
+    assert api.get('/api/v1/inventory/'+a['copy_id']).status_code == 200
+    assert api.get(review).json() == []
+    assert undo(archive).status_code == undo(archive).status_code == 200
+    restored = api.get('/api/v1/inventory/'+older['copy_id']).json()
+    assert restored | {'updated_at': before['updated_at']} == before
+    assert api.get(photo_url).content == png_bytes()
+    assert api.get(f'/api/v1/imports/{prior}/rows').json()[0]['copy_id'] == older['copy_id']
+    assert len(api.get(review).json()) == 1
+    assert api.post(decisions, json=archive).json()['undone_at']
+    with Session(bind=connection) as db:
+        assert db.scalar(select(func.count()).select_from(OwnedCopy)) == 3

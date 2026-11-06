@@ -653,6 +653,10 @@ footer {
 .duplicate-groups li, .duplicate-copies li { min-width: 0; border-block-start: 1px solid var(--rule); padding-block: 12px; }
 .duplicate-groups p, .duplicate-copies :is(h4,p) { margin-block: 0 8px; }
 .duplicate-copies { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.duplicate-review fieldset { margin-block: 16px; min-width: 0; }
+.duplicate-review select { max-width: 100%; }
+.duplicate-pick { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.duplicate-pick input[type=radio] { accent-color: var(--accent); width: 20px; min-height: 20px; height: 20px; flex: 0 0 20px; margin: 0; padding: 0; }
 
 .collection-setup { overflow-wrap:anywhere; }
 .collection-setup:has(#collection-editor),.collection-setup:has(.error),.collection-setup:has(.notice:not(:empty)) { margin-bottom:var(--space); padding-bottom:24px; border-bottom:1px solid var(--rule); }

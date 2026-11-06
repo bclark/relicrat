@@ -2813,3 +2813,13 @@ A focused Chromium run exercised the comparison against real synthetic imports,
 including the two editions, current physical storage, and opening the selected
 copy. The desktop and 320px phone captures were inspected. The full API and
 browser suites and a physical phone trial were outside this increment.
+
+### Duplicate decisions (November 6, 2026)
+
+The full disposable PostgreSQL suite passed all 426 tests, followed by downgrade
+to base and upgrade to head. The worker used an unused subnet in a temporary
+test Compose configuration. The duplicate lifecycle test covered stale writes,
+exact-request retries, pair scoping, dismissal, archive, and undo from the other
+import. It verified that the original copy ID, CSV row, and photo bytes survive.
+The production web build and 37 Node checks passed. Chromium checked the comparison at desktop and 320px widths, then exercised
+Keep both, archive confirmation, and Undo at 320px using synthetic imports. The full legacy browser suite was outside this change.

@@ -454,3 +454,11 @@ same source produces a possible match. The comparison shows current edition,
 format and storage with the original row and copy numbers. Desktop shows copies
 alongside one another and phones stack them. Status is implemented for review.
 Deployment is pending.
+
+### Duplicate decisions after CSV import (2026-11-06)
+
+The owner approved adding Keep both, Archive duplicate and Undo after the
+read-only comparison shipped. The owner selects one copy from each import.
+Archive requires an explicit keeper and confirmation. Decision history is
+available from either import and contains the undo action. Status is
+implemented for review. Deployment is pending.

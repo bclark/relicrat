@@ -5,7 +5,7 @@ import uuid
 import json
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func, select
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, func, select, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, column_property
 from relicrat.barcodes import BARCODE_CHECK
@@ -325,6 +325,23 @@ class ImportCopy(Base):
     row_number: Mapped[int] = mapped_column(Integer, nullable=False)
     copy_number: Mapped[int] = mapped_column(Integer, nullable=False)
     source_row: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class ImportDuplicateDecision(Base):
+    __tablename__ = 'import_duplicate_decisions'
+    __table_args__ = (
+        CheckConstraint('left_id < right_id', name='import_duplicate_ordered_pair'),
+        CheckConstraint('archived_id IN (left_id, right_id)', name='import_duplicate_archive_member'),
+        Index('import_duplicate_active_pair', 'left_id', 'right_id', unique=True,
+              postgresql_where=text('undone_at IS NULL')),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('import_batches.id', ondelete='RESTRICT'), index=True)
+    left_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('import_copies.owned_copy_id', ondelete='RESTRICT'))
+    right_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('import_copies.owned_copy_id', ondelete='RESTRICT'))
+    archived_id: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ChecklistMatch(Base):

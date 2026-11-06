@@ -10,12 +10,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import ValidationError
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from relicrat.database import get_db
+from relicrat.import_duplicates import (
+    EXTERNAL_ID_COLUMNS, ID_WHITESPACE, DuplicateDecisionRequest, record_decision, undo_decision,
+)
 from relicrat.intake import CreateProvisionalCopy, stage_copy
-from relicrat.models import ImportBatch, ImportCopy, OwnedCopy, StorageLocation
+from relicrat.models import ImportBatch, ImportCopy, ImportDuplicateDecision, OwnedCopy, StorageLocation
 from relicrat.barcodes import BarcodeReading
 
 router=APIRouter(prefix='/api/v1/imports',tags=['imports'])
@@ -27,8 +31,6 @@ MAPPINGS={
  'discogs':{'Title':'Title','Artist':'Artist','Format':'Format (full description)','Collection Notes':'Notes'},
 }
 REQUIRED={'bluray':{'Title','Studio','UPC','EAN','Product ID','Blu-ray discs','DVD discs'},'clz':{'Series','Issue','Publisher','Quantity','Collection Status'},'discogs':{'Title','Artist','Format','release_id'}}
-
-EXTERNAL_ID_COLUMNS = {'clz': 'Core ComicID', 'discogs': 'release_id', 'bluray': 'Product ID'}
 
 
 def movie_row(value):
@@ -195,7 +197,7 @@ def possible_duplicates(
         raise HTTPException(404, 'Import batch not found')
 
     column = EXTERNAL_ID_COLUMNS[batch.source]
-    identifier = func.btrim(ImportCopy.source_row[column].astext, ' \t\r\n\v\f')
+    identifier = func.btrim(ImportCopy.source_row[column].astext, ID_WHITESPACE)
     in_batch = ImportCopy.batch_id == batch_id
     eligible = (
         select(ImportCopy)
@@ -206,18 +208,35 @@ def possible_duplicates(
     )
     if anchor is None:
         selected_ids = eligible.with_only_columns(identifier).where(in_batch, identifier != '').distinct()
-        # Group before paging so repeated quantities never create a cross product.
+        # Count reviewed pairs directly so expanded quantities do not produce a cross product.
+        matching = eligible.with_only_columns(
+            ImportCopy.owned_copy_id.label('id'), identifier.label('identifier'),
+            in_batch.label('selected'), OwnedCopy.provisional_title.label('title'),
+        ).where(identifier.in_(selected_ids)).cte()
+        left, right = matching.alias(), matching.alias()
+        decision = ImportDuplicateDecision
+        kept = (
+            select(left.c.identifier, func.count().label('pairs'))
+            .select_from(decision)
+            .join(left, left.c.id == decision.left_id)
+            .join(right, right.c.id == decision.right_id)
+            .where(decision.archived_id.is_(None), decision.undone_at.is_(None),
+                   left.c.selected != right.c.selected, left.c.identifier == right.c.identifier)
+            .group_by(left.c.identifier).subquery()
+        )
+        selected_count = func.count().filter(matching.c.selected)
+        other_count = func.count().filter(~matching.c.selected)
         group_query = (
-            eligible.with_only_columns(
-                func.min(cast(ImportCopy.owned_copy_id, String)).filter(in_batch).label('anchor'),
-                func.min(OwnedCopy.provisional_title).filter(in_batch).label('title'),
-                func.count().filter(in_batch).label('selected_count'),
-                func.count().filter(~in_batch).label('other_count'),
+            select(
+                func.min(cast(matching.c.id, String)).filter(matching.c.selected).label('anchor'),
+                func.min(matching.c.title).filter(matching.c.selected).label('title'),
+                selected_count.label('selected_count'), other_count.label('other_count'),
             )
-            .where(identifier.in_(selected_ids))
-            .group_by(identifier)
-            .having(func.count().filter(~in_batch) > 0)
-            .order_by(identifier)
+            .select_from(matching)
+            .outerjoin(kept, kept.c.identifier == matching.c.identifier)
+            .group_by(matching.c.identifier, kept.c.pairs)
+            .having(selected_count * other_count > func.coalesce(kept.c.pairs, 0))
+            .order_by(matching.c.identifier)
         )
         return [dict(row) for row in db.execute(group_query.limit(limit).offset(offset)).mappings()]
 
@@ -239,7 +258,7 @@ def possible_duplicates(
     )
     return [
         {
-            'copy_id': copy.id, 'selected_import': source.batch_id == batch_id,
+            'copy_id': copy.id, 'updated_at': copy.updated_at, 'selected_import': source.batch_id == batch_id,
             'imported_at': imported_at, 'row': source.row_number, 'copy_number': source.copy_number,
             'title': copy.provisional_title, 'edition': copy.edition_label,
             'artist': copy.record_details.get('artist'), 'issue': copy.comic_details.get('issue_number'),
@@ -248,3 +267,45 @@ def possible_duplicates(
         }
         for source, copy, imported_at, storage in rows
     ]
+
+@router.get('/{batch_id}/duplicate-decisions')
+def duplicate_decisions(
+    batch_id: UUID, limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0), db: Session = Depends(get_db),
+):
+    if db.get(ImportBatch, batch_id) is None:
+        raise HTTPException(404, 'Import batch not found')
+    decision = ImportDuplicateDecision
+    left, right = aliased(OwnedCopy), aliased(OwnedCopy)
+    left_source, right_source = aliased(ImportCopy), aliased(ImportCopy)
+    rows = db.execute(
+        select(decision.id, decision.archived_id, decision.left_id, decision.created_at,
+               left.provisional_title.label('left_title'), right.provisional_title.label('right_title'),
+               left.edition_label.label('left_edition'), right.edition_label.label('right_edition'))
+        .join(left, left.id == decision.left_id).join(right, right.id == decision.right_id)
+        .join(left_source, left_source.owned_copy_id == decision.left_id)
+        .join(right_source, right_source.owned_copy_id == decision.right_id)
+        .where(or_(left_source.batch_id == batch_id, right_source.batch_id == batch_id),
+               decision.undone_at.is_(None))
+        .order_by(decision.created_at.desc(), decision.id).limit(limit).offset(offset)
+    )
+    return [dict(row) for row in rows.mappings()]
+
+
+@router.post('/{batch_id}/duplicate-decisions')
+def save_duplicate_decision(batch_id: UUID, request: DuplicateDecisionRequest, db: Session = Depends(get_db)):
+    try:
+        decision = record_decision(db, batch_id, request)
+        result = {'id': decision.id, 'archived_id': decision.archived_id, 'undone_at': decision.undone_at}
+        db.commit()
+        return result
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, 'A duplicate decision already exists. Reload before deciding') from None
+
+
+@router.post('/{batch_id}/duplicate-decisions/{decision_id}/undo')
+def restore_duplicate_decision(batch_id: UUID, decision_id: UUID, db: Session = Depends(get_db)):
+    undo_decision(db, batch_id, decision_id)
+    db.commit()
+    return {'id': decision_id}
