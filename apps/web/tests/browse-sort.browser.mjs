@@ -53,10 +53,12 @@ test('phone sorting, filters and Covers preserve an ordered page across Back', a
   await rows.first().filter({hasText:longTitle}).waitFor();
   const blue=page.getByRole('button',{name:'Open Mira Vale — '+longTitle+' · Blue pressing',exact:true});
   await blue.waitFor();
-  await page.getByRole('button',{name:'Filters (1)',exact:true}).tap();
-  await page.getByRole('button',{name:'Covers',exact:true}).tap();
-  await page.getByRole('button',{name:'Filters (2)',exact:true}).tap();
   await page.setViewportSize({width:320,height:844});
+  const filters = page.getByRole('button',{name:'Filters (1)',exact:true});
+  const covers = page.getByRole('button',{name:'Covers',exact:true});
+  await covers.tap();
+  assert.equal(await covers.getAttribute('aria-pressed'),'true');
+  assert.equal(await filters.getAttribute('aria-expanded'),'false');
   assert.equal(await blue.getByText('Blue pressing',{exact:true}).isVisible(),true);
   assert.equal(await blue.locator('.phone-copy-meta').isVisible(),false);
   assert.equal(await blue.getByLabel('No artwork',{exact:true}).isVisible(),true);
@@ -74,9 +76,9 @@ test('phone sorting, filters and Covers preserve an ordered page across Back', a
   assert.equal(await page.getByRole('searchbox').inputValue(),prefix);
   await page.getByText('Title A–Z',{exact:true}).filter({visible:true}).first().waitFor();
 
-  await page.getByRole('button',{name:'Filters (2)',exact:true}).tap();
+  await filters.tap();
   await page.getByLabel('Storage location',{exact:true}).selectOption(shelf.id);
-  await page.getByRole('button',{name:'Filters (3)',exact:true}).tap();
+  await page.getByRole('button',{name:'Filters (2)',exact:true}).tap();
   await page.getByRole('status').filter({hasText:'1 copy on this page'}).waitFor();
   await page.getByText(shelf.name,{exact:true}).filter({visible:true}).first().waitFor();
   await page.getByRole('searchbox').fill('No synthetic match');

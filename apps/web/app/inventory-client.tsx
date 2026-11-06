@@ -173,8 +173,8 @@ export default function InventoryClient() {
     event.preventDefault(); setQuery(draftQuery.trim()); setPage(0); changed();
   }
   const showingPhoneHome=phoneHome&&!intakeVisible&&!detailOpen;
-  const filterCount=Number(!!storageFilter)+Number(grouped)+Number(view==='bricks')+Number(!grouped&&!!activeSort);
-  const viewControls=<div className="view-controls" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Covers</button></div>;
+  const filterCount=Number(!!storageFilter)+Number(grouped)+Number(!grouped&&!!activeSort);
+  const viewControls=<div className="view-controls" role="group" aria-label="Collection view"><button type="button" className="quiet" aria-pressed={view==='list'} onClick={()=>setView('list')}>List</button><button type="button" className="quiet" aria-pressed={view==='bricks'} onClick={()=>setView('bricks')}>Covers</button></div>;
   return (
     <div className="themed-app collection-journey" style={appearanceStyles} onClickCapture={event=>{const target=(event.target as HTMLElement).closest('a.brand,button');if((target?.matches('a.brand')||target?.textContent==='Sign out')&&(!detailGuard.current()||!managementGuard.current())){event.preventDefault();event.stopPropagation();}}}>
       <a className="skip-link" href={intakeVisible?"#add-find":detailOpen?"#record-title":phone&&showingPhoneHome?"#collection-home-title":"#collection-title"}>Skip to main content</a>
@@ -222,6 +222,7 @@ export default function InventoryClient() {
               <label htmlFor="query">Find a copy</label>
               <div className="search-controls"><input id="query" ref={searchInput} type="search" maxLength={200} value={draftQuery} onChange={e => setDraftQuery(e.target.value)} placeholder={phone?"Find items":"Title, artist, studio or barcode"} disabled={busy} /><button type="submit" disabled={busy}>Search</button></div>
             </form>
+            {phone&&viewControls}
             <button type="button" className="phone-filters quiet" ref={phoneFilters} aria-expanded={filtersOpen} aria-controls="browse-options" onClick={()=>setFiltersOpen(open=>!open)}>Filters{filterCount?` (${filterCount})`:''}</button>
             <div id="browse-options" className="browse-options" data-expanded={filtersOpen}>
               <div className="storage-filter"><StorageFilter value={storageFilter} change={(id,label)=>{setStorage({id,label});setPage(0);}} busy={busy} refresh={refresh} /></div>
@@ -238,7 +239,6 @@ export default function InventoryClient() {
                   {typeFilter==='record'&&<option value="artist">Artist A–Z</option>}
                 </select>
               </div>
-              {phone&&viewControls}
             </div>
             </div>
             {(query||storageFilter||(!grouped&&activeSort))&&<div className="browse-active" aria-label="Active browse options">

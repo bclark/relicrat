@@ -1042,11 +1042,13 @@ footer {
  .collection-sidebar .collection-link:first-of-type { border-top:1px solid var(--rule); }
  .collection-sidebar .collection-link::after { content:""; float:right; width:7px; height:7px; margin:8px 4px; border-top:1px solid; border-right:1px solid; transform:rotate(45deg); }
  .collection-journey .phone-back { margin-bottom:8px; }
- .collection-journey .browse-toolbar { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"search filters" "options options"; align-items:start; gap:8px; margin:12px 0; }
+ .collection-journey .browse-toolbar { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"search search" "view filters" "options options"; align-items:start; gap:8px; margin:12px 0; }
  .collection-journey .browse-toolbar .search>label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
  .collection-journey .browse-toolbar .search-controls { gap:4px; }
  .collection-journey .browse-toolbar :is(.search-controls button,.phone-filters) { padding-inline:8px; }
  .collection-journey .browse-toolbar input { min-width:0; min-height:44px; padding-inline:8px; font-size:16px; }
+ .collection-journey .browse-toolbar .view-controls { grid-area:view; }
+ .collection-journey .browse-toolbar .view-controls button { min-width:44px; min-height:44px; }
  .collection-journey .phone-filters { grid-area:filters; }
  .collection-journey .browse-options { display:grid; grid-area:options; gap:12px; padding:12px; border:1px solid var(--rule); border-radius:var(--radius); }
  .collection-journey .browse-options[data-expanded=false] { display:none; }
