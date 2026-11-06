@@ -1,14 +1,28 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import ImportStorage from './import-storage';
-import {api,ApiError,errorText,type CollectionTypeId,type RunSave} from '../lib/inventory-client';
+import {api,ApiError,errorText,jsonSave,type CollectionTypeId,type RunSave} from '../lib/inventory-client';
 type Batch={id:string;source:'clz'|'discogs'|'bluray';row_count:number;copy_count:number;created_at:string};
 type Preview={sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
 type DuplicateGroup = {anchor:string; title:string|null; selected_count:number; other_count:number};
 type DuplicateCopy = {
- copy_id:string; selected_import:boolean; imported_at:string; row:number; copy_number:number;
+ copy_id:string; updated_at:string; selected_import:boolean; imported_at:string; row:number; copy_number:number;
  title:string|null; edition:string|null; artist:string|null; issue:string|null; format:string|null; storage:string|null;
 };
+type Decision = {
+ id:string; archived_id:string|null; left_id:string; created_at:string;
+ left_title:string|null; right_title:string|null; left_edition:string|null; right_edition:string|null;
+};
+type DecisionRequest = {
+ request_id:string; first_id:string; second_id:string;
+ first_updated_at:string; second_updated_at:string; archive_id:string|null;
+};
+function copyLabel(copy:DuplicateCopy) {
+ return [copy.title||'Untitled copy', copy.edition||copy.format,
+  copy.selected_import?'Selected import':'Another import', new Date(copy.imported_at).toLocaleString(),
+  'row '+copy.row+', copy '+copy.copy_number]
+  .filter(Boolean).join(' · ');
+}
 const matchLabels = {clz:'CLZ comic ID',discogs:'Discogs release ID',bluray:'Blu-ray.com product ID'};
 type SourceRow={copy_id:string;row:number;copy_number:number;source:Record<string,string>};
 const names={clz:'CLZ Comics',discogs:'Discogs Albums',bluray:'Blu-ray.com Movies'};
@@ -22,7 +36,14 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  const [batches,setBatches]=useState<Batch[]>([]),[batchPage,setBatchPage]=useState(0),[historyLoaded,setHistoryLoaded]=useState(false),[selected,setSelected]=useState<Batch|null>(null),[rows,setRows]=useState<SourceRow[]>([]),[rowPage,setRowPage]=useState(0);
  const [duplicates,setDuplicates] = useState<{batch:Batch; page:number; groups:DuplicateGroup[]} | null>(null);
  const [comparison,setComparison] = useState<{group:DuplicateGroup; page:number; copies:DuplicateCopy[]} | null>(null);
+ const [decisionPage,setDecisionPage] = useState({page:0,items:[] as Decision[]});
+ const [fromSelected,setFromSelected] = useState<DuplicateCopy|null>(null);
+ const [fromOther,setFromOther] = useState<DuplicateCopy|null>(null);
+ const [archiveOpen,setArchiveOpen] = useState(false);
+ const [keeper,setKeeper] = useState('');
+ const [retryDecision,setRetryDecision] = useState<DecisionRequest|null>(null);
  const duplicateHeading = useRef<HTMLHeadingElement>(null);
+ const decisionHistory = useRef<HTMLDetailsElement>(null);
  const [mappingBatch,setMappingBatch]=useState<Batch|null>(null);
  const [step,setStep]=useState<Step>('choose');
  const [result,setResult]=useState<{batch:Batch;reopened:boolean}|null>(null);
@@ -33,16 +54,73 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  async function task(action:()=>Promise<void>){if(pending.current||locked)return;pending.current=true;setWorking(true);setError('');try{await action();}catch(e){setError(errorText(e));}finally{pending.current=false;setWorking(false);}}
  async function history(page:number){const result=await api<Batch[]>(`imports?limit=21&offset=${page*20}`);setBatches(result);setBatchPage(page);setHistoryLoaded(true);}
  async function sourceRows(batch:Batch,page:number){const result=await api<SourceRow[]>(`imports/${batch.id}/rows?limit=21&offset=${page*20}`);setRows(result);setSelected(batch);setRowPage(page);}
+ function clearPair(){
+  setFromSelected(null);setFromOther(null);setArchiveOpen(false);setKeeper('');setRetryDecision(null);
+ }
+ async function readDecisions(batch:Batch,page:number){
+  return {page,items:await api<Decision[]>(`imports/${batch.id}/duplicate-decisions?limit=21&offset=${page*20}`)};
+ }
  async function loadDuplicates(batch:Batch,page:number){
-  const groups = await api<DuplicateGroup[]>(`imports/${batch.id}/possible-duplicates?limit=21&offset=${page*20}`);
+  const [groups,history] = await Promise.all([
+   api<DuplicateGroup[]>(`imports/${batch.id}/possible-duplicates?limit=21&offset=${page*20}`),
+   readDecisions(batch,0),
+  ]);
+  setDecisionPage(history);
+  clearPair();
   setDuplicates({batch,page,groups});
   setComparison(null);
   requestAnimationFrame(()=>duplicateHeading.current?.focus());
  }
  async function compare(batch:Batch,group:DuplicateGroup,page:number){
   const copies = await api<DuplicateCopy[]>(`imports/${batch.id}/possible-duplicates?anchor=${group.anchor}&limit=21&offset=${page*20}`);
+  if(comparison?.group.anchor!==group.anchor)clearPair();
   setComparison({group,page,copies});
   requestAnimationFrame(()=>duplicateHeading.current?.focus());
+ }
+ async function refreshAfterDecision(batch:Batch){
+  changed();
+  setComparison(null);
+  clearPair();
+  try{
+   await loadDuplicates(batch,0);
+   if(decisionHistory.current)decisionHistory.current.open=true;
+  }
+  catch{setError('Your decision was saved. Reload possible duplicates to refresh the review.');}
+ }
+ async function saveDecision(request:DecisionRequest){
+  if(!duplicates)return;
+  const {batch}=duplicates;
+  await task(async()=>{
+   try{
+    const saved=await runSave(()=>api<{undone_at:string|null}>(`imports/${batch.id}/duplicate-decisions`,jsonSave(request)));
+    if(!saved)return;
+    setNotice(saved.undone_at?'This decision was already undone.':request.archive_id?'Duplicate archived.':'Both copies kept.');
+    await refreshAfterDecision(batch);
+   }catch(problem){
+    if(problem instanceof ApiError&&problem.uncertain){
+     setRetryDecision(request);
+     throw new Error('The decision could not be confirmed. Retry the same decision or reload the review to check Decision history.');
+    }
+    setRetryDecision(null);
+    throw problem;
+   }
+  });
+ }
+ function decide(archiveId:string|null){
+  if(!fromSelected||!fromOther)return;
+  void saveDecision({
+   request_id:crypto.randomUUID(), archive_id:archiveId,
+   first_id:fromSelected.copy_id, first_updated_at:fromSelected.updated_at,
+   second_id:fromOther.copy_id, second_updated_at:fromOther.updated_at,
+  });
+ }
+ async function undo(batch:Batch,decision:Decision){
+  await task(async()=>{
+   const saved=await runSave(()=>api(`imports/${batch.id}/duplicate-decisions/${decision.id}/undo`,jsonSave({})));
+   if(!saved)return;
+   setNotice(decision.archived_id?'Archived copy restored.':'Keep both decision undone.');
+   await refreshAfterDecision(batch);
+  });
  }
  function chooseFile(clear=false){
   reset();
@@ -139,10 +217,13 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <p>{names[duplicates.batch.source]} · {new Date(duplicates.batch.created_at).toLocaleString()}</p>
     <p>Matches share a {matchLabels[duplicates.batch.source]} across imports. You may own more than one copy of the same release.</p>
     {comparison?<>
+     <div className="form-actions">
      <button type="button" className="text-button" disabled={disabled} onClick={()=>{
-      setComparison(null);
+      setComparison(null);clearPair();
       requestAnimationFrame(()=>duplicateHeading.current?.focus());
      }}>Back to possible duplicates</button>
+     <button type="button" className="text-button" disabled={disabled} onClick={()=>void task(()=>loadDuplicates(duplicates.batch,0))}>Reload review</button>
+     </div>
      <ul className="duplicate-copies" aria-label="Copies that share the source ID">{comparison.copies.slice(0,20).map(copy=><li key={copy.copy_id}>
       <p>{copy.selected_import?'Selected import':'Another import'} · {new Date(copy.imported_at).toLocaleString()}</p>
       <h4>{copy.artist?copy.artist+' — ':''}{copy.title||'Untitled copy'}{copy.issue?' #'+copy.issue:''}</h4>
@@ -152,22 +233,68 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
        <div><dt>Storage</dt><dd>{copy.storage||'Unassigned'}</dd></div>
        <div><dt>CSV source</dt><dd>Row {copy.row}, copy {copy.copy_number}</dd></div>
       </dl>
+      <label className="duplicate-pick"><input type="radio"
+       aria-label={`Select copy: ${copyLabel(copy)}`}
+       name={copy.selected_import?'duplicate-selected-copy':'duplicate-other-copy'}
+       checked={(copy.selected_import?fromSelected:fromOther)?.copy_id===copy.copy_id}
+       disabled={disabled||!!retryDecision} onChange={()=>{
+        (copy.selected_import?setFromSelected:setFromOther)(copy);
+        setArchiveOpen(false);setKeeper('');
+       }} /> Select copy</label>
       <button type="button" disabled={disabled} onClick={()=>openCopy(copy.copy_id)}>Open copy</button>
      </li>)}</ul>
      {(comparison.page>0||comparison.copies.length>20)&&<nav className="form-actions" aria-label="Matching copy pages">
       <button disabled={disabled||!comparison.page} onClick={()=>void task(()=>compare(duplicates.batch,comparison.group,comparison.page-1))}>Previous copies</button>
       <button disabled={disabled||comparison.copies.length<=20} onClick={()=>void task(()=>compare(duplicates.batch,comparison.group,comparison.page+1))}>Next copies</button>
      </nav>}
+     <fieldset disabled={disabled}>
+      <legend>Decide what to keep</legend>
+      {!fromSelected||!fromOther?<p>Select a copy from this import and a copy from another import.</p>:<>
+       <ul><li>{copyLabel(fromSelected)}</li><li>{copyLabel(fromOther)}</li></ul>
+       {retryDecision?<button type="button" onClick={()=>void saveDecision(retryDecision)}>Retry same decision</button>:archiveOpen?<>
+        <label htmlFor="duplicate-keeper">Which copy should stay in your collection?</label>
+        <select id="duplicate-keeper" value={keeper} onChange={event=>setKeeper(event.target.value)}>
+         <option value="">Choose the copy to keep</option>
+         {[fromSelected,fromOther].map(copy=><option key={copy.copy_id} value={copy.copy_id}>{copyLabel(copy)}</option>)}
+        </select>
+        <p>The other copy will move out of active inventory. You can restore it from Decision history.</p>
+        <div className="form-actions">
+         <button type="button" disabled={!keeper} onClick={()=>decide(keeper===fromSelected.copy_id?fromOther.copy_id:fromSelected.copy_id)}>Confirm archive</button>
+         <button type="button" onClick={()=>{setArchiveOpen(false);setKeeper('');}}>Cancel</button>
+        </div>
+       </>:<div className="form-actions">
+        <button type="button" onClick={()=>decide(null)}>Keep both</button>
+        <button type="button" onClick={()=>setArchiveOpen(true)}>Archive duplicate</button>
+       </div>}
+      </>}
+     </fieldset>
     </>:<>
      {duplicates.groups.length?<ul className="duplicate-groups">{duplicates.groups.slice(0,20).map(group=><li key={group.anchor}>
       <button type="button" className="text-button" disabled={disabled} onClick={()=>void task(()=>compare(duplicates.batch,group,0))}>{group.title||'Untitled copy'}</button>
       <p>{group.selected_count} in this import · {group.other_count} in other imports</p>
-     </li>)}</ul>:<p role="status">No copies with shared source IDs were found across imports.</p>}
+     </li>)}</ul>:<p role="status">No possible duplicates need review for this import.</p>}
      {(duplicates.page>0||duplicates.groups.length>20)&&<nav className="form-actions" aria-label="Possible duplicate pages">
       <button disabled={disabled||!duplicates.page} onClick={()=>void task(()=>loadDuplicates(duplicates.batch,duplicates.page-1))}>Previous matches</button>
       <button disabled={disabled||duplicates.groups.length<=20} onClick={()=>void task(()=>loadDuplicates(duplicates.batch,duplicates.page+1))}>Next matches</button>
      </nav>}
     </>}
+    <details ref={decisionHistory}>
+     <summary>Decision history</summary>
+     {decisionPage.items.length?<ul className="duplicate-groups">{decisionPage.items.slice(0,20).map(decision=>{
+      const left=[decision.left_title||'Untitled copy',decision.left_edition].filter(Boolean).join(' · ');
+      const right=[decision.right_title||'Untitled copy',decision.right_edition].filter(Boolean).join(' · ');
+      const archived=decision.archived_id===decision.left_id?left:right;
+      return <li key={decision.id}>
+       <p>{decision.archived_id?'Archived '+archived:'Kept both copies'} · {new Date(decision.created_at).toLocaleString()}</p>
+       <p>{left} / {right}</p>
+       <button type="button" disabled={disabled} onClick={()=>void undo(duplicates.batch,decision)}>Undo</button>
+      </li>;
+     })}</ul>:<p>No active decisions for this import.</p>}
+     {(decisionPage.page>0||decisionPage.items.length>20)&&<nav className="form-actions" aria-label="Duplicate decision pages">
+      <button disabled={disabled||!decisionPage.page} onClick={()=>void task(async()=>setDecisionPage(await readDecisions(duplicates.batch,decisionPage.page-1)))}>Previous decisions</button>
+      <button disabled={disabled||decisionPage.items.length<=20} onClick={()=>void task(async()=>setDecisionPage(await readDecisions(duplicates.batch,decisionPage.page+1)))}>Next decisions</button>
+     </nav>}
+    </details>
    </section>}
    {mappingBatch&&<ImportStorage key={mappingBatch.id} batchId={mappingBatch.id} locked={disabled} runSave={runSave} changed={changed}/>}
    {selected&&<><h4>Original source rows · {names[selected.source]}</h4><ul>{rows.slice(0,20).map(r=><li key={r.copy_id}><button disabled={disabled} onClick={()=>openCopy(r.copy_id)}>Open copy from row {r.row}, copy {r.copy_number}</button><details><summary>View retained fields</summary><dl>{Object.entries(r.source).map(([key,value])=><div key={key}><dt>{key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{value||'(empty)'}</dd></div>)}</dl></details></li>)}</ul><nav aria-label="Source row pages"><button disabled={disabled||!rowPage} onClick={()=>void task(()=>sourceRows(selected,rowPage-1))}>Previous source rows</button><span>Page {rowPage+1}</span><button disabled={disabled||rows.length<=20} onClick={()=>void task(()=>sourceRows(selected,rowPage+1))}>Next source rows</button></nav></>}

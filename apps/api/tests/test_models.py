@@ -8,6 +8,7 @@ def test_foundation_and_reconciliation_tables():
         "checklist_matches", "checklist_match_events", "custom_type_revisions", "custom_collection_types", "custom_collections", "categories", "catalog_items", "releases", "owned_copies",
         "storage_locations", "media_assets", "reconciliation_events",
         "copy_location_events", "storage_hierarchy_guard", "owner_sessions", "owner_login_guard", "copy_detail_events", "collection_settings", "appearance_settings", "import_batches", "import_copies",
+        "import_duplicate_decisions",
     }
 
 

@@ -145,6 +145,33 @@ test('compare possible duplicates across imports on desktop and phone', async t 
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  if(process.env.RELICRAT_SCREENSHOTS)
   await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/duplicates-phone.png'});
+ const selectPair=async()=>{
+  await page.getByRole('button',{name:'Synthetic comparison',exact:true}).click();
+  await copies.nth(0).getByRole('radio').check();
+  await copies.nth(1).getByRole('radio').check();
+ };
+ const history=page.getByText('Decision history',{exact:true}).locator('..');
+ await copies.nth(0).getByRole('radio').check();
+ await copies.nth(1).getByRole('radio').check();
+ await page.getByRole('button',{name:'Keep both',exact:true}).click();
+ await page.getByText('Both copies kept.',{exact:true}).waitFor();
+ await page.getByText('No possible duplicates need review for this import.',{exact:true}).waitFor();
+ await history.getByRole('button',{name:'Undo',exact:true}).click();
+ await page.getByText('Keep both decision undone.',{exact:true}).waitFor();
+ await selectPair();
+ await page.getByRole('button',{name:'Archive duplicate',exact:true}).click();
+ const confirm=page.getByRole('button',{name:'Confirm archive',exact:true});
+ assert.equal(await confirm.isDisabled(),true);
+ await page.getByLabel('Which copy should stay in your collection?').selectOption({index:1});
+ if(process.env.RELICRAT_SCREENSHOTS)
+  await review.screenshot({path:process.env.RELICRAT_SCREENSHOTS+'/confirm-archive-phone.png'});
+ await confirm.click();
+ await page.getByText('Duplicate archived.',{exact:true}).waitFor();
+ assert.equal((await context.request.get(base+`/api/v1/inventory/${copy_id}`)).status(),404);
+ await history.getByRole('button',{name:'Undo',exact:true}).click();
+ await page.getByText('Archived copy restored.',{exact:true}).waitFor();
+ assert.equal((await context.request.get(base+`/api/v1/inventory/${copy_id}`)).status(),200);
+ await page.getByRole('button',{name:'Synthetic comparison',exact:true}).click();
  await copies.nth(1).getByRole('button',{name:'Open copy',exact:true}).click();
  await page.getByRole('heading',{name:'Synthetic comparison',exact:true}).waitFor();
 });

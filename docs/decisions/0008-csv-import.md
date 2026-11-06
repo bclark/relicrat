@@ -38,3 +38,17 @@ comparison is read-only and uses current edition and physical storage alongside
 source row provenance. The catalog reference alone cannot establish physical
 identity. Matches require a shared ID in retained data, so manually entered
 copies and imports without those IDs are outside this review.
+
+Duplicate decisions apply to one pair from separate imports with a shared
+source ID. **Keep both** dismisses that pair and leaves the copies active.
+Other pairings remain in review until addressed. **Archive duplicate** asks
+the owner which copy to keep, then sets the other copy's soft-delete timestamp
+while retaining its UUID, media, storage and original source evidence. Decision
+history is accessible from either import and Undo reverses the exact decision.
+The API locks both copies in UUID order, verifies the reviewed timestamps, and
+records a request ID so a retry cannot repeat the change.
+
+Migration 0017 adds the decision history table and leaves existing inventory
+untouched. Downgrade is allowed while the table is empty. Once it records a
+decision, downgrade requires a verified pre-migration backup to preserve the
+audit trail and avoid stranding archived copies.

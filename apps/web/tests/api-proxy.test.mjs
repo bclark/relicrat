@@ -362,3 +362,18 @@ test('checklist progress and reviewed matching retain fixed owner/method/origin 
  assert.equal((await forwardApi(request(path,post('{}',{origin:'https://evil.test'})),path.split('/'))).status,403);
  assert.equal((await forwardApi(request(path+'/delete',post()),(path+'/delete').split('/'))).status,404);
 });
+
+test('duplicate decisions and undo require the owner and same-origin JSON writes', async () => {
+  const decisions = `imports/${id}/duplicate-decisions`;
+  const undo = `${decisions}/${id}/undo`;
+  const guest = new Request(`${origin}/api/v1/${decisions}`, {headers:{host:new URL(origin).host}});
+  assert.equal((await forwardApi(guest, decisions.split('/'))).status, 401);
+  assert.equal((await forwardApi(request(decisions), decisions.split('/'))).status, 200);
+  assert.equal((await forwardApi(request(undo), undo.split('/'))).status, 405);
+  for (const path of [decisions, undo]) {
+    const segments = path.split('/');
+    assert.equal((await forwardApi(request(path, post('{}', {origin:'https://evil.test'})), segments)).status, 403);
+    assert.equal((await forwardApi(request(path, post('{}', {'content-type':'text/csv'})), segments)).status, 415);
+    assert.equal((await forwardApi(request(path, post()), segments)).status, 201);
+  }
+});
