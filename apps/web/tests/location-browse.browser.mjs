@@ -189,7 +189,7 @@ for(const [layout,viewport] of [
   });
 }
 
-test('a printed QR opens the renamed and moved box after phone sign-in',async t=>{
+test('a printed QR opens the moved box and saves a mobile audit after sign-in',async t=>{
   const owner=await browser.newContext();
   const phone=await browser.newContext({viewport:{width:320,height:840},isMobile:true,hasTouch:true});
   t.after(()=>Promise.all([owner.close(),phone.close()]));
@@ -204,6 +204,8 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
   const box=await post('storage-locations',{name:'Synthetic QR box',parent_id:source.id});
   const copy=await post('inventory',{title:'Synthetic QR copy',collection_type:'comic'});
   await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+  const missing=await post('inventory',{title:'Synthetic missing QR copy',collection_type:'comic'});
+  await post(`inventory/${missing.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
 
   const desktop=await owner.newPage();
   await desktop.goto(base);
@@ -248,6 +250,50 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
   await scanPage.getByRole('heading',{name:renamed,exact:true}).waitFor();
   await scanPage.locator(`#copy-row-${copy.id}`).waitFor();
   await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).waitFor();
+
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  const audit=scanPage.getByRole('region',{name:'Check location contents',exact:true});
+  await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).check();
+  assert.equal(await audit.getByRole('checkbox',{name:/Synthetic missing QR copy/}).isChecked(),false);
+  await audit.getByLabel('Extra item',{exact:true}).fill('Synthetic extra found in box');
+  await audit.getByRole('button',{name:'Add extra item',exact:true}).click();
+  await audit.getByRole('button',{name:'Review audit',exact:true}).click();
+  await audit.getByRole('heading',{name:'Missing copies (1)',exact:true}).waitFor();
+  await audit.getByRole('heading',{name:'Extra items (1)',exact:true}).waitFor();
+  const auditUrl=`${base}/api/v1/storage-locations/${box.id}/audits`;
+  let firstRequest;
+  let firstResult;
+  await scanPage.route(auditUrl,async route=>{
+    if(route.request().method()!=='POST')return route.continue();
+    if(firstRequest){
+      assert.deepEqual(route.request().postDataJSON(),firstRequest);
+      return route.continue();
+    }
+    firstRequest=route.request().postDataJSON();
+    const saved=await route.fetch();
+    assert.ok(saved.ok(),await saved.text());
+    firstResult=await saved.json();
+    await route.fulfill({status:502,json:{detail:'Synthetic lost audit response'}});
+  });
+  await audit.getByRole('button',{name:'Save audit',exact:true}).click();
+  await audit.getByRole('button',{name:'Retry same audit',exact:true}).click();
+  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
+  await scanPage.reload();
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  const summary=audit.getByText(/Last checked.*1 found.*1 missing.*1 extra/);
+  await summary.click();
+  const savedAudit=summary.locator('..');
+  await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
+  await savedAudit.getByText('Synthetic extra found in box',{exact:true}).waitFor();
+  const persisted=await phone.request.get(`${base}/api/v1/storage-locations/${box.id}/audits`);
+  assert.ok(persisted.ok(),await persisted.text());
+  const {latest}=await persisted.json();
+  assert.equal(latest.id,firstResult.id);
+  assert.deepEqual(latest.copies.filter(copy=>!copy.found).map(copy=>copy.id),[missing.id]);
+  assert.deepEqual(latest.extras,['Synthetic extra found in box']);
+  const copyResponse=await phone.request.get(`${base}/api/v1/inventory/${missing.id}`);
+  assert.ok(copyResponse.ok(),await copyResponse.text());
+  assert.equal((await copyResponse.json()).storage_location_id,box.id);
 
   await scanPage.goto(base+'/login?location='+encodeURIComponent('https://example.invalid'));
   assert.equal(scanPage.url(),base+'/');

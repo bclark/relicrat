@@ -504,3 +504,11 @@ a print view that encodes the configured RelicRat origin and the location’s
 stable ID. The scan continues through owner sign-in and resolves the current
 name and parent path. Browser CI decodes the rendered label and exercises
 sign-in on a phone viewport after a rename and move.
+
+### Check location contents (2026-11-07)
+
+The owner approved audits from a scanned box label. The checklist tracks
+individual copies, and the review shows unchecked copies and manually entered
+extras before saving. The last completed result is visible from Check contents.
+Audits are observations and do not change inventory or storage. Migration
+0018 retains completed results. It refuses downgrade while audits exist.
