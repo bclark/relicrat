@@ -22,7 +22,7 @@ for(const [layout,viewport] of [
       return response.json();
     };
     await post('auth/login',{password:'synthetic-only-owner-password'});
-    const shelf=await post('storage-locations',{name:`Synthetic ${layout} shelf`});
+    const shelf=await post('storage-locations',{name:`Synthetic location-browser ${layout} shelf`});
     const boxA=await post('storage-locations',{name:`Box A ${layout}`,parent_id:shelf.id});
     const boxB=await post('storage-locations',{name:`Box B ${layout}`,parent_id:shelf.id});
     const prefix=`Synthetic ${layout} copy`;
