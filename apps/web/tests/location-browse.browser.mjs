@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {after,before,test} from 'node:test';
 import {chromium} from 'playwright';
-import {BinaryBitmap,HybridBinarizer,QRCodeReader,RGBLuminanceSource} from '@zxing/library';
+import {BinaryBitmap,DecodeHintType,HybridBinarizer,QRCodeReader,RGBLuminanceSource} from '@zxing/library';
 
 const base=process.env.RELICRAT_TEST_WEB_URL;
 assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='56742','Use only a disposable loopback test stack');
@@ -189,7 +189,7 @@ for(const [layout,viewport] of [
   });
 }
 
-test('a printed QR opens the renamed and moved box after phone sign-in',async t=>{
+test('a printed QR opens the moved box and saves a mobile audit after sign-in',async t=>{
   const owner=await browser.newContext();
   const phone=await browser.newContext({viewport:{width:320,height:840},isMobile:true,hasTouch:true});
   t.after(()=>Promise.all([owner.close(),phone.close()]));
@@ -204,6 +204,8 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
   const box=await post('storage-locations',{name:'Synthetic QR box',parent_id:source.id});
   const copy=await post('inventory',{title:'Synthetic QR copy',collection_type:'comic'});
   await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+  const missing=await post('inventory',{title:'Synthetic missing QR copy',collection_type:'comic'});
+  await post(`inventory/${missing.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
 
   const desktop=await owner.newPage();
   await desktop.goto(base);
@@ -217,8 +219,8 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
   assert.equal(await desktop.getByRole('button',{name:'Print label',exact:true}).count(),0);
   const qr=desktop.getByRole('img',{name:'Location QR code',exact:true});
   await qr.waitFor();
-  const size=320;
-  const luminance=await qr.evaluate(async (svg,size)=>{
+  const {size,luminance}=await qr.evaluate(async svg=>{
+    const size=svg.viewBox.baseVal.width*8;
     const image=new Image();
     image.src='data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
     await image.decode();
@@ -228,10 +230,10 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
     context.imageSmoothingEnabled=false;
     context.drawImage(image,0,0,size,size);
     const pixels=context.getImageData(0,0,size,size).data;
-    return Array.from({length:size*size},(_,i)=>pixels[4*i]);
-  },size);
+    return {size,luminance:Array.from({length:size*size},(_,i)=>pixels[4*i])};
+  });
   const bitmap=new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(Uint8ClampedArray.from(luminance),size,size)));
-  const scanned=new QRCodeReader().decode(bitmap).getText();
+  const scanned=new QRCodeReader().decode(bitmap,new Map([[DecodeHintType.PURE_BARCODE,true]])).getText();
   assert.equal(scanned,`${base}/?location=${box.id}`);
 
   const renamed='Synthetic QR box after move';
@@ -239,6 +241,8 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
     name:renamed,parent_id:destination.id,expected_name:box.name,expected_parent_id:source.id,
   });
   const scanPage=await phone.newPage();
+  const pageErrors=[];
+  scanPage.on('pageerror',error=>pageErrors.push(error.message));
   await scanPage.goto(scanned);
   await scanPage.waitForURL(`**/login?location=${box.id}`);
   assert.equal(await scanPage.getByText(copy.title,{exact:true}).count(),0);
@@ -248,6 +252,43 @@ test('a printed QR opens the renamed and moved box after phone sign-in',async t=
   await scanPage.getByRole('heading',{name:renamed,exact:true}).waitFor();
   await scanPage.locator(`#copy-row-${copy.id}`).waitFor();
   await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).waitFor();
+
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  const audit=scanPage.getByRole('region',{name:'Check location contents',exact:true});
+  await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).check();
+  assert.equal(await audit.getByRole('checkbox',{name:/Synthetic missing QR copy/}).isChecked(),false);
+  await audit.getByLabel('Extra item',{exact:true}).fill('Synthetic extra found in box');
+  await audit.getByRole('button',{name:'Add extra item',exact:true}).click();
+  await audit.getByRole('button',{name:'Review audit',exact:true}).click();
+  await audit.getByRole('heading',{name:'Missing copies (1)',exact:true}).waitFor();
+  await audit.getByRole('heading',{name:'Extra items (1)',exact:true}).waitFor();
+  const auditUrl=`${base}/api/v1/storage-locations/${box.id}/audits`;
+  const saveResponse=scanPage.waitForResponse(response=>response.url()===auditUrl&&response.request().method()==='POST');
+  await audit.getByRole('button',{name:'Save audit',exact:true}).click();
+  const saved=await saveResponse;
+  assert.ok(saved.ok(),await saved.text());
+  const firstResult=await saved.json();
+  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
+  assert.deepEqual(pageErrors,[]);
+  const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
+  assert.ok(replay.ok(),await replay.text());
+  assert.deepEqual(await replay.json(),firstResult);
+  await scanPage.reload();
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  const summary=audit.getByText(/Last checked.*1 found.*1 missing.*1 extra/);
+  await summary.click();
+  const savedAudit=summary.locator('..');
+  await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
+  await savedAudit.getByText('Synthetic extra found in box',{exact:true}).waitFor();
+  const persisted=await phone.request.get(`${base}/api/v1/storage-locations/${box.id}/audits`);
+  assert.ok(persisted.ok(),await persisted.text());
+  const {latest}=await persisted.json();
+  assert.equal(latest.id,firstResult.id);
+  assert.deepEqual(latest.copies.filter(copy=>!copy.found).map(copy=>copy.id),[missing.id]);
+  assert.deepEqual(latest.extras,['Synthetic extra found in box']);
+  const copyResponse=await phone.request.get(`${base}/api/v1/inventory/${missing.id}`);
+  assert.ok(copyResponse.ok(),await copyResponse.text());
+  assert.equal((await copyResponse.json()).storage_location_id,box.id);
 
   await scanPage.goto(base+'/login?location='+encodeURIComponent('https://example.invalid'));
   assert.equal(scanPage.url(),base+'/');

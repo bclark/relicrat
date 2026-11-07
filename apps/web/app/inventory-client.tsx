@@ -13,6 +13,7 @@ import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 import LocationDirectory from './location-directory';
 import LocationEditor from './location-editor';
+import LocationAudit from './location-audit';
 import {locationLink} from '../lib/location-link';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
@@ -47,6 +48,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
   const [intakeStart,setIntakeStart]=useState<IntakeStart>({target:'',scope:'',name:'All items',sequence:0});
   const [locationBrowse,setLocationBrowse]=useState<{path:Location[];unassigned?:boolean}|null>(null);
   const [locationEditor,setLocationEditor]=useState<'create'|'edit'|null>(null);
+  const [auditLocationId,setAuditLocationId]=useState('');
   const currentLocation=locationBrowse?.path.at(-1);
   const locationIndex=!!locationBrowse&&!currentLocation&&!locationBrowse.unassigned;
   const browseTitle=locationBrowse?(currentLocation?.name||(locationBrowse.unassigned?'Unassigned copies':'Locations')):collectionName||'Your collection';
@@ -131,6 +133,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
     if(locationBrowse)setLoading(true);
     setLocationBrowse(null);
     setLocationEditor(null);
+    setAuditLocationId('');
     setImportBatchId(batchId);
     setShowImportStorage(false);
     if(value!==browseCollection||(phone&&phoneHome))setLoading(true);
@@ -150,6 +153,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
     if(busy)return;
     setLocationBrowse({path,unassigned});
     setLocationEditor(null);
+    setAuditLocationId('');
     setBrowseCollection('');
     setImportBatchId('');
     setShowImportStorage(false);
@@ -289,8 +293,13 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
                 {currentLocation&&<>
                   <button type="button" disabled={busy} onClick={()=>setLocationEditor('edit')}>Rename or move location</button>
                   <a href={`/location-label/${currentLocation.id}`}>Print QR label</a>
+                  <button type="button" disabled={busy} aria-expanded={auditLocationId===currentLocation.id}
+                    onClick={()=>setAuditLocationId(auditLocationId===currentLocation.id?'':currentLocation.id)}>
+                    {auditLocationId===currentLocation.id?'Close contents check':'Check contents'}
+                  </button>
                 </>}
               </div>}
+              {currentLocation&&auditLocationId===currentLocation.id&&<LocationAudit key={`audit:${auditLocationId}`} id={auditLocationId} busy={busy} runSave={runSave}/>}
               {locationEditor&&<LocationEditor key={locationEditor} path={locationEditor==='edit'?locationBrowse.path.slice(0,-1):locationBrowse.path}
                 location={locationEditor==='edit'?currentLocation:undefined} busy={busy} runSave={runSave}
                 onSaved={path=>browseLocations(path)} onCancel={()=>setLocationEditor(null)}/>}
