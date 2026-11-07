@@ -13,6 +13,7 @@ import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 import LocationDirectory from './location-directory';
 import LocationEditor from './location-editor';
+import {locationLink} from '../lib/location-link';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { api, errorText, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy,type Location,type RunSave } from '../lib/inventory-client';
@@ -20,12 +21,12 @@ import CopyDetail from './copy-detail';
 
 const PAGE = 20;
 type Sort = ''|'recent'|'title'|'artist';
-export default function InventoryClient() {
+export default function InventoryClient({initialLocationId}: {initialLocationId?:string}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<'appearance' | 'collection' | null>(null);
   const [intakeVisible,setIntakeVisible]=useState(false);
   const [phone,setPhone]=useState(false);
-  const [phoneHome,setPhoneHome]=useState(true);
+  const [phoneHome,setPhoneHome]=useState(!initialLocationId);
   const [filtersOpen,setFiltersOpen]=useState(false);
   const phoneAdd=useRef<HTMLButtonElement>(null);
   const searchInput=useRef<HTMLInputElement>(null);
@@ -181,6 +182,33 @@ export default function InventoryClient() {
   }, []);
   const changed = useCallback(() => setRefresh(value => value + 1), []);
 
+  const [openingLocation,setOpeningLocation]=useState(!!initialLocationId);
+  const [locationError,setLocationError]=useState('');
+  useEffect(()=>{
+    if(!initialLocationId)return;
+    const controller=new AbortController();
+    async function openLinkedLocation(target:string){
+      const path:Location[]=[];
+      const visited=new Set<string>();
+      let id:string|null=target;
+      while(id){
+        if(visited.has(id))throw new Error('This location has an invalid storage path.');
+        visited.add(id);
+        const place:Location=await api<Location>(`storage-locations/${id}`,{signal:controller.signal});
+        path.unshift(place);
+        id=place.parent_id;
+      }
+      if(!controller.signal.aborted){
+        setLocationBrowse({path});
+        requestAnimationFrame(()=>collectionHeading.current?.focus({preventScroll:true}));
+      }
+    }
+    openLinkedLocation(initialLocationId)
+      .catch(problem=>{if(!controller.signal.aborted)setLocationError(errorText(problem));})
+      .finally(()=>{if(!controller.signal.aborted)setOpeningLocation(false);});
+    return()=>controller.abort();
+  },[initialLocationId]);
+
   const grouped=!locationBrowse && !importBatchId && !customCollectionId && (browseView??(phone?'copies':'groups'))==='groups' && (!typeFilter || !!types?.[typeFilter]?.grouping);
   const activeSort=sort==='artist'&&typeFilter!=='record'?'':sort;
   const titleSort=typeFilter==='comic'?'Series and issue':'Title A–Z';
@@ -189,7 +217,7 @@ export default function InventoryClient() {
   const effectiveStorage=locationBrowse?(currentLocation?.id||(locationBrowse.unassigned?'unassigned':'')):storageFilter;
   const filters=`&q=${encodeURIComponent(query)}${importBatchId?`&import_batch_id=${importBatchId}`:''}${customCollectionId?`&custom_collection_id=${encodeURIComponent(customCollectionId)}`:typeFilter?`&collection_type=${typeFilter}${typeFilter==='other'?'&exclude_custom=true':''}`:''}${effectiveStorage==='unassigned'?'&unassigned=true':effectiveStorage?`&storage_location_id=${effectiveStorage}`:''}`;
   useEffect(() => {
-    if(grouped||locationIndex||(phone&&phoneHome)){setLoading(false);return;}
+    if(openingLocation||locationError||grouped||locationIndex||(phone&&phoneHome)){setLoading(false);return;}
     const controller = new AbortController();
     setLoading(true); setListError('');
     api<InventoryCopy[]>(`inventory?limit=${PAGE + 1}&offset=${page * PAGE}${filters}${copySort}`, { signal: controller.signal })
@@ -200,7 +228,7 @@ export default function InventoryClient() {
       .catch(error => { if (!controller.signal.aborted) setListError(errorText(error)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [filters, copySort, page, refresh, grouped, locationIndex, phone, phoneHome]);
+  }, [filters, copySort, page, refresh, grouped, locationIndex, phone, phoneHome, openingLocation, locationError]);
 
   function reloadInventory(){changed();}
   function search(event: FormEvent) {
@@ -243,7 +271,9 @@ export default function InventoryClient() {
           setDraftQuery('');setQuery('');setStorage({id:'',label:''});setSort('');setPage(0);chooseCollection(type,batchId);
           requestAnimationFrame(()=>collectionHeading.current?.focus());
         }}/></details>
-        <div hidden={settingsPanel==='collection'} data-phone-home={showingPhoneHome} className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
+        {openingLocation&&<p role="status">Opening storage location…</p>}
+        {locationError&&<p role="alert" className="error">Could not open this location. {locationError} <a href={locationLink(initialLocationId)}>Try again</a> <a href="/">Open RelicRat</a></p>}
+        <div hidden={settingsPanel==='collection'||openingLocation||!!locationError} data-phone-home={showingPhoneHome} className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
           <aside className="collection-sidebar"><CollectionFilter browseLocations={()=>browseLocations()} homeHeadingId={phone?"collection-home-title":undefined} value={locationBrowse?'locations':browseCollection} change={chooseCollection} types={types} busy={busy} refresh={collectionVersion} /></aside>
           <ItemIntake start={intakeStart} visible={intakeVisible} guard={intakeGuard} close={closeIntake} openCopy={openCopy} types={types} settings={settings} busy={busy} runSave={runSave} saved={()=>changed()}/>
           <section className="collection" hidden={intakeVisible} aria-labelledby="collection-title">
@@ -256,7 +286,10 @@ export default function InventoryClient() {
               {locationIndex&&<button className="text-button" type="button" disabled={busy} onClick={()=>browseLocations([],true)}>Unassigned copies</button>}
               {!locationBrowse.unassigned&&<div className="form-actions">
                 <button type="button" disabled={busy} onClick={()=>setLocationEditor('create')}>{currentLocation?'Add nested location':'Add location'}</button>
-                {currentLocation&&<button type="button" disabled={busy} onClick={()=>setLocationEditor('edit')}>Rename or move location</button>}
+                {currentLocation&&<>
+                  <button type="button" disabled={busy} onClick={()=>setLocationEditor('edit')}>Rename or move location</button>
+                  <a href={`/location-label/${currentLocation.id}`}>Print QR label</a>
+                </>}
               </div>}
               {locationEditor&&<LocationEditor key={locationEditor} path={locationEditor==='edit'?locationBrowse.path.slice(0,-1):locationBrowse.path}
                 location={locationEditor==='edit'?currentLocation:undefined} busy={busy} runSave={runSave}
