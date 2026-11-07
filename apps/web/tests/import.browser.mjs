@@ -328,7 +328,7 @@ for (const [layout, viewport] of [
   await row.click();
   await page.getByRole('heading',{name:new RegExp(title)}).waitFor();
   const back=page.getByRole('button',{name:'Back to collection',exact:true});
-  if(layout==='mobile')await back.click();
+  await back.click();
   await pages.getByText('Page 2',{exact:true}).waitFor();
   assert.equal(await inventory.getByLabel('Find a copy').inputValue(),title);
   assert.equal(await row.getAttribute('id'),rowId);
