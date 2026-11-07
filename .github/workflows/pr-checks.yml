@@ -80,16 +80,18 @@ jobs:
           compose run --build --rm --no-deps api alembic upgrade head
           compose up -d --no-deps api
           curl -fsS --retry 30 --retry-all-errors --retry-delay 1 "$RELICRAT_API_URL/health"
-      - name: Run desktop and mobile CSV import journeys
+      - name: Run desktop and mobile import and storage journeys
         working-directory: apps/web
         run: |
+          export RELICRAT_TEST_WEB_URL="$RELICRAT_WEB_ORIGIN"
           ./node_modules/.bin/next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/csv-web.log" 2>&1 &
           web_pid=$!
           trap 'kill "$web_pid" 2>/dev/null || true' EXIT
           curl -fsS --retry 30 --retry-all-errors --retry-delay 1 -o /dev/null "$RELICRAT_WEB_ORIGIN/login"
-          RELICRAT_TEST_WEB_URL="$RELICRAT_WEB_ORIGIN" node --test \
+          node --test \
             --test-name-pattern='^(review, retry and undo overlapping CSV imports|organize a large CSV import) on (desktop|mobile)$' \
             tests/import.browser.mjs
+          node --test tests/location-browse.browser.mjs
       - name: Remove the disposable stack
         if: always()
         run: |
