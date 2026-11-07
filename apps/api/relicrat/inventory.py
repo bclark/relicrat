@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from relicrat.inventory_queries import copies_query,copy_order
 from relicrat.database import get_db
-from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ReconciliationEvent, Release, StorageLocation, MediaAsset
+from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ImportCopy, ReconciliationEvent, Release, StorageLocation, MediaAsset
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.catalog_cover import CoverSelection,stage_cover
 from relicrat.barcodes import BarcodeReading
@@ -95,9 +95,14 @@ def list_copies(
     exclude_custom: bool = False,
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     sort: Literal['recent', 'title', 'artist'] | None = None,
+    import_batch_id: UUID | None = None,
     db: Session = Depends(get_db),
 ) -> list[InventoryCopy]:
     stmt=copies_query(q,collection_type,storage_location_id,unassigned,group,custom_collection_id=custom_collection_id,exclude_custom=exclude_custom)
+    if import_batch_id is not None:
+        stmt = stmt.where(OwnedCopy.id.in_(
+            select(ImportCopy.owned_copy_id).where(ImportCopy.batch_id == import_batch_id)
+        ))
     stmt=stmt.order_by(*copy_order(collection_type,group,sort)).limit(limit).offset(offset)
     copies = list(db.scalars(stmt).all())
     # Three bounded queries per result page; never one lookup per rendered copy.
