@@ -488,3 +488,11 @@ types. The existing copy inspector assigns and moves copies. Back restores
 the location, search and page and refreshes the visible inventory. Status is
 implemented for review. Pull request CI tests a move between two nested boxes
 at desktop and phone widths using synthetic inventory.
+
+### Manage shelves and boxes (2026-11-07)
+
+The owner approved creating, renaming, and moving locations from Browse
+locations. The editor previews the destination path. Moving a location
+keeps its identity and copy assignments. The picker blocks traversal into
+the selected location, and PostgreSQL rejects any cycle. Status is implemented
+for review, with desktop and phone verification in pull request CI.

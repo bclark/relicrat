@@ -1,10 +1,12 @@
 """Nested locations and transactional manual copy movements."""
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from relicrat.database import get_db
@@ -19,6 +21,14 @@ class CreateLocation(BaseModel):
     parent_id: UUID | None = None
     kind: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=10000)
+
+
+class UpdateLocation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=250)]
+    parent_id: UUID | None
+    expected_name: str = Field(max_length=250)
+    expected_parent_id: UUID | None
 
 
 class LocationInfo(BaseModel):
@@ -70,6 +80,38 @@ def get_location(location_id: UUID, db: Session = Depends(get_db)):
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     return location
+
+
+@router.post("/{location_id}", response_model=LocationInfo)
+def update_location(location_id: UUID, payload: UpdateLocation, db: Session = Depends(get_db)):
+    try:
+        location = db.scalar(select(StorageLocation).where(StorageLocation.id == location_id).with_for_update())
+        if location is None:
+            raise HTTPException(status_code=404, detail="Location not found")
+        if (location.name, location.parent_id) == (payload.name, payload.parent_id):
+            db.commit()
+            return location
+        if (location.name, location.parent_id) != (payload.expected_name, payload.expected_parent_id):
+            raise HTTPException(status_code=409, detail="This location changed. Reopen it and review its current path.")
+        if payload.parent_id == location_id:
+            raise HTTPException(status_code=409, detail="A location cannot be inside itself or one of its nested locations.")
+        if payload.parent_id is not None and db.get(StorageLocation, payload.parent_id) is None:
+            raise HTTPException(status_code=404, detail="Parent location not found")
+        location.name = payload.name
+        location.parent_id = payload.parent_id
+        db.commit()
+        return location
+    except IntegrityError as error:
+        db.rollback()
+        # The existing serialized graph trigger is authoritative for concurrent moves.
+        diagnostic = getattr(error.orig, "diag", None)
+        if (getattr(error.orig, "sqlstate", None) == "23514"
+                and (getattr(diagnostic, "message_primary", "") or "").startswith("storage location hierarchy contains a cycle")):
+            raise HTTPException(status_code=409, detail="A location cannot be inside itself or one of its nested locations.") from error
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 class AssignmentError(Exception):

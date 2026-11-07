@@ -85,3 +85,105 @@ for(const [layout,viewport] of [
     assert.equal(moved.storage_revision,2);
   });
 }
+
+for(const [layout,viewport] of [
+  ['desktop',{width:1440,height:1050}],
+  ['mobile',{width:320,height:840}],
+]){
+  test(`create, rename and move a populated box on ${layout}`,async t=>{
+    const context=await browser.newContext({viewport});
+    t.after(()=>context.close());
+    const api=base+'/api/v1/';
+    const post=(path,data)=>context.request.post(api+path,{headers:{Origin:base},data});
+    const login=await post('auth/login',{password:'synthetic-only-owner-password'});
+    assert.ok(login.ok(),await login.text());
+    const page=await context.newPage();
+    const errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    t.after(()=>assert.deepEqual(errors,[]));
+    await page.goto(base);
+    await page.getByRole('button',{name:'Browse locations',exact:true}).click();
+
+    const create=async(name,nested=false)=>{
+      await page.getByRole('button',{name:nested?'Add nested location':'Add location',exact:true}).click();
+      const form=page.getByRole('form',{name:'Create location',exact:true});
+      await form.getByLabel('Location name').fill(name);
+      const saved=page.waitForResponse(response=>response.url()===api+'storage-locations'&&response.request().method()==='POST');
+      await form.getByRole('button',{name:'Create location',exact:true}).click();
+      const response=await saved;
+      assert.equal(response.status(),201,await response.text());
+      await page.getByRole('heading',{name,exact:true,level:1}).waitFor();
+      return response.json();
+    };
+    const source=await create(`Manage ${layout} source shelf`);
+    await page.getByRole('button',{name:'All locations',exact:true}).click();
+    const destination=await create(`Manage ${layout} destination shelf`);
+    await page.getByRole('button',{name:'All locations',exact:true}).click();
+    const roots=page.getByRole('region',{name:'Top-level locations',exact:true});
+    await roots.getByRole('button',{name:source.name,exact:true}).click();
+    const box=await create(`Manage ${layout} box`,true);
+    assert.equal(box.parent_id,source.id);
+
+    const seeded=await post('inventory',{title:`Synthetic managed copy ${layout}`,collection_type:'other'});
+    assert.ok(seeded.ok(),await seeded.text());
+    const copy=await seeded.json();
+    const assigned=await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+    assert.ok(assigned.ok(),await assigned.text());
+
+    const edit=page.getByRole('form',{name:'Edit location',exact:true});
+    const openEditor=()=>page.getByRole('button',{name:'Rename or move location',exact:true}).click();
+    const renamed=`Renamed ${layout} box`;
+    await openEditor();
+    await edit.getByLabel('Location name').fill(renamed);
+    await edit.getByRole('button',{name:'Save location',exact:true}).click();
+    await page.getByRole('heading',{name:renamed,exact:true,level:1}).waitFor();
+    await openEditor();
+    await edit.getByRole('button',{name:'Choose a different parent',exact:true}).click();
+    const picker=edit.getByRole('region',{name:'Choose parent location',exact:true});
+    await picker.getByRole('button',{name:destination.name,exact:true}).click();
+    await picker.getByRole('button',{name:'Use this destination',exact:true}).click();
+    await edit.getByText(`${destination.name} / ${renamed}`,{exact:true}).waitFor();
+    await edit.getByRole('button',{name:'Save location',exact:true}).click();
+    await page.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).waitFor();
+    await page.locator(`#copy-row-${copy.id}`).waitFor();
+
+    await page.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).click();
+    const nested=page.getByRole('region',{name:'Nested locations',exact:true});
+    await nested.getByRole('button',{name:renamed,exact:true}).waitFor();
+    await openEditor();
+    await edit.getByRole('button',{name:'Choose a different parent',exact:true}).click();
+    const self=picker.getByRole('button',{name:destination.name,exact:true});
+    await self.waitFor();
+    assert.equal(await self.isDisabled(),true);
+    assert.equal(await picker.getByRole('button',{name:renamed,exact:true}).count(),0);
+
+    const cycle=await post(`storage-locations/${destination.id}`,{
+      name:destination.name,parent_id:box.id,expected_name:destination.name,expected_parent_id:null,
+    });
+    assert.equal(cycle.status(),409,await cycle.text());
+    assert.match((await cycle.json()).detail,/nested locations/);
+    const stale=await post(`storage-locations/${box.id}`,{
+      name:'Stale edit',parent_id:source.id,expected_name:box.name,expected_parent_id:source.id,
+    });
+    assert.equal(stale.status(),409,await stale.text());
+
+    const read=async path=>{
+      const response=await context.request.get(api+path);
+      assert.ok(response.ok(),await response.text());
+      return response.json();
+    };
+    assert.equal((await read(`storage-locations/${destination.id}`)).parent_id,null);
+    const moved=await read(`storage-locations/${box.id}`);
+    assert.equal(moved.parent_id,destination.id);
+    assert.equal(moved.name,renamed);
+    const retained=await read(`inventory/${copy.id}`);
+    assert.equal(retained.storage_location_id,box.id);
+    assert.equal(retained.storage_revision,1);
+
+    await edit.getByRole('button',{name:'Cancel',exact:true}).click();
+    await page.getByRole('button',{name:'All locations',exact:true}).click();
+    await roots.getByRole('button',{name:source.name,exact:true}).click();
+    await nested.getByText('No nested locations.',{exact:true}).waitFor();
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  });
+}
