@@ -33,10 +33,7 @@ export type CollectionType = { lookup?:BarcodeLookupConfig|null; barcode_formats
 export type CollectionTypes = Record<CollectionTypeId, CollectionType>;
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number) {
-    super(message);
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
+  constructor(message: string, public status: number) { super(message); }
   get uncertain() { return this.status === 0 || this.status >= 500; }
 }
 

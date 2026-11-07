@@ -47,11 +47,13 @@ export default function LocationAudit({id,busy,runSave}:{id:string;busy:boolean;
     if(!preview||busy)return;
     setError('');
     const submission=retry??{request_id:crypto.randomUUID(),snapshot:preview.snapshot,found_ids:found,extras};
+    setRetry(submission);
     try{
       const saved=await runSave(()=>api<Result>(path,jsonSave(submission)));
-      if(saved){setLatest(saved);setStep('saved');setRetry(null);}
+      if(saved){setLatest(saved);setStep('saved');}
+      setRetry(null);
     }catch(problem){
-      setRetry(problem instanceof ApiError&&!problem.uncertain ? null : submission);
+      if(problem instanceof ApiError&&!problem.uncertain)setRetry(null);
       setError(errorText(problem));
     }
   }
