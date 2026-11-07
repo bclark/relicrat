@@ -1085,3 +1085,14 @@ footer {
 @media(max-width:759px) {
  .collection-journey .browse-options > :is(.storage-filter,.browse-mode,.browse-sort) { grid-area:auto; }
 }
+
+.location-label { margin: 24px auto; padding: 16px; max-width: 480px; }
+.location-label-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.location-label-card { margin-top: 16px; overflow-wrap: anywhere; }
+.location-label-card svg { display: block; }
+@media print {
+  .location-label { margin: 0; padding: 0; color: black; background: white; }
+  .location-label .location-label-controls { display: none; }
+  .location-label-card { break-inside: avoid; }
+  .location-label-card svg { width: 40mm; height: 40mm; }
+}

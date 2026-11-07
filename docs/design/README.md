@@ -496,3 +496,11 @@ locations. The editor previews the destination path. Moving a location
 keeps its identity and copy assignments. The picker blocks traversal into
 the selected location, and PostgreSQL rejects any cycle. Status is implemented
 for review, with desktop and phone verification in pull request CI.
+
+### Printable location labels (2026-11-07)
+
+The owner approved QR labels for shelves and boxes. Browse locations links to
+a print view that encodes the configured RelicRat origin and the location’s
+stable ID. The scan continues through owner sign-in and resolves the current
+name and parent path. Browser CI decodes the rendered label and exercises
+sign-in on a phone viewport after a rename and move.
