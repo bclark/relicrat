@@ -3,8 +3,9 @@ import {api,errorText,type Location} from '../lib/inventory-client';
 
 const PAGE_SIZE = 20;
 
-export default function LocationDirectory({parentId,open,busy,refresh}:{
+export default function LocationDirectory({parentId,open,busy,refresh,excludedId}:{
   parentId?:string;
+  excludedId?:string;
   open:(location:Location)=>void;
   busy:boolean;
   refresh:number;
@@ -34,7 +35,7 @@ export default function LocationDirectory({parentId,open,busy,refresh}:{
     {error?<p role="alert" className="error">{error} <button type="button" disabled={busy} onClick={()=>{setError('');setRetry(value=>value+1);}}>Retry locations</button></p>
       :locations===null?<p role="status">Loading locations…</p>
       :locations.length?<ul>{locations.slice(0,PAGE_SIZE).map(location=><li key={location.id}>
-        <button type="button" className="collection-link" disabled={busy} onClick={()=>open(location)}>{location.name}</button>
+        <button type="button" className="collection-link" disabled={busy||location.id===excludedId} onClick={()=>open(location)}>{location.name}</button>
       </li>)}</ul>:<p>{parentId?'No nested locations.':'No storage locations yet. You can create one from a copy’s Storage section.'}</p>}
     {(page>0||(locations?.length??0)>PAGE_SIZE)&&<nav aria-label="Location pages" className="pagination">
       <button type="button" disabled={busy||page===0} onClick={()=>changePage(page-1)}>Previous locations</button>
