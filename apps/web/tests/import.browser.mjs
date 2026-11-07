@@ -277,3 +277,87 @@ for (const [layout, viewport] of [
   assert.deepEqual(await rows(first),[silver]);
  });
 }
+
+for (const [layout, viewport] of [
+ ['desktop', {width:1440,height:1050}],
+ ['mobile', {width:320,height:840}],
+]) {
+ test(`organize a large CSV import on ${layout}`, async t => {
+  const {page,context}=await pageFor(t,viewport);
+  const title=`Synthetic shelving ${layout}`;
+  const importUrl=base+'/api/v1/imports';
+  const post=async (path,data)=>{
+   const response=await context.request.post(base+'/api/v1/'+path,{headers:{Origin:base},data});
+   assert.ok(response.ok(),await response.text());
+   return response.json();
+  };
+  const unrelated=await post('inventory',{title:`${title} existing`,collection_type:'comic'});
+  const existingShelf=await post('storage-locations',{name:`Existing ${layout} shelf`});
+  const newShelf=await post('storage-locations',{name:`Imported ${layout} shelf`});
+  const file=csv('clz',1000).replaceAll('Synthetic volume comic',title)
+   .replace(/,In Collection,(\d+),/g,`,In Collection,shelving-${layout}-$1,`);
+  await upload(page,'clz',file);
+  await page.getByRole('checkbox',{name:/I reviewed the preview/}).check();
+  const saved=page.waitForResponse(response=>response.url().startsWith(importUrl+'/commit?'));
+  await page.getByRole('button',{name:'Import 1000 copies',exact:true}).click();
+  const response=await saved;
+  assert.ok(response.ok(),await response.text());
+  const {batch}=await response.json();
+  const sources=await context.request.get(`${importUrl}/${batch.id}/rows?limit=2`);
+  assert.ok(sources.ok(),await sources.text());
+  const [placed,unplaced]=await sources.json();
+  await post(`inventory/${placed.copy_id}/location`,{storage_location_id:existingShelf.id,expected_storage_revision:0});
+
+  await page.getByRole('button',{name:'View imported copies',exact:true}).click();
+  const scope=page.getByRole('button',{name:'View full collection',exact:true});
+  await scope.waitFor();
+  const inventory=page.getByRole('region',{name:'Comics',exact:true});
+  await inventory.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
+  await inventory.getByLabel('Find a copy').fill(`${title} existing`);
+  await inventory.getByRole('button',{name:'Search',exact:true}).click();
+  await inventory.getByRole('heading',{name:'No matching copies'}).waitFor();
+  await inventory.getByLabel('Find a copy').fill(title);
+  await inventory.getByRole('button',{name:'Search',exact:true}).click();
+  const pages=inventory.getByRole('navigation',{name:'Inventory pages'});
+  await inventory.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
+  await pages.getByRole('button',{name:'Next',exact:true}).click();
+  await pages.getByText('Page 2',{exact:true}).waitFor();
+  await inventory.getByRole('status').filter({hasText:'20 copies on this page'}).waitFor();
+  const row=inventory.locator('.copy-row').first();
+  const rowId=await row.getAttribute('id');
+  await row.click();
+  await page.getByRole('heading',{name:new RegExp(title)}).waitFor();
+  const back=page.getByRole('button',{name:'Back to collection',exact:true});
+  await back.click();
+  await pages.getByText('Page 2',{exact:true}).waitFor();
+  assert.equal(await inventory.getByLabel('Find a copy').inputValue(),title);
+  assert.equal(await row.getAttribute('id'),rowId);
+  assert.equal(await inventory.locator(`#copy-row-${unrelated.id}`).count(),0);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+
+  await inventory.getByRole('button',{name:'Map imported storage boxes',exact:true}).click();
+  const mapping=inventory.getByRole('region',{name:'Map imported storage boxes'});
+  await mapping.getByRole('radio',{name:/Synthetic Box · 999 eligible, 1 preserved/}).check();
+  await mapping.getByLabel('Physical location',{exact:true}).selectOption(newShelf.id);
+  await mapping.getByRole('button',{name:'Preview storage mapping',exact:true}).click();
+  const assign=mapping.getByRole('button',{name:'Assign 999 copies',exact:true});
+  await assign.waitFor();
+  assert.equal(await assign.isDisabled(),true);
+  await mapping.getByRole('checkbox',{name:/I reviewed the 999 eligible copies/}).check();
+  await assign.click();
+  await mapping.getByRole('status').filter({hasText:`Added 999 copies to ${newShelf.name}. Preserved 1 copy.`}).waitFor();
+  for(const [id,location] of [[placed.copy_id,existingShelf.id],[unplaced.copy_id,newShelf.id],[unrelated.id,null]]){
+   const copy=await context.request.get(`${base}/api/v1/inventory/${id}`);
+   assert.ok(copy.ok(),await copy.text());
+   assert.equal((await copy.json()).storage_location_id,location);
+  }
+
+  await scope.click();
+  assert.equal(await scope.count(),0);
+  await inventory.getByLabel('Find a copy').fill(`${title} existing`);
+  await inventory.getByRole('button',{name:'Search',exact:true}).click();
+  const browseMode=inventory.getByLabel('Browse view',{exact:true});
+  if(await browseMode.isVisible())await browseMode.selectOption('copies');
+  await inventory.locator(`#copy-row-${unrelated.id}`).waitFor();
+ });
+}
