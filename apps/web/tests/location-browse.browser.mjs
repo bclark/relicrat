@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {after,before,test} from 'node:test';
 import {chromium} from 'playwright';
+import {BinaryBitmap,HybridBinarizer,QRCodeReader,RGBLuminanceSource} from '@zxing/library';
 
 const base=process.env.RELICRAT_TEST_WEB_URL;
 assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='56742','Use only a disposable loopback test stack');
@@ -187,3 +188,67 @@ for(const [layout,viewport] of [
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   });
 }
+
+test('a printed QR opens the renamed and moved box after phone sign-in',async t=>{
+  const owner=await browser.newContext();
+  const phone=await browser.newContext({viewport:{width:320,height:840},isMobile:true,hasTouch:true});
+  t.after(()=>Promise.all([owner.close(),phone.close()]));
+  const post=async(path,data)=>{
+    const response=await owner.request.post(base+'/api/v1/'+path,{headers:{Origin:base},data});
+    assert.ok(response.ok(),await response.text());
+    return response.json();
+  };
+  await post('auth/login',{password:'synthetic-only-owner-password'});
+  const source=await post('storage-locations',{name:'Synthetic QR source shelf'});
+  const destination=await post('storage-locations',{name:'Synthetic QR destination shelf'});
+  const box=await post('storage-locations',{name:'Synthetic QR box',parent_id:source.id});
+  const copy=await post('inventory',{title:'Synthetic QR copy',collection_type:'comic'});
+  await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+
+  const desktop=await owner.newPage();
+  await desktop.goto(base);
+  await desktop.getByRole('button',{name:'Browse locations',exact:true}).click();
+  await desktop.getByRole('button',{name:source.name,exact:true}).click();
+  await desktop.getByRole('button',{name:box.name,exact:true}).click();
+  await desktop.getByRole('link',{name:'Print QR label',exact:true}).click();
+  await desktop.getByRole('heading',{name:box.name,exact:true}).waitFor();
+  assert.equal(await desktop.getByRole('button',{name:'Print label',exact:true}).isEnabled(),true);
+  await desktop.emulateMedia({media:'print'});
+  assert.equal(await desktop.getByRole('button',{name:'Print label',exact:true}).count(),0);
+  const qr=desktop.getByRole('img',{name:'Location QR code',exact:true});
+  await qr.waitFor();
+  const size=320;
+  const luminance=await qr.evaluate(async (svg,size)=>{
+    const image=new Image();
+    image.src='data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
+    await image.decode();
+    const canvas=document.createElement('canvas');
+    canvas.width=canvas.height=size;
+    const context=canvas.getContext('2d');
+    context.imageSmoothingEnabled=false;
+    context.drawImage(image,0,0,size,size);
+    const pixels=context.getImageData(0,0,size,size).data;
+    return Array.from({length:size*size},(_,i)=>pixels[4*i]);
+  },size);
+  const bitmap=new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(Uint8ClampedArray.from(luminance),size,size)));
+  const scanned=new QRCodeReader().decode(bitmap).getText();
+  assert.equal(scanned,`${base}/?location=${box.id}`);
+
+  const renamed='Synthetic QR box after move';
+  await post(`storage-locations/${box.id}`,{
+    name:renamed,parent_id:destination.id,expected_name:box.name,expected_parent_id:source.id,
+  });
+  const scanPage=await phone.newPage();
+  await scanPage.goto(scanned);
+  await scanPage.waitForURL(`**/login?location=${box.id}`);
+  assert.equal(await scanPage.getByText(copy.title,{exact:true}).count(),0);
+  await scanPage.getByLabel('Owner password').fill('synthetic-only-owner-password');
+  await scanPage.getByRole('button',{name:'Sign in',exact:true}).click();
+  await scanPage.waitForURL(scanned);
+  await scanPage.getByRole('heading',{name:renamed,exact:true}).waitFor();
+  await scanPage.locator(`#copy-row-${copy.id}`).waitFor();
+  await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).waitFor();
+
+  await scanPage.goto(base+'/login?location='+encodeURIComponent('https://example.invalid'));
+  assert.equal(scanPage.url(),base+'/');
+});
