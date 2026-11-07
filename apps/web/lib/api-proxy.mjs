@@ -26,6 +26,7 @@ const checklistMatch = new RegExp(`^custom-collections/${uuid}/copies/${uuid}/ch
 const checklistHistory = new RegExp(`^custom-collections/${uuid}/copies/${uuid}/checklist-history$`);
 const customIntake = new RegExp(`^custom-collections/${uuid}/copies$`);
 const locationAudits = new RegExp(`^storage-locations/${uuid}/audits$`);
+const auditResolution = new RegExp(`^storage-locations/${uuid}/audits/${uuid}/resolutions$`);
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
 /** @param {Request} request @param {string[]} segments */
@@ -38,7 +39,7 @@ export async function forwardApi(request, segments) {
   const methods = locationAudits.test(path) || locationPath.test(path) || duplicateDecisions.test(path) || checklistMatch.test(path) || path === 'custom-collections' || path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
     : checklistProgress.test(path) || checklistHistory.test(path) || customHistory.test(path) || customCollection.test(path) || barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-proposals/authoring' || path === 'collection-groups' || path === 'imports' || importRows.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || catalogItem.test(path) || release.test(path)
-      ? ['GET'] : undoDuplicate.test(path) || customDefinition.test(path) || customIntake.test(path) || barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
+      ? ['GET'] : auditResolution.test(path) || undoDuplicate.test(path) || customDefinition.test(path) || customIntake.test(path) || barcodeLookup.test(path) || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
   let upstream;
