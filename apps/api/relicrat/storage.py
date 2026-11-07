@@ -47,10 +47,21 @@ def create_location(payload: CreateLocation, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=list[LocationInfo])
-def list_locations(limit: int = Query(default=50, ge=1, le=100),
-                   offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)):
-    return list(db.scalars(select(StorageLocation).order_by(StorageLocation.created_at, StorageLocation.id)
-                           .limit(limit).offset(offset)).all())
+def list_locations(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    parent_id: UUID | None = None,
+    root_only: bool = False,
+    db: Session = Depends(get_db),
+):
+    locations = select(StorageLocation)
+    if parent_id is not None:
+        locations = locations.where(StorageLocation.parent_id == parent_id)
+    elif root_only:
+        locations = locations.where(StorageLocation.parent_id.is_(None))
+    return list(db.scalars(
+        locations.order_by(StorageLocation.created_at, StorageLocation.id).limit(limit).offset(offset)
+    ).all())
 
 
 @router.get("/{location_id}", response_model=LocationInfo)

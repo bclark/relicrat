@@ -478,3 +478,13 @@ sorting and pagination stay inside the batch until the owner chooses the full
 collection. CLZ batches offer the existing reviewed box mapping in the same
 view, with counts for eligible and preserved copies. Status is implemented for
 review. Desktop and phone checks use synthetic imports in pull request CI.
+
+### Browse physical locations (2026-11-07)
+
+The owner approved browsing physical storage from the collection navigation.
+The location index opens top-level locations or unassigned copies. A location
+shows its direct children and copies stored directly there, across collection
+types. The existing copy inspector assigns and moves copies. Back restores
+the location, search and page and refreshes the visible inventory. Status is
+implemented for review. Pull request CI tests a move between two nested boxes
+at desktop and phone widths using synthetic inventory.

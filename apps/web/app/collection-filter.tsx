@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {api,errorText,type CollectionTypes} from '../lib/inventory-client';
 type Choice={id:string;name:string};
-export default function CollectionFilter({value,change,types,busy,refresh,compact=false,homeHeadingId}:{value:string;change:(value:string)=>void;types:CollectionTypes|null;busy:boolean;refresh:number;compact?:boolean;homeHeadingId?:string}){
+export default function CollectionFilter({value,change,types,busy,refresh,compact=false,homeHeadingId,browseLocations}:{value:string;change:(value:string)=>void;types:CollectionTypes|null;busy:boolean;refresh:number;compact?:boolean;homeHeadingId?:string;browseLocations?:()=>void}){
  const [choices,setChoices]=useState<Choice[]>([]),[page,setPage]=useState(0),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[version,setVersion]=useState(0),[selected,setSelected]=useState<Choice|null>(null);
  const selectedId=value.startsWith('custom:')?value.slice(7):'';
  useEffect(()=>{const c=new AbortController();setLoading(true);setError('');setChoices([]);setMore(false);api<Choice[]>(`custom-collections?limit=51&offset=${page*50}`,{signal:c.signal}).then(v=>{if(!c.signal.aborted){setChoices(v.slice(0,50));setMore(v.length>50);}}).catch(e=>{if(!c.signal.aborted)setError(errorText(e));}).finally(()=>{if(!c.signal.aborted)setLoading(false);});return()=>c.abort();},[page,refresh,version]);
@@ -10,7 +10,7 @@ export default function CollectionFilter({value,change,types,busy,refresh,compac
  const showCurrent=!homeHeadingId;
  const builtins=types?Object.values(types):[];
  return <nav className={`collection-navigation${compact?' compact-choice':''}`} aria-label={compact?'Item destination':'Collections'}>
- <div className="collection-links" hidden={compact}>{homeHeadingId?<h1 id={homeHeadingId} tabIndex={-1}>Your collections</h1>:<h2>Collections</h2>}<button type="button" className="collection-link" data-collection="" aria-current={showCurrent&&!value?'page':undefined} disabled={busy||!types} onClick={()=>change('')}>All items</button>
+ <div className="collection-links" hidden={compact}>{homeHeadingId?<h1 id={homeHeadingId} tabIndex={-1}>Your collections</h1>:<h2>Collections</h2>}{browseLocations&&<button type="button" className="collection-link" aria-current={value==='locations'?'page':undefined} disabled={busy} onClick={browseLocations}>Browse locations</button>}<button type="button" className="collection-link" data-collection="" aria-current={showCurrent&&!value?'page':undefined} disabled={busy||!types} onClick={()=>change('')}>All items</button>
  {builtins.map(type=><button type="button" className="collection-link" data-collection={type.id} aria-current={showCurrent&&value===type.id?'page':undefined} disabled={busy} key={type.id} onClick={()=>change(type.id)}>{type.plural_label}</button>)}
  {selectedId&&!choices.some(c=>c.id===selectedId)&&<button type="button" className="collection-link" data-collection={value} aria-current={showCurrent?"page":undefined} disabled={busy} onClick={()=>change(value)}>{selected?.name||'Selected collection'}</button>}
  {choices.map(c=><button type="button" className="collection-link" key={c.id} data-collection={'custom:'+c.id} aria-current={showCurrent&&value==='custom:'+c.id?'page':undefined} disabled={busy} onClick={()=>change('custom:'+c.id)}>{c.name}</button>)}
