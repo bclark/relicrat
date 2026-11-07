@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import request_validation_exception_handler
 from relicrat.auth import OwnerBoundary, router as auth_router
 from relicrat.inventory import router as inventory_router
+from relicrat.location_audits import router as location_audit_router
 from relicrat.storage import router as storage_router
 from relicrat.media import router as media_router
 from relicrat.barcode_lookup import router as lookup_router
@@ -30,6 +31,7 @@ app.include_router(inventory_router)
 app.include_router(media_router)
 app.include_router(lookup_router)
 app.include_router(storage_router)
+app.include_router(location_audit_router)
 app.include_router(catalog_router)
 app.include_router(settings_router)
 app.include_router(appearance_router)
