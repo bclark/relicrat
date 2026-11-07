@@ -51,8 +51,7 @@ export default function LocationAudit({id,busy,runSave}:{id:string;busy:boolean;
       const saved=await runSave(()=>api<Result>(path,jsonSave(submission)));
       if(saved){setLatest(saved);setStep('saved');setRetry(null);}
     }catch(problem){
-      if(problem instanceof ApiError&&problem.uncertain)setRetry(submission);
-      else setRetry(null);
+      setRetry(problem instanceof ApiError&&!problem.uncertain ? null : submission);
       setError(errorText(problem));
     }
   }

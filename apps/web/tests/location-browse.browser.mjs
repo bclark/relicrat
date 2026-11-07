@@ -280,7 +280,11 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const saveResponse=await initialSave;
   assert.equal(saveResponse.status(),502,await saveResponse.text());
   assert.ok(firstResult,'The initial audit was committed before simulating the lost response');
-  await audit.getByRole('button',{name:'Retry same audit',exact:true}).click();
+  const retry=audit.getByRole('button',{name:'Retry same audit',exact:true});
+  const failure=audit.getByRole('alert');
+  await failure.waitFor({timeout:5000});
+  assert.equal(await retry.count(),1,await failure.innerText());
+  await retry.click();
   await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
   await scanPage.reload();
   await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
