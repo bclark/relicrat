@@ -79,14 +79,14 @@ jobs:
           compose up -d --wait db
           compose run --build --rm --no-deps api alembic upgrade head
           compose up -d --no-deps api
-          curl -fsS --retry 30 --retry-connrefused --retry-delay 1 "$RELICRAT_API_URL/health"
+          curl -fsS --retry 30 --retry-all-errors --retry-delay 1 "$RELICRAT_API_URL/health"
       - name: Run desktop and mobile CSV import journeys
         working-directory: apps/web
         run: |
           ./node_modules/.bin/next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/csv-web.log" 2>&1 &
           web_pid=$!
           trap 'kill "$web_pid" 2>/dev/null || true' EXIT
-          curl -fsS --retry 30 --retry-connrefused --retry-delay 1 -o /dev/null "$RELICRAT_WEB_ORIGIN/login"
+          curl -fsS --retry 30 --retry-all-errors --retry-delay 1 -o /dev/null "$RELICRAT_WEB_ORIGIN/login"
           RELICRAT_TEST_WEB_URL="$RELICRAT_WEB_ORIGIN" node --test \
             --test-name-pattern='^review, retry and undo overlapping CSV imports on (desktop|mobile)$' \
             tests/import.browser.mjs
