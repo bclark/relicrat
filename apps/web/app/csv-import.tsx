@@ -45,7 +45,7 @@ const collections={clz:'Comics',discogs:'Albums',bluray:'Movies'};
 const collectionTypes = { clz: 'comic', discogs: 'record', bluray: 'movie' } as const;
 const steps = ['Choose export', 'Review', 'Result'] as const;
 type Step = 'choose' | 'review' | 'result' | 'recover';
-export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId)=>void}){
+export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId,batchId?:string)=>void}){
  const [open,setOpen]=useState(false),[source,setSource]=useState<'clz'|'discogs'|'bluray'>('clz'),[file,setFile]=useState<File|null>(null);
  const [previewChoices,setPreviewChoices] = useState<Record<number,'skip'|'import'>>({});
  const [previewPage,setPreviewPage] = useState(0);
@@ -263,7 +263,8 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <h3 ref={heading} tabIndex={-1} id="csv-result-heading">{result.reopened?'Previous import':'Import complete'}</h3>
     <p className="notice" role="status">{result.reopened?`This exact file was already imported (${result.batch.copy_count} copies).`:`Imported ${result.batch.copy_count} physical copies into ${collections[result.batch.source]}.`}</p>
     <div className="form-actions">
-     <button className="primary" disabled={disabled} onClick={()=>{setOpen(false);browse(collectionTypes[result.batch.source]);}}>View {collections[result.batch.source]}</button>
+     <button className="primary" disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source],result.batch.id)}>View imported copies</button>
+     <button disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source])}>View {collections[result.batch.source]}</button>
      <button disabled={disabled} onClick={()=>void task(()=>sourceRows(result.batch,0))}>View original rows</button>
      <button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(result.batch,0))}>Review possible duplicates</button>
      {result.batch.source==='clz'&&<button disabled={disabled} onClick={()=>setMappingBatch(result.batch)}>Review imported storage labels</button>}
@@ -359,7 +360,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     </details>
    </section>}
    {mappingBatch&&<ImportStorage key={mappingBatch.id} batchId={mappingBatch.id} locked={disabled} runSave={runSave} changed={changed}/>}
-   {selected&&<><h4>Original source rows · {names[selected.source]}</h4><ul>{rows.slice(0,20).map(r=><li key={r.copy_id}><button disabled={disabled} onClick={()=>openCopy(r.copy_id)}>Open copy from row {r.row}, copy {r.copy_number}</button><details><summary>View retained fields</summary><dl>{Object.entries(r.source).map(([key,value])=><div key={key}><dt>{key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{value||'(empty)'}</dd></div>)}</dl></details></li>)}</ul><nav aria-label="Source row pages"><button disabled={disabled||!rowPage} onClick={()=>void task(()=>sourceRows(selected,rowPage-1))}>Previous source rows</button><span>Page {rowPage+1}</span><button disabled={disabled||rows.length<=20} onClick={()=>void task(()=>sourceRows(selected,rowPage+1))}>Next source rows</button></nav></>}
+   {selected&&<><h4>Original source rows · {names[selected.source]}</h4><button disabled={disabled} onClick={()=>browse(collectionTypes[selected.source],selected.id)}>Browse copies from these rows</button><ul>{rows.slice(0,20).map(r=><li key={r.copy_id}><button disabled={disabled} onClick={()=>openCopy(r.copy_id)}>Open copy from row {r.row}, copy {r.copy_number}</button><details><summary>View retained fields</summary><dl>{Object.entries(r.source).map(([key,value])=><div key={key}><dt>{key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{value||'(empty)'}</dd></div>)}</dl></details></li>)}</ul><nav aria-label="Source row pages"><button disabled={disabled||!rowPage} onClick={()=>void task(()=>sourceRows(selected,rowPage-1))}>Previous source rows</button><span>Page {rowPage+1}</span><button disabled={disabled||rows.length<=20} onClick={()=>void task(()=>sourceRows(selected,rowPage+1))}>Next source rows</button></nav></>}
   </div>
  </section>;
 }

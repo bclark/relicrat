@@ -37,3 +37,64 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  csv-browser:
+    name: CSV import browser regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RELICRAT_WEB_ORIGIN: http://127.0.0.1:3000
+      RELICRAT_ALLOW_LOOPBACK_HTTP: '1'
+      RELICRAT_API_URL: http://127.0.0.1:8000
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install Chromium and build the web app
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build
+      - name: Start disposable PostgreSQL and API
+        run: |
+          cat > "$RUNNER_TEMP/csv-browser-compose.yaml" <<'COMPOSE'
+          services:
+            api:
+              ports:
+                - "127.0.0.1:8000:8000"
+          networks:
+            default:
+              internal: false
+          COMPOSE
+          compose() {
+            docker compose -p relicrat-csv-ci -f infra/docker/compose.web-test.yaml \
+              -f "$RUNNER_TEMP/csv-browser-compose.yaml" "$@"
+          }
+          compose up -d --wait db
+          compose run --build --rm --no-deps api alembic upgrade head
+          compose up -d --no-deps api
+          curl -fsS --retry 30 --retry-all-errors --retry-delay 1 "$RELICRAT_API_URL/health"
+      - name: Run desktop and mobile CSV import journeys
+        working-directory: apps/web
+        run: |
+          ./node_modules/.bin/next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/csv-web.log" 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid" 2>/dev/null || true' EXIT
+          curl -fsS --retry 30 --retry-all-errors --retry-delay 1 -o /dev/null "$RELICRAT_WEB_ORIGIN/login"
+          RELICRAT_TEST_WEB_URL="$RELICRAT_WEB_ORIGIN" node --test \
+            --test-name-pattern='^(review, retry and undo overlapping CSV imports|organize a large CSV import) on (desktop|mobile)$' \
+            tests/import.browser.mjs
+      - name: Remove the disposable stack
+        if: always()
+        run: |
+          override="$RUNNER_TEMP/csv-browser-compose.yaml"
+          if [ -f "$override" ]; then
+            docker compose -p relicrat-csv-ci -f infra/docker/compose.web-test.yaml \
+              -f "$override" down --volumes --remove-orphans
+          fi

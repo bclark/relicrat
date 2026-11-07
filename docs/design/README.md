@@ -469,3 +469,12 @@ The owner approved moving the duplicate comparison into the guided import
 preview. The preview lists flagged rows with current edition and storage
 evidence, asks for a decision per row, and updates the count before confirmation.
 Status is implemented for review. Deployment is pending.
+
+### Browse and organize imported copies (2026-11-07)
+
+The owner approved a batch view after large CSV imports. Import results and
+original rows can open active copies from that batch. Search, storage filters,
+sorting and pagination stay inside the batch until the owner chooses the full
+collection. CLZ batches offer the existing reviewed box mapping in the same
+view, with counts for eligible and preserved copies. Status is implemented for
+review. Desktop and phone checks use synthetic imports in pull request CI.

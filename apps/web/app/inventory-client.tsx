@@ -7,6 +7,7 @@ import CollectionFilter from './collection-filter';
 import ChecklistProgress from './checklist-progress';
 import Appearance from './appearance';
 import CsvImport from './csv-import';
+import ImportStorage from './import-storage';
 import GroupedCollection from './grouped-collection';
 import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
@@ -73,7 +74,7 @@ export default function InventoryClient() {
       choice?.scrollIntoView({block:'nearest'});
     });
   }
-  function startIntake(target=browseCollection,entryId?:string){if(!intakeGuard.current())return;if(!intakeVisible)browseScroll.current=window.scrollY;if(target&&target!==browseCollection){setBrowseCollection(target);setPage(0);}setIntakeStart(old=>({target,scope:target,name:target===browseCollection?(target?browseTitle:'All items'):'collection',entryId,sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}
+  function startIntake(target=browseCollection,entryId?:string){if(!intakeGuard.current())return;if(!intakeVisible)browseScroll.current=window.scrollY;if(target&&target!==browseCollection){setBrowseCollection(target);setImportBatchId('');setShowImportStorage(false);setPage(0);}setIntakeStart(old=>({target,scope:target,name:target===browseCollection?(target?browseTitle:'All items'):'collection',entryId,sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}
   function closeIntake(){setIntakeVisible(false);requestAnimationFrame(()=>{(phone&&phoneHome?phoneAdd.current:collectionHeading.current)?.focus({preventScroll:true});window.scrollTo({top:browseScroll.current});});}
   const toolsPanel=useRef<HTMLDetailsElement>(null);
   const accountNav = useRef<HTMLDivElement>(null);
@@ -111,12 +112,17 @@ export default function InventoryClient() {
   const [{id:storageFilter,label:storageLabel},setStorage]=useState({id:'',label:''});
   const [sort,setSort]=useState<Sort>('');
   const [browseCollection,setBrowseCollection]=useState('');
+  const [importBatchId,setImportBatchId]=useState('');
+  const [showImportStorage,setShowImportStorage]=useState(false);
   const customCollectionId=browseCollection.startsWith('custom:')?browseCollection.slice(7):'';
   const typeFilter:CollectionTypeId|''=customCollectionId?'':browseCollection as CollectionTypeId|'';
   useEffect(()=>{const c=new AbortController();setCollectionName(customCollectionId?'Custom collection':typeFilter?types?.[typeFilter]?.plural_label||'Selected collection':'Your collection');if(customCollectionId)api<{name:string}>(`custom-collections/${customCollectionId}`,{signal:c.signal}).then(v=>{if(!c.signal.aborted)setCollectionName(v.name);}).catch(()=>{});return()=>c.abort();},[browseCollection,types]);
   function beginFigure(entryId?:string){startIntake(browseCollection,entryId);}
-  function chooseCollection(value:string){
+  function chooseCollection(value:string,batchId=''){
     if(busy)return;
+    if(batchId!==importBatchId){setLoading(true);setPage(0);}
+    setImportBatchId(batchId);
+    setShowImportStorage(false);
     if(value!==browseCollection||(phone&&phoneHome))setLoading(true);
     setIntakeVisible(false);setBrowseCollection(value);setDetailOpen(false);setPhoneHome(false);
     if(value!=='record'&&sort==='artist')setSort('');
@@ -148,12 +154,12 @@ export default function InventoryClient() {
   }, []);
   const changed = useCallback(() => setRefresh(value => value + 1), []);
 
-  const grouped=!customCollectionId && (browseView??(phone?'copies':'groups'))==='groups' && (!typeFilter || !!types?.[typeFilter]?.grouping);
+  const grouped=!importBatchId && !customCollectionId && (browseView??(phone?'copies':'groups'))==='groups' && (!typeFilter || !!types?.[typeFilter]?.grouping);
   const activeSort=sort==='artist'&&typeFilter!=='record'?'':sort;
   const titleSort=typeFilter==='comic'?'Series and issue':'Title A–Z';
   const sortLabel=activeSort==='title'?titleSort:activeSort==='artist'?'Artist A–Z':activeSort==='recent'?'Recently added':'';
   const copySort=activeSort?`&sort=${activeSort}`:'';
-  const filters=`&q=${encodeURIComponent(query)}${customCollectionId?`&custom_collection_id=${encodeURIComponent(customCollectionId)}`:typeFilter?`&collection_type=${typeFilter}${typeFilter==='other'?'&exclude_custom=true':''}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
+  const filters=`&q=${encodeURIComponent(query)}${importBatchId?`&import_batch_id=${importBatchId}`:''}${customCollectionId?`&custom_collection_id=${encodeURIComponent(customCollectionId)}`:typeFilter?`&collection_type=${typeFilter}${typeFilter==='other'?'&exclude_custom=true':''}`:''}${storageFilter==='unassigned'?'&unassigned=true':storageFilter?`&storage_location_id=${storageFilter}`:''}`;
   useEffect(() => {
     if(grouped||(phone&&phoneHome)){setLoading(false);return;}
     const controller = new AbortController();
@@ -202,11 +208,11 @@ export default function InventoryClient() {
       <main className="collection-main">
         <Appearance applied={setAppearanceStyles} open={settingsPanel === 'appearance'} />
         <CollectionManager open={settingsPanel==='collection'} close={closeSettings} guard={managementGuard} types={types} settings={settings} runSave={runSave} busy={busy} saved={setSettings} changed={()=>{changed();setCollectionVersion(v=>v+1);}} browse={value=>{chooseCollection(value);setSettingsPanel(null);}}/>
-        {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{if(!detailGuard.current()||!intakeGuard.current())return;setTypes(old=>old||({other:{schema_version:1,id:'other',label:'Other',plural_label:'Other finds',title:{key:'title',label:'Title',max_length:500,placeholder:'',suggested:true},fields:[{key:'notes',label:'Notes',max_length:10000,placeholder:'',suggested:true}],entry_order:['title','notes'],grouping:null}} as CollectionTypes));setSettings({status:'skipped',default_type:'other',records_enabled:false,record_fields:[],revision:0});setBrowseCollection('other');setIntakeStart(old=>({target:'other',scope:'other',name:'Other finds',sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}}>Use generic entry</button></p>}
+        {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{if(!detailGuard.current()||!intakeGuard.current())return;setTypes(old=>old||({other:{schema_version:1,id:'other',label:'Other',plural_label:'Other finds',title:{key:'title',label:'Title',max_length:500,placeholder:'',suggested:true},fields:[{key:'notes',label:'Notes',max_length:10000,placeholder:'',suggested:true}],entry_order:['title','notes'],grouping:null}} as CollectionTypes));setSettings({status:'skipped',default_type:'other',records_enabled:false,record_fields:[],revision:0});setBrowseCollection('other');setImportBatchId('');setShowImportStorage(false);setIntakeStart(old=>({target:'other',scope:'other',name:'Other finds',sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
-        <details className="collection-tools" ref={toolsPanel} hidden={settingsPanel==='collection'}><summary>Collection tools and imports</summary><CsvImport runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} browse={type=>{
-          toolsPanel.current!.open=false;
-          setDraftQuery('');setQuery('');setStorage({id:'',label:''});chooseCollection(type);
+        <details className="collection-tools" ref={toolsPanel} hidden={settingsPanel==='collection'}><summary>Collection tools and imports</summary><CsvImport runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} browse={(type,batchId)=>{
+          if(toolsPanel.current)toolsPanel.current.open=false;
+          setDraftQuery('');setQuery('');setStorage({id:'',label:''});setSort('');setPage(0);chooseCollection(type,batchId);
           requestAnimationFrame(()=>collectionHeading.current?.focus());
         }}/></details>
         <div hidden={settingsPanel==='collection'} data-phone-home={showingPhoneHome} className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
@@ -216,6 +222,12 @@ export default function InventoryClient() {
             <button type="button" className="phone-back text-button" disabled={busy} onClick={showCollections}>Back to collections</button>
             <div className="section-heading collection-heading"><h1 id="collection-title" tabIndex={-1} ref={collectionHeading}>{browseTitle}</h1>{!phone&&viewControls}</div>
             <div className="collection-actions"><button className="primary" type="button" disabled={busy} aria-expanded={intakeVisible} onClick={()=>startIntake()}>Add an item</button><button className="text-button" disabled={busy||loading} onClick={reloadInventory}>Reload inventory</button></div>
+            {importBatchId&&<div className="browse-active" aria-label="Import scope">
+              <span>Showing copies from this import</span>
+              <button className="text-button" type="button" disabled={busy} onClick={()=>{chooseCollection(browseCollection);requestAnimationFrame(()=>collectionHeading.current?.focus());}}>View full collection</button>
+              {typeFilter==='comic'&&<button className="text-button" type="button" disabled={busy} aria-expanded={showImportStorage} onClick={()=>setShowImportStorage(open=>!open)}>{showImportStorage?'Close storage mapping':'Map imported storage boxes'}</button>}
+            </div>}
+            {importBatchId&&showImportStorage&&<ImportStorage key={importBatchId} batchId={importBatchId} locked={busy} runSave={runSave} changed={changed}/>}
             <div className={`inventory-results ${view}`}>
             <div className="browse-toolbar">
             <form className="search" onSubmit={search} aria-label="Search inventory">
@@ -226,7 +238,7 @@ export default function InventoryClient() {
             <button type="button" className="phone-filters quiet" ref={phoneFilters} aria-expanded={filtersOpen} aria-controls="browse-options" onClick={()=>setFiltersOpen(open=>!open)}>Filters{filterCount?` (${filterCount})`:''}</button>
             <div id="browse-options" className="browse-options" data-expanded={filtersOpen}>
               <div className="storage-filter"><StorageFilter value={storageFilter} change={(id,label)=>{setStorage({id,label});setPage(0);}} busy={busy} refresh={refresh} /></div>
-              <div className="browse-mode"><label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!customCollectionId||!!typeFilter&&!types?.[typeFilter]?.grouping}>Grouped collection</option><option value="copies">Individual copies</option></select></div>
+              <div className="browse-mode"><label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!importBatchId||!!customCollectionId||!!typeFilter&&!types?.[typeFilter]?.grouping}>Grouped collection</option><option value="copies">Individual copies</option></select></div>
               <div className="browse-sort">
                 <label htmlFor="copy-sort">Sort copies</label>
                 <select id="copy-sort" value={grouped?'':activeSort} disabled={busy} onChange={event=>{
@@ -252,10 +264,10 @@ export default function InventoryClient() {
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${customCollectionId?' · Custom collection':typeFilter ? ` · ${types?.[typeFilter]?.plural_label || typeFilter}` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} <button type="button" className="text-button" onClick={reloadInventory}>Try again</button></p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
-              : items.length === 0 ? <div className="empty"><h3>{query || storageFilter || typeFilter || customCollectionId ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query || storageFilter ? 'Clear a search or storage filter above to see more copies.' : typeFilter || customCollectionId ? 'There are no saved copies in this collection yet.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
+              : items.length === 0 ? <div className="empty"><h3>{query || storageFilter || typeFilter || customCollectionId ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query || storageFilter ? 'Clear a search or storage filter above to see more copies.' : typeFilter || customCollectionId ? importBatchId ? 'There are no active copies from this import.' : 'There are no saved copies in this collection yet.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
               : <CollectionRows groupByType={!activeSort&&(!phone||!typeFilter&&!customCollectionId)} types={types} items={items} busy={busy} selected={selected} open={openCopy}/>}
 
-            <nav className="pagination" data-single-page={page===0&&!more} aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => setPage(value => value + 1)}>Next</button></nav>
+            <nav className="pagination" data-single-page={page===0&&!more} aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => {setLoading(true);setPage(value => value - 1);}}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => {setLoading(true);setPage(value => value + 1);}}>Next</button></nav>
             </>}
             {customCollectionId&&<div className="browse-checklist"><ChecklistProgress key={customCollectionId} collectionId={customCollectionId} refresh={refresh} locked={busy} addFigure={entryId=>beginFigure(entryId)} /><p className="hint">Checklist progress covers the whole collection. Search and storage filters affect the saved copies.</p></div>}
             </div>
