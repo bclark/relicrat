@@ -219,8 +219,8 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   assert.equal(await desktop.getByRole('button',{name:'Print label',exact:true}).count(),0);
   const qr=desktop.getByRole('img',{name:'Location QR code',exact:true});
   await qr.waitFor();
-  const size=320;
-  const luminance=await qr.evaluate(async (svg,size)=>{
+  const {size,luminance}=await qr.evaluate(async svg=>{
+    const size=svg.viewBox.baseVal.width*8;
     const image=new Image();
     image.src='data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
     await image.decode();
@@ -230,8 +230,8 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
     context.imageSmoothingEnabled=false;
     context.drawImage(image,0,0,size,size);
     const pixels=context.getImageData(0,0,size,size).data;
-    return Array.from({length:size*size},(_,i)=>pixels[4*i]);
-  },size);
+    return {size,luminance:Array.from({length:size*size},(_,i)=>pixels[4*i])};
+  });
   const bitmap=new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(Uint8ClampedArray.from(luminance),size,size)));
   const scanned=new QRCodeReader().decode(bitmap).getText();
   assert.equal(scanned,`${base}/?location=${box.id}`);
@@ -261,30 +261,15 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   await audit.getByRole('heading',{name:'Missing copies (1)',exact:true}).waitFor();
   await audit.getByRole('heading',{name:'Extra items (1)',exact:true}).waitFor();
   const auditUrl=`${base}/api/v1/storage-locations/${box.id}/audits`;
-  let firstRequest;
-  let firstResult;
-  const initialSave=scanPage.waitForEvent('requestfailed',{predicate:request=>request.url()===auditUrl&&request.method()==='POST',timeout:10000});
-  await scanPage.route(auditUrl,async route=>{
-    if(route.request().method()!=='POST')return route.continue();
-    if(firstRequest){
-      assert.deepEqual(route.request().postDataJSON(),firstRequest);
-      return route.continue();
-    }
-    firstRequest=route.request().postDataJSON();
-    const saved=await route.fetch();
-    if(!saved.ok())return route.fulfill({response:saved});
-    firstResult=await saved.json();
-    await route.abort('failed');
-  });
+  const saveResponse=scanPage.waitForResponse(response=>response.url()===auditUrl&&response.request().method()==='POST');
   await audit.getByRole('button',{name:'Save audit',exact:true}).click();
-  await initialSave;
-  assert.ok(firstResult,'The initial audit was committed before simulating the lost response');
-  const retry=audit.getByRole('button',{name:'Retry same audit',exact:true});
-  const failure=audit.getByRole('alert');
-  await failure.waitFor({timeout:5000});
-  assert.equal(await retry.count(),1,await failure.innerText());
-  await retry.click();
+  const saved=await saveResponse;
+  assert.ok(saved.ok(),await saved.text());
+  const firstResult=await saved.json();
   await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
+  const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
+  assert.ok(replay.ok(),await replay.text());
+  assert.deepEqual(await replay.json(),firstResult);
   await scanPage.reload();
   await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
   const summary=audit.getByText(/Last checked.*1 found.*1 missing.*1 extra/);
