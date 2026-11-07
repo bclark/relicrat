@@ -241,6 +241,8 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
     name:renamed,parent_id:destination.id,expected_name:box.name,expected_parent_id:source.id,
   });
   const scanPage=await phone.newPage();
+  const pageErrors=[];
+  scanPage.on('pageerror',error=>pageErrors.push(error.message));
   await scanPage.goto(scanned);
   await scanPage.waitForURL(`**/login?location=${box.id}`);
   assert.equal(await scanPage.getByText(copy.title,{exact:true}).count(),0);
@@ -266,7 +268,9 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const saved=await saveResponse;
   assert.ok(saved.ok(),await saved.text());
   const firstResult=await saved.json();
-  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
+  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor({timeout:5000}).catch(async error=>{
+    throw new Error(JSON.stringify({pageErrors,url:scanPage.url(),text:(await scanPage.locator('body').innerText()).slice(-2500),firstResult}),{cause:error});
+  });
   const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
   assert.ok(replay.ok(),await replay.text());
   assert.deepEqual(await replay.json(),firstResult);
