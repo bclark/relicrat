@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {after,before,test} from 'node:test';
 import {chromium} from 'playwright';
-import {BinaryBitmap,HybridBinarizer,QRCodeReader,RGBLuminanceSource} from '@zxing/library';
+import {BinaryBitmap,DecodeHintType,HybridBinarizer,QRCodeReader,RGBLuminanceSource} from '@zxing/library';
 
 const base=process.env.RELICRAT_TEST_WEB_URL;
 assert.ok(base&&new URL(base).hostname==='127.0.0.1'&&new URL(base).port!=='56742','Use only a disposable loopback test stack');
@@ -233,7 +233,7 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
     return {size,luminance:Array.from({length:size*size},(_,i)=>pixels[4*i])};
   });
   const bitmap=new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(Uint8ClampedArray.from(luminance),size,size)));
-  const scanned=new QRCodeReader().decode(bitmap).getText();
+  const scanned=new QRCodeReader().decode(bitmap,new Map([[DecodeHintType.PURE_BARCODE,true]])).getText();
   assert.equal(scanned,`${base}/?location=${box.id}`);
 
   const renamed='Synthetic QR box after move';
@@ -268,9 +268,8 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const saved=await saveResponse;
   assert.ok(saved.ok(),await saved.text());
   const firstResult=await saved.json();
-  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor({timeout:5000}).catch(async error=>{
-    throw new Error(JSON.stringify({pageErrors,url:scanPage.url(),text:(await scanPage.locator('body').innerText()).slice(-2500),firstResult}),{cause:error});
-  });
+  await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
+  assert.deepEqual(pageErrors,[]);
   const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
   assert.ok(replay.ok(),await replay.text());
   assert.deepEqual(await replay.json(),firstResult);
