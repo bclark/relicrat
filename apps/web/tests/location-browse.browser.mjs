@@ -263,6 +263,7 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const auditUrl=`${base}/api/v1/storage-locations/${box.id}/audits`;
   let firstRequest;
   let firstResult;
+  const initialSave=scanPage.waitForResponse(response=>response.url()===auditUrl&&response.request().method()==='POST');
   await scanPage.route(auditUrl,async route=>{
     if(route.request().method()!=='POST')return route.continue();
     if(firstRequest){
@@ -271,11 +272,14 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
     }
     firstRequest=route.request().postDataJSON();
     const saved=await route.fetch();
-    assert.ok(saved.ok(),await saved.text());
+    if(!saved.ok())return route.fulfill({response:saved});
     firstResult=await saved.json();
     await route.fulfill({status:502,json:{detail:'Synthetic lost audit response'}});
   });
   await audit.getByRole('button',{name:'Save audit',exact:true}).click();
+  const saveResponse=await initialSave;
+  assert.equal(saveResponse.status(),502,await saveResponse.text());
+  assert.ok(firstResult,'The initial audit was committed before simulating the lost response');
   await audit.getByRole('button',{name:'Retry same audit',exact:true}).click();
   await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
   await scanPage.reload();
