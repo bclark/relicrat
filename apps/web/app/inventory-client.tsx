@@ -12,6 +12,7 @@ import GroupedCollection from './grouped-collection';
 import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 import LocationDirectory from './location-directory';
+import LocationEditor from './location-editor';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { api, errorText, type CollectionSettings, type CollectionTypeId, type CollectionTypes, type InventoryCopy,type Location,type RunSave } from '../lib/inventory-client';
@@ -44,6 +45,7 @@ export default function InventoryClient() {
   const collectionHeading=useRef<HTMLHeadingElement>(null),intakeGuard=useRef<()=>boolean>(()=>true);
   const [intakeStart,setIntakeStart]=useState<IntakeStart>({target:'',scope:'',name:'All items',sequence:0});
   const [locationBrowse,setLocationBrowse]=useState<{path:Location[];unassigned?:boolean}|null>(null);
+  const [locationEditor,setLocationEditor]=useState<'create'|'edit'|null>(null);
   const currentLocation=locationBrowse?.path.at(-1);
   const locationIndex=!!locationBrowse&&!currentLocation&&!locationBrowse.unassigned;
   const browseTitle=locationBrowse?(currentLocation?.name||(locationBrowse.unassigned?'Unassigned copies':'Locations')):collectionName||'Your collection';
@@ -127,6 +129,7 @@ export default function InventoryClient() {
     if(batchId!==importBatchId){setLoading(true);setPage(0);}
     if(locationBrowse)setLoading(true);
     setLocationBrowse(null);
+    setLocationEditor(null);
     setImportBatchId(batchId);
     setShowImportStorage(false);
     if(value!==browseCollection||(phone&&phoneHome))setLoading(true);
@@ -145,6 +148,7 @@ export default function InventoryClient() {
   function browseLocations(path:Location[]=[],unassigned=false){
     if(busy)return;
     setLocationBrowse({path,unassigned});
+    setLocationEditor(null);
     setBrowseCollection('');
     setImportBatchId('');
     setShowImportStorage(false);
@@ -250,6 +254,13 @@ export default function InventoryClient() {
                 {locationBrowse.path.length>1?`Back to ${locationBrowse.path.at(-2)?.name}`:'All locations'}
               </button>}
               {locationIndex&&<button className="text-button" type="button" disabled={busy} onClick={()=>browseLocations([],true)}>Unassigned copies</button>}
+              {!locationBrowse.unassigned&&<div className="form-actions">
+                <button type="button" disabled={busy} onClick={()=>setLocationEditor('create')}>{currentLocation?'Add nested location':'Add location'}</button>
+                {currentLocation&&<button type="button" disabled={busy} onClick={()=>setLocationEditor('edit')}>Rename or move location</button>}
+              </div>}
+              {locationEditor&&<LocationEditor key={locationEditor} path={locationEditor==='edit'?locationBrowse.path.slice(0,-1):locationBrowse.path}
+                location={locationEditor==='edit'?currentLocation:undefined} busy={busy} runSave={runSave}
+                onSaved={path=>browseLocations(path)} onCancel={()=>setLocationEditor(null)}/>}
               {!locationBrowse.unassigned&&<LocationDirectory key={currentLocation?.id||'root'} parentId={currentLocation?.id} open={place=>browseLocations([...locationBrowse.path,place])} busy={busy} refresh={refresh}/>}
               {!locationIndex&&<p className="hint">{locationBrowse.unassigned?'Copies without a physical location. Open a copy to assign one.':'Copies stored directly here. Open a nested location to see its copies.'}</p>}
             </>}
