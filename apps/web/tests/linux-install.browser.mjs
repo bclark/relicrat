@@ -42,16 +42,21 @@ for (const [layout, profile] of [
       await page.getByText('Photo saved. The copy and its existing history are unchanged.', {exact: true}).waitFor();
       await openDisclosure(page, 'Create a storage location');
       await page.getByLabel('Location name', {exact: true}).fill(box);
+      const created = page.waitForResponse(response =>
+        response.url() === origin + '/api/v1/storage-locations' && response.request().method() === 'POST');
       await page.getByRole('button', {name: 'Create location', exact: true}).click();
+      const location = await created;
+      assert.equal(location.status(), 201);
+      const {id: boxId} = await location.json();
       await page.getByRole('status').filter({hasText: `${box} created.`}).waitFor();
-      await page.getByLabel('Location', {exact: true}).selectOption({label: box});
+      await page.getByLabel('Location', {exact: true}).selectOption(boxId);
       await page.getByRole('status').filter({hasText: `Added to ${box}.`}).waitFor();
       await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
     }
     await page.getByLabel('Find a copy', {exact: true}).fill(title);
     await page.getByRole('button', {name: 'Search', exact: true}).click();
     await page.getByRole('button', {name: `Open ${title}`, exact: true}).click();
-    assert.equal(await page.getByLabel('Location', {exact: true}).locator('option:checked').textContent(), box);
+    await page.getByText(`Current location: ${box}`, {exact: true}).waitFor();
     const image = page.getByAltText(`Photo 1 of ${title}`, {exact: true});
     await image.waitFor();
     const source = await image.getAttribute('src');
