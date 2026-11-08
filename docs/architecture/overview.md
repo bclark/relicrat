@@ -75,3 +75,9 @@ configuration must not silently move inventory or manufacture ownership. Native
 authentication, offline synchronization, versioned public client contracts and
 experience manifests require separate reviewed designs. Do not introduce a
 plugin framework, native project or speculative transport in this web redesign.
+
+The optional [read-only MCP adapter](../../apps/mcp/README.md) is an agent
+client of the private API. It runs over local stdio and uses an owner-issued,
+revocable credential. The core server remains the authority for inventory,
+locations, and audit findings. Installing the adapter is separate from
+running the single-owner web app.
