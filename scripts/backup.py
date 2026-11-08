@@ -284,6 +284,7 @@ def main():
     command = sub.add_parser('create', help='Pause the single-writer app and back up its database/media')
     command.add_argument('--compose', type=Path, required=True, help='Trusted local db/api/web Compose file')
     command.add_argument('--project', required=True)
+    command.add_argument('--engine', default='relicrat-worker', help='Exact local Docker engine name expected for capture')
     command.add_argument('--offline-confirmed', action='store_true', required=True,
                          help='Confirm no external DB/media writers; app downtime is acceptable')
     command.add_argument('directory', type=Path, help='New backup directory (must not exist)')
@@ -292,8 +293,9 @@ def main():
     command.add_argument('destination', type=Path, help='New private directory for restore configuration/receipt')
     args = parser.parse_args()
     os.umask(0o077)
-    require(output(DOCKER + ['info', '--format', '{{.Name}}']) == 'relicrat-worker',
-            'This initial workflow requires the isolated relicrat-worker engine')
+    expected_engine = args.engine if args.operation == 'create' else 'relicrat-worker'
+    require(output(DOCKER + ['info', '--format', '{{.Name}}']) == expected_engine,
+            'Local Docker engine name differs from the expected engine')
     def interrupted(signum, frame):
         raise RuntimeError(f'Interrupted ({signum}); inspect incomplete backup/restore receipt')
     for signum in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
