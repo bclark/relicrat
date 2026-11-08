@@ -147,19 +147,15 @@ jobs:
           docker compose up -d --wait db
           docker compose run --rm --no-deps api alembic upgrade head
           docker compose up -d --no-build --wait
-          curl -fsS --retry 20 --retry-connrefused http://127.0.0.1:3000/login -o /dev/null
       - name: Verify private binding and blocked app egress
         run: |
-          test "$(docker compose port web 3000)" = "127.0.0.1:3000"
           test "$(docker network inspect relicrat_default --format '{{.Internal}}')" = true
           for service in web api db; do
             container="$(docker compose ps -q "$service")"
             test "$(docker inspect "$container" --format '{{len .NetworkSettings.Networks}}')" = 1
             test "$(docker inspect "$container" --format '{{.HostConfig.RestartPolicy.Name}}')" = unless-stopped
             docker compose exec -T "$service" awk '$2 == "00000000" { exit 1 }' /proc/net/route
-            if [ "$service" != web ]; then
-              test "$(docker inspect "$container" --format '{{len .HostConfig.PortBindings}}')" = 0
-            fi
+            test "$(docker inspect "$container" --format '{{len .HostConfig.PortBindings}}')" = 0
           done
           docker compose exec -T api python - <<'PY'
           import errno, socket
@@ -171,7 +167,9 @@ jobs:
               raise AssertionError('The API reached an external address')
           PY
       - name: Add, photograph, move and find copies from desktop and phone
-        run: node --test apps/web/tests/linux-install.browser.mjs
+        run: |
+          sudo apt-get install -y socat
+          sh scripts/linux-install-browser-check.sh
       - name: Take the pre-upgrade backup and verify persistence after recreation
         run: |
           python3 scripts/backup.py create --engine "$(docker info --format '{{.Name}}')" \
@@ -179,7 +177,7 @@ jobs:
           test -s "$RUNNER_TEMP/relicrat-backup/manifest.json"
           docker compose down
           docker compose up -d --no-build --wait
-          RELICRAT_TEST_AFTER_RESTART=1 node --test apps/web/tests/linux-install.browser.mjs
+          RELICRAT_TEST_AFTER_RESTART=1 sh scripts/linux-install-browser-check.sh
       - name: Remove the disposable install
         if: always()
         run: |

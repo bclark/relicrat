@@ -1,7 +1,7 @@
 # Private Linux installation with Docker Compose
 
 This first install target is a dedicated Ubuntu 24.04 host with rootful Docker
-Engine 28 or later, Docker Compose v2, Git, and Python 3.11 or later. Use a
+Engine 28 or later, Docker Compose v2, Git, socat, and Python 3.11 or later. Use a
 reviewed full commit SHA as the release pin. The application builds from that
 checkout and tags its images with the same SHA. Retain the built images for
 offline restarts. Rebuilding can fetch newer dependencies allowed by the source.
@@ -27,12 +27,21 @@ compose run --rm --no-deps api alembic upgrade head
 compose up -d --no-build --wait
 ```
 
-Open `http://127.0.0.1:3000` and sign in. The web port binds to host loopback.
-The API and database communicate on the internal Docker network. It blocks
-container egress and keeps core collection workflows available after image
-installation. Database and photos live in the project's named volumes. Keep
-the generated mode-0600 `.env` private and preserve it across upgrades.
-Ordinary `compose down` keeps the volumes. Avoid the volume-removal option.
+Run this relay on the Linux host in a separate terminal from the checkout,
+with the same release export and `compose` function defined above. It binds to
+loopback and forwards to the current web container. Start it again after
+recreating the web container so it uses the current address.
+
+```sh
+web_ip="$(docker inspect "$(compose ps -q web)" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')"
+test -n "$web_ip" && socat TCP4-LISTEN:3000,bind=127.0.0.1,reuseaddr,fork "TCP4:$web_ip:3000"
+```
+
+Open `http://127.0.0.1:3000` and sign in. All three containers communicate on
+the internal Docker network, which blocks runtime internet access. Database
+records and photos live in the project's named volumes. Keep the generated
+mode-0600 `.env` private and preserve it across upgrades. Ordinary
+`compose down` keeps the volumes. Avoid the volume-removal option.
 
 To use a desktop browser on another machine, forward the loopback port over
 SSH and keep the same browser origin.
