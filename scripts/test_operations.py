@@ -47,6 +47,46 @@ class OperationsTests(unittest.TestCase):
         p.write_text(json.dumps(r))
         self.assertEqual(ops.receipt_check('cloud-backup', 'Drive', p, self.current)['state'], 'ok')
 
+    def test_independent_watch_alerts_when_publisher_stops_and_recovers(self):
+        captured = datetime(2026, 11, 7, 7, 30, tzinfo=timezone.utc)
+        proof = self.receipt(
+            status='verified-offsite-parts', captured_at_utc=captured.isoformat(),
+            completed_at_utc=(captured + timedelta(minutes=45)).isoformat(),
+            all_downloaded_parts_verified=True, downloaded_manifest_verified=True,
+            full_archive_sha256_verified=True, owner_only_metadata_verified=True,
+            cms_authenticated_decryption_verified=True,
+        )
+        cursor = self.root/'watch.json'
+        received = self.root/'received.jsonl'
+        config = {
+            'timezone': 'America/New_York', 'offsite_receipt': str(proof),
+            'notify_command': [sys.executable, '-c',
+                'import sys; open(sys.argv[1], "a").write(sys.stdin.read())', str(received)],
+        }
+        def watch(hours, minutes):
+            # No backup publisher runs during this simulated overnight window.
+            ops.watch_offsite(config, cursor, datetime(2026, 11, 8, hours, minutes, tzinfo=timezone.utc))
+
+        watch(8, 59)  # 03:59 local
+        self.assertFalse(received.exists())
+        command = config['notify_command']
+        config['notify_command'] = [sys.executable, '-c', 'raise SystemExit(1)']
+        with self.assertRaises(subprocess.CalledProcessError):
+            watch(9, 0)  # 04:00 local
+        self.assertFalse(cursor.exists())
+        config['notify_command'] = command
+        watch(9, 0)
+        watch(9, 15)
+        watch(9, 30)
+        watch(10, 0)
+        receipt = json.loads(proof.read_text())
+        receipt.update(captured_at_utc='2026-11-08T07:30:00Z', completed_at_utc='2026-11-08T10:01:00Z')
+        proof.write_text(json.dumps(receipt))
+        watch(10, 2)
+        watch(10, 15)
+        self.assertEqual([json.loads(line)['state'] for line in received.read_text().splitlines()],
+                         ['missed', 'critical', 'recovered'])
+
     def test_remote_snapshot_staleness_and_failed_probe_never_recover_a_check(self):
         remote = {'checked_at_utc': (self.current-timedelta(hours=1)).isoformat(), 'checks': [ops.check('app-services','App','ok','private')]}
         with patch.object(ops.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, json.dumps(remote).encode())):
@@ -99,13 +139,20 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(ops.receipt_path({'latest':str(pointer),'root':str(self.root)}),target.resolve())
 
     def test_sync_excludes_personal_contents_paths_and_extra_fields(self):
-        p=self.receipt(collection_contents='secret-data',owner_password='never-transfer')
+        p=self.receipt(collection_contents='secret-data',owner_password='never-transfer',
+                       captured_at_utc=self.current.isoformat())
         cloud=self.root/'cloud.json';r=json.loads(p.read_text());r['status']='verified-offsite-parts';r.update({k:True for k in ['all_downloaded_parts_verified','downloaded_manifest_verified','full_archive_sha256_verified','owner_only_metadata_verified','cms_authenticated_decryption_verified']});cloud.write_text(json.dumps(r))
         config={'receipts':{'mac-backup':{'path':str(p),'label':'Mac'},'cloud-backup':{'path':str(cloud),'label':'Drive'}},'evidence_root':'/private/synthetic','evidence_ssh':['synthetic']}
         with patch.object(ops.subprocess,'run',return_value=subprocess.CompletedProcess([],0)) as run:
             ops.sync_evidence(config)
         code=run.call_args.kwargs['input'].decode()
         self.assertNotIn('secret-data',code);self.assertNotIn('never-transfer',code);self.assertNotIn('collection_contents',code)
+        self.assertIn("'offsite.json':", code)
+        r['sha256'] = 'c' * 64
+        cloud.write_text(json.dumps(r))
+        with patch.object(ops.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as run:
+            ops.sync_evidence(config)
+        self.assertNotIn("'offsite.json':", run.call_args.kwargs['input'].decode())
 
     def test_http_has_only_fixed_routes_host_guard_and_no_config_disclosure(self):
         config = self.root/'config.json'; config.write_text('{}'); config.chmod(0o600)
