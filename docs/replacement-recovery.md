@@ -78,3 +78,36 @@ For another **disposable rehearsal**, use `scripts/rehearse-recovery.py` only wi
 an explicitly identified empty offline engine. It cleans up its restored volumes
 on success. For an actual recovery to retain, use the offline restore command
 and retain its exact receipt instead.
+
+## Verify an independently stored backup
+
+Use the independent archive and its trusted receipt as the rehearsal input.
+Check the bytes of each downloaded part and the manifest against the receipt
+before rejoining. Then authenticate the rebuilt archive and verify the saved
+source and images. This exercises the off-host retrieval step even if a local
+copy of the same archive is available.
+
+After preparing the replacement OS and tools, block outbound traffic while
+preserving the private operator connection. Transfer the verified capsule.
+The following command checks the engine identity and empty store before
+loading images. Supply the pins from the trusted receipt.
+
+```sh
+sudo docker --host unix:///var/run/docker.sock info --format '{{.ID}}'
+sudo python3 scripts/rehearse-recovery.py \
+  --expected-engine EXPECTED_REPLACEMENT_ENGINE_ID \
+  --capsule /private/path/authenticated/capsule \
+  --destination /private/path/rehearsal \
+  --source-commit VERIFIED_SOURCE_COMMIT \
+  --source-sha256 VERIFIED_SOURCE_ARCHIVE_SHA256 \
+  --start-private-app
+```
+
+The private receipt records the verified migration and counts for copies,
+storage locations, photo records, media files, and available history tables.
+These counts come from the archived state only after the restore helper
+matches that state against the recovered database and media.
+
+The result covers the release and images recorded in the backup. When the
+independent backup predates the desired deployment release, verify the
+archived release before treating any migration as a separate upgrade.
