@@ -47,17 +47,17 @@ def build_server(origin: str, token: str) -> MCPServer:
         except (httpx.HTTPError, ValueError):
             raise RuntimeError('The private RelicRat API did not return a usable response.') from None
 
-    @server.tool(annotations=READ_ONLY)
+    @server.tool(annotations=READ_ONLY, structured_output=True)
     async def search_collection(query: Search, limit: Limit = 20, offset: Offset = 0) -> dict:
         """Find owned copies by title, barcode, or other searchable catalog data, with location when assigned."""
         return {'copies': await read('copies', {'q': query, 'limit': limit, 'offset': offset})}
 
-    @server.tool(annotations=READ_ONLY)
+    @server.tool(annotations=READ_ONLY, structured_output=True)
     async def get_copy_location(copy_id: UUID) -> dict:
         """Find the current box or storage location for a specific owned copy. Null means unassigned."""
         return await read(f'copies/{copy_id}')
 
-    @server.tool(annotations=READ_ONLY)
+    @server.tool(annotations=READ_ONLY, structured_output=True)
     async def list_unresolved_audit_findings(limit: Limit = 20, offset: Offset = 0) -> dict:
         """List locations with unresolved findings and their counts across saved audits, one page at a time."""
         return {'locations': await read('unresolved-locations', {'limit': limit, 'offset': offset})}
