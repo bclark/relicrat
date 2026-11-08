@@ -276,10 +276,39 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
   assert.ok(replay.ok(),await replay.text());
   assert.deepEqual(await replay.json(),firstResult);
-  await scanPage.reload();
+  await audit.getByRole('button',{name:'Start a fresh check',exact:true}).click();
+  await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).check();
+  await audit.getByRole('checkbox',{name:/Synthetic missing QR copy/}).check();
+  await audit.getByRole('button',{name:'Review audit',exact:true}).click();
+  const secondSave=scanPage.waitForResponse(response=>response.url()===auditUrl&&response.request().method()==='POST');
+  await audit.getByRole('button',{name:'Save audit',exact:true}).click();
+  const second=await secondSave;
+  assert.ok(second.ok(),await second.text());
+  const secondResult=await second.json();
+  await audit.getByText(/Last checked.*2 found.*0 missing.*0 extra/).waitFor();
+  assert.notEqual(secondResult.id,firstResult.id);
+
+  const openUrl=`${base}/api/v1/storage-locations/audits/open`;
+  const openBefore=await phone.request.get(openUrl);
+  assert.ok(openBefore.ok(),await openBefore.text());
+  assert.deepEqual((await openBefore.json()).find(row=>row.id===box.id),{id:box.id,name:renamed,unresolved:2});
+
+  await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).click();
+  await scanPage.getByRole('button',{name:'All locations',exact:true}).click();
+  await scanPage.getByText('Unresolved audit findings',{exact:true}).click();
+  const openList=scanPage.getByRole('region',{name:'Locations with unresolved findings',exact:true});
+  const listedBox=openList.getByRole('link',{name:renamed,exact:true});
+  assert.equal(await listedBox.getAttribute('href'),`/?location=${box.id}`);
+  await listedBox.locator('..').getByText('2 unresolved',{exact:false}).waitFor();
+  await scanPage.goto(scanned);
   await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
-  const summary=audit.getByText(/Last checked.*1 found.*1 missing.*1 extra/);
-  await summary.click();
+  const history=audit.getByText('Audit history',{exact:true});
+  await history.click();
+  const past=audit.getByRole('button',{name:/^Past audit.*1 found.*1 missing.*1 extra/});
+  const current=audit.getByRole('button',{name:/^Latest audit.*2 found.*0 missing.*0 extra.*0 unresolved/});
+  await current.waitFor();
+  await past.filter({hasText:'2 unresolved'}).click();
+  const summary=audit.getByText(/Selected audit.*1 found.*1 missing.*1 extra/);
   const savedAudit=summary.locator('..');
   await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
   await savedAudit.getByText('Synthetic extra found in box',{exact:true}).waitFor();
@@ -310,7 +339,9 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
 
   await scanPage.reload();
   await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
-  await summary.click();
+  await history.click();
+  await current.waitFor();
+  await past.filter({hasText:'0 unresolved'}).click();
   await savedAudit.getByRole('heading',{name:'Original findings',exact:true}).waitFor();
   await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
   await savedAudit.getByText(extra.title,{exact:true}).waitFor();
@@ -320,7 +351,11 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
 
   const persisted=await phone.request.get(`${base}/api/v1/storage-locations/${box.id}/audits`);
   assert.ok(persisted.ok(),await persisted.text());
-  const {latest}=await persisted.json();
+  const {latest:currentAudit}=await persisted.json();
+  assert.deepEqual(currentAudit,secondResult);
+  const old=await phone.request.get(`${auditUrl}/${firstResult.id}`);
+  assert.ok(old.ok(),await old.text());
+  const latest=await old.json();
   assert.equal(latest.id,firstResult.id);
   assert.deepEqual(latest.copies.filter(copy=>!copy.found).map(copy=>copy.id),[missing.id]);
   assert.deepEqual(latest.copies,firstResult.copies);
@@ -342,6 +377,14 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   const movedExtra=await assignedExtra.json();
   assert.equal(movedExtra.storage_location_id,box.id);
   assert.equal(movedExtra.storage_revision,2);
+
+  const openAfter=await phone.request.get(openUrl);
+  assert.ok(openAfter.ok(),await openAfter.text());
+  assert.equal((await openAfter.json()).some(row=>row.id===box.id),false);
+  await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).click();
+  await scanPage.getByRole('button',{name:'All locations',exact:true}).click();
+  await scanPage.getByText('Unresolved audit findings',{exact:true}).click();
+  await scanPage.getByText('No locations with unresolved findings on this page.',{exact:true}).waitFor();
 
   await scanPage.goto(base+'/login?location='+encodeURIComponent('https://example.invalid'));
   assert.equal(scanPage.url(),base+'/');

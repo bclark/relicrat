@@ -521,3 +521,12 @@ alongside its finding. A missing copy can be marked found in the box or moved
 to the place it was found. An extra can match an existing copy or become a
 new provisional copy assigned to the box. Changes use the existing storage
 history and require confirmation. Deployment remains separate.
+
+### Audit history and unresolved findings (2026-11-07, implemented for review)
+
+The owner approved a paginated audit history on each location and an unresolved
+findings list in Browse locations. The list counts unresolved observations
+across all saved audits, including earlier audits followed by a clean check.
+Opening an older audit allows explicit resolution against that audit alone.
+The existing audit schema stores the findings and resolutions. Deployment
+remains separate.

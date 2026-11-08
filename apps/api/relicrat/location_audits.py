@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -65,6 +65,62 @@ def prepare_audit(location_id: UUID, db: Session = Depends(get_db)):
     latest = db.scalar(select(LocationAudit).where(LocationAudit.location_id == location_id)
                        .order_by(LocationAudit.created_at.desc(), LocationAudit.id.desc()).limit(1))
     return {'copies': copies, 'snapshot': digest(copies), 'latest': audit_result(latest)}
+
+
+# Every stored resolution belongs to a single original finding.
+AUDIT_COUNTS = """
+    SELECT id, location_id, created_at,
+           jsonb_array_length(result->'copies') - missing AS found,
+           missing, jsonb_array_length(result->'extras') AS extra,
+           missing + jsonb_array_length(result->'extras') -
+               (SELECT count(*) FROM jsonb_object_keys(coalesce(result->'resolutions', '{}'))) AS unresolved
+    FROM location_audits
+    CROSS JOIN LATERAL (
+        SELECT jsonb_array_length(jsonb_path_query_array(
+            result->'copies', '$[*] ? (@.found == false)')) AS missing
+    ) AS counts
+"""
+
+
+@router.get('/audits/open')
+def open_audit_locations(
+    limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    rows = db.execute(text(f"""
+        SELECT l.id, l.name, CAST(sum(a.unresolved) AS bigint) AS unresolved
+        FROM ({AUDIT_COUNTS}) AS a
+        JOIN storage_locations AS l ON l.id = a.location_id
+        WHERE a.unresolved > 0
+        GROUP BY l.id, l.name
+        ORDER BY l.name, l.id
+        LIMIT :limit OFFSET :offset
+    """), {'limit': limit, 'offset': offset}).mappings()
+    return [dict(row) for row in rows]
+
+
+@router.get('/{location_id}/audits/history')
+def audit_history(
+    location_id: UUID, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    require_location(db, location_id)
+    rows = db.execute(text(f"""
+        {AUDIT_COUNTS}
+        WHERE location_id = :location_id
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit OFFSET :offset
+    """), {'location_id': location_id, 'limit': limit, 'offset': offset}).mappings()
+    return [dict(row) for row in rows]
+
+
+@router.get('/{location_id}/audits/{audit_id}')
+def read_audit(location_id: UUID, audit_id: UUID, db: Session = Depends(get_db)):
+    audit = db.scalar(select(LocationAudit).where(
+        LocationAudit.id == audit_id, LocationAudit.location_id == location_id))
+    if audit is None:
+        raise HTTPException(404, 'Audit not found')
+    return audit_result(audit)
 
 
 @router.post('/{location_id}/audits')

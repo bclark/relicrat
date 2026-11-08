@@ -7,6 +7,9 @@ type Copy = {id:string;title:string;edition:string|null};
 type RecordedResolution = {action:Resolution['action'];title:string;location_name:string;copy_id:string};
 type Result = {id:string;created_at:string;copies:(Copy & {found:boolean})[];extras:string[];resolutions:Record<string,RecordedResolution>};
 type Preview = {copies:Copy[];snapshot:string;latest:Result|null};
+type AuditSummary = {id:string;created_at:string;found:number;missing:number;extra:number;unresolved:number};
+const HISTORY_PAGE=20;
+
 type Submission = {request_id:string;snapshot:string;found_ids:string[];extras:string[]};
 
 function copyLabel(copy:Copy){
@@ -36,6 +39,13 @@ export default function LocationAudit({box,busy,runSave,changed}:{box:Location;b
 
   const [preview,setPreview]=useState<Preview|null>(null);
   const [latest,setLatest]=useState<Result|null>(null);
+  const [older,setOlder]=useState<Result|null>(null);
+  const [openLatest,setOpenLatest]=useState(false);
+  const [history,setHistory]=useState<AuditSummary[]|null>(null);
+  const [historyPage,setHistoryPage]=useState(0);
+  const [historyError,setHistoryError]=useState('');
+  const [reading,setReading]=useState(false);
+  const selected=older??latest;
   const [step,setStep]=useState<'check'|'review'|'saved'>('check');
   const [found,setFound]=useState<string[]>([]);
   const [extras,setExtras]=useState<string[]>([]);
@@ -51,6 +61,31 @@ export default function LocationAudit({box,busy,runSave,changed}:{box:Location;b
     return()=>controller.abort();
   },[path,refresh]);
 
+  useEffect(()=>{
+    const controller=new AbortController();
+    setHistoryError('');
+    api<AuditSummary[]>(`${path}/history?limit=${HISTORY_PAGE+1}&offset=${historyPage*HISTORY_PAGE}`,{signal:controller.signal})
+      .then(result=>{if(!controller.signal.aborted)setHistory(result);})
+      .catch(problem=>{if(!controller.signal.aborted)setHistoryError(errorText(problem));});
+    return()=>controller.abort();
+  },[path,refresh,historyPage]);
+
+  function changeHistoryPage(page:number){
+    if(page!==historyPage){setHistory(null);setHistoryPage(page);}
+  }
+
+  function clearFinding(){
+    setFinding(null);setResolutionError('');
+  }
+
+  async function openAudit(id:string){
+    if(reading||busy)return;
+    clearFinding();setHistoryError('');setReading(true);
+    try{setOlder(await api<Result>(`${path}/${id}`));}
+    catch(problem){setHistoryError(errorText(problem));}
+    finally{setReading(false);}
+  }
+
   function reset(){
     setPreview(null);setFound([]);setExtras([]);setExtra('');setStep('check');
     setError('');setFinding(null);setResolutionError('');setRetry(null);setRefresh(value=>value+1);
@@ -63,7 +98,7 @@ export default function LocationAudit({box,busy,runSave,changed}:{box:Location;b
     setRetry(submission);
     try{
       const saved=await runSave(()=>api<Result>(path,jsonSave(submission)));
-      if(saved){setLatest(saved);setStep('saved');}
+      if(saved){setLatest(saved);setOlder(null);clearFinding();setStep('saved');changeHistoryPage(0);setRefresh(value=>value+1);}
       setRetry(null);
     }catch(problem){
       if(problem instanceof ApiError&&!problem.uncertain)setRetry(null);
@@ -72,19 +107,21 @@ export default function LocationAudit({box,busy,runSave,changed}:{box:Location;b
   }
 
   async function resolve(action:Resolution){
-    if(!latest||busy)return;
+    if(!selected||busy)return;
     setResolutionError('');
     try{
-      const saved=await runSave(()=>api<Result>(`${path}/${latest.id}/resolutions`,jsonSave(action)));
+      const saved=await runSave(()=>api<Result>(`${path}/${selected.id}/resolutions`,jsonSave(action)));
       if(saved){
-        setLatest(saved);setFinding(null);changed();
+        if(older)setOlder(saved);
+        else setLatest(saved);
+        setFinding(null);changed();
         setRefresh(value=>value+1);
       }
     }catch(problem){setResolutionError(errorText(problem));}
   }
 
   function resolutionControl(key:string,item:Finding){
-    const resolved=latest?.resolutions[key];
+    const resolved=selected?.resolutions[key];
     if(resolved)return <p>Resolved · {resolutionLabel(resolved)}</p>;
     return <button type="button" disabled={busy} onClick={()=>{setResolutionError('');setFinding(item);}}>Resolve {item.title}</button>;
   }
@@ -92,19 +129,35 @@ export default function LocationAudit({box,busy,runSave,changed}:{box:Location;b
   const missing=preview?.copies.filter(copy=>!found.includes(copy.id))??[];
   return <section aria-label="Check location contents" className="item-section">
     <h3>Check contents</h3>
-    {latest&&<details open={step==='saved'||undefined}>
-      <summary>Last checked · {new Date(latest.created_at).toLocaleString()} · {latest.copies.filter(copy=>copy.found).length} found · {latest.copies.filter(copy=>!copy.found).length} missing · {latest.extras.length} extra</summary>
+    <details>
+      <summary>Audit history</summary>
+      {historyError&&<p role="alert" className="error">{historyError} <button type="button" onClick={()=>setRefresh(value=>value+1)}>Retry audit history</button></p>}
+      {reading&&<p role="status">Opening audit…</p>}
+      {!history&&!historyError?<p role="status">Loading audit history…</p>:history?.length?<ul aria-label="Saved audits">{history.slice(0,HISTORY_PAGE).map((entry,index)=><li key={entry.id}>
+        <button type="button" aria-pressed={entry.id===selected?.id} disabled={busy||reading}
+          onClick={()=>{if(entry.id===latest?.id){clearFinding();setOlder(null);setOpenLatest(true);}else void openAudit(entry.id);}}>
+          {historyPage===0&&index===0?'Latest audit':'Past audit'} · {new Date(entry.created_at).toLocaleString()} · {entry.found} found · {entry.missing} missing · {entry.extra} extra · {entry.unresolved} unresolved
+        </button>
+      </li>)}</ul>:!historyError&&<p>No saved audits on this page.</p>}
+      {(historyPage>0||(history?.length??0)>HISTORY_PAGE)&&<nav aria-label="Audit history pages" className="pagination">
+        <button type="button" disabled={historyPage===0} onClick={()=>changeHistoryPage(historyPage-1)}>Previous</button>
+        <button type="button" disabled={!history||history.length<=HISTORY_PAGE} onClick={()=>changeHistoryPage(historyPage+1)}>Next</button>
+      </nav>}
+    </details>
+    {older&&<button type="button" disabled={busy||reading} onClick={()=>{setOlder(null);clearFinding();setOpenLatest(true);}}>Back to latest audit</button>}
+    {selected&&<details key={selected.id} open={!!older||step==='saved'||openLatest||undefined}>
+      <summary>{older?'Selected audit':'Last checked'} · {new Date(selected.created_at).toLocaleString()} · {selected.copies.filter(copy=>copy.found).length} found · {selected.copies.filter(copy=>!copy.found).length} missing · {selected.extras.length} extra</summary>
       <h4>Original findings</h4>
-      <h5>Missing copies ({latest.copies.filter(copy=>!copy.found).length})</h5>
-      <ul>{latest.copies.filter(copy=>!copy.found).map(copy=><li key={copy.id}>{copyLabel(copy)}
+      <h5>Missing copies ({selected.copies.filter(copy=>!copy.found).length})</h5>
+      <ul>{selected.copies.filter(copy=>!copy.found).map(copy=><li key={copy.id}>{copyLabel(copy)}
         {resolutionControl(`missing:${copy.id}`,{kind:'missing',id:copy.id,title:copy.title})}
       </li>)}</ul>
-      <h5>Extra items ({latest.extras.length})</h5>
-      <ul>{latest.extras.map((title,index)=><li key={index}><span>{title}</span>
+      <h5>Extra items ({selected.extras.length})</h5>
+      <ul>{selected.extras.map((title,index)=><li key={index}><span>{title}</span>
         {resolutionControl(`extra:${index}`,{kind:'extra',index,title})}
       </li>)}</ul>
       {finding&&<AuditResolution key={finding.kind==='missing'?finding.id:finding.index} finding={finding}
-        box={box} expected={new Set([...latest.copies.map(copy=>copy.id),...Object.values(latest.resolutions).map(value=>value.copy_id)])}
+        box={box} expected={new Set([...selected.copies.map(copy=>copy.id),...Object.values(selected.resolutions).map(value=>value.copy_id)])}
         busy={busy} confirm={resolve} cancel={()=>{setFinding(null);setResolutionError('');}}/>}
       {resolutionError&&<p role="alert" className="error">{resolutionError}</p>}
     </details>}
