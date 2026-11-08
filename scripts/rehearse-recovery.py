@@ -79,7 +79,19 @@ def rehearse(args):
     backup.restore(SimpleNamespace(directory=args.capsule/'backup', destination=restored))
     state = json.loads((restored/'restore.json').read_text())
     require(state['status'] == 'verified' and Path(state['compose']) == restored/'compose.json', 'Restore verification failed')
-    receipt.update(offline_rows_migration_media_verified=True, restore_project=state['project'])
+    # The archived restore helper has just compared this entire state against
+    # the restored database and media. Record what the verified backup covered.
+    verified = json.loads((args.capsule/'backup'/'state.json').read_text())
+    tables = ('owned_copies', 'storage_locations', 'media_assets',
+              'copy_location_events', 'copy_detail_events', 'reconciliation_events')
+    receipt.update(
+        offline_rows_migration_media_verified=True,
+        restore_project=state['project'],
+        verified_record_counts={name: verified['tables'][name]['rows'] for name in tables
+                                if name in verified['tables']},
+        verified_media_files=len(verified['media']),
+        verified_migration=verified['revision'],
+    )
     save()
     C = D+['compose','-p',state['project'],'-f',state['compose']]
     if args.start_private_app:
