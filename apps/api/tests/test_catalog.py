@@ -146,3 +146,28 @@ def test_game_releases_are_shared_and_copy_contents_are_independent(client):
     assert api.get(BASE + release_path + '/' + release['id']).json()['game_details'] == details
     assert connection.execute(text('SELECT attributes FROM releases WHERE id=:id'), {'id': release['id']}).scalar_one() == {'game': details}
     assert {r['id'] for r in api.get(inventory, params={'collection_type': 'game'}).json()} >= {first['id'], second['id']}
+
+
+def test_game_suggestions_combine_local_titles_and_release_details(client):
+    api, _ = client
+    for kind, title in [('game', 'Orbit Quest'), ('movie', 'Orbit Film')]:
+        response = api.post('/api/v1/inventory', json={'collection_type': kind, 'title': title})
+        assert response.status_code == 201, response.text
+    item = created(api, '/items', {'video_game': True, 'canonical_name': 'orbit quest'})
+    created(api, '/items', {'video_game': True, 'canonical_name': 'Orbit Quest II'})
+    created(api, f"/items/{item['id']}/releases", {
+        'game_details': {'platform': 'Example 64', 'region': 'Japan', 'edition': 'Launch'},
+    })
+    base = '/api/v1/collection-settings/game-suggestions/'
+    for field, term, expected in [
+        ('title', 'orBIT', ['Orbit Quest', 'Orbit Quest II']),
+        ('platform', 'Ex', ['Example 64']),
+        ('region', 'ja', ['Japan']),
+        ('edition', 'lau', ['Launch']),
+        ('title', '%', []),
+        ('title', ' ', []),
+    ]:
+        response = api.get(base + field, params={'q': term})
+        assert response.status_code == 200, response.text
+        assert response.json() == expected
+    assert api.get(base + 'notes', params={'q': 'or'}).status_code == 422

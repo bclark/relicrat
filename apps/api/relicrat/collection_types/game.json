@@ -19,5 +19,24 @@
       "suggested": false
     }
   ],
-  "entry_order": ["title", "notes"]
+  "entry_order": [
+    "title",
+    "notes"
+  ],
+  "barcode_formats": [
+    "UPC_A",
+    "UPC_E",
+    "EAN_8",
+    "EAN_13"
+  ],
+  "lookup": {
+    "provider": "upcitemdb",
+    "action_label": "Find game details",
+    "max_results": 5,
+    "field_mappings": {
+      "title": "title"
+    },
+    "value_maps": {},
+    "cover_art": false
+  }
 }

@@ -33,7 +33,7 @@ def test_exact_movie_candidate_preserves_identifiers_and_never_infers_studio_for
     assert rows[0]['id']=='0012345678905'
     assert rows[0]['source_url']=='https://www.upcitemdb.com/upc/0012345678905'
     assert 'Brand: Synthetic retailer brand' in rows[0]['description']
-    assert 'confirm the movie and edition' in rows[0]['description']
+    assert 'confirm the title and edition' in rows[0]['description']
     assert upcitemdb.parse_items({'code':'OK','items':[]},READING,5)==[]
     assert upcitemdb.parse_items({'code':'OK','items':[item()]},BarcodeReading(value='0012345678905',format='EAN_13'),5)==rows
     assert upcitemdb.parse_items({'code':'OK','items':[item()]},BarcodeReading(value='01234565',format='UPC_E'),5)==[]
@@ -127,29 +127,32 @@ def test_elapsed_headers_and_chunk_deadlines(monkeypatch):
     with pytest.raises(LookupTimeout):upcitemdb.search(READING,5)
 
 
-def test_movie_config_is_swappable_and_lookup_cannot_create_inventory(client,monkeypatch):
+@pytest.mark.parametrize("kind", ["movie", "game"])
+def test_retail_config_is_swappable_and_lookup_cannot_create_inventory(client, monkeypatch, kind):
     api,db=client;calls=[]
-    def search(reading,limit):calls.append(reading);return upcitemdb.parse_items({'code':'OK','items':[item()]},reading,limit)
+    title = f"Synthetic {kind} product"
+    path = f"/api/v1/barcode-lookups/{kind}"
+    def search(reading,limit):calls.append(reading);return upcitemdb.parse_items({'code':'OK','items':[item(title=title)]},reading,limit)
     monkeypatch.setitem(PROVIDERS['upcitemdb'],'search',search)
-    definition=COLLECTION_TYPES['movie'].model_dump();assert definition['lookup']['provider']=='upcitemdb'
+    definition=COLLECTION_TYPES[kind].model_dump();assert definition['lookup']['provider']=='upcitemdb'
     assert definition['lookup']['field_mappings']=={'title':'title'} and not definition['lookup']['cover_art']
     disabled={**definition,'lookup':None};assert CollectionType.model_validate(disabled).lookup is None
     swapped={**definition,'lookup':{**definition['lookup'],'provider':'musicbrainz'}}
     assert CollectionType.model_validate(swapped).lookup.provider=='musicbrainz'
     tables=['owned_copies','catalog_items','releases','media_assets','copy_detail_events']
     before={t:db.scalar(text('SELECT count(*) FROM '+t)) for t in tables}
-    result=api.post('/api/v1/barcode-lookups/movie',json=READING.model_dump())
+    result=api.post(path,json=READING.model_dump())
     assert result.status_code==200,result.text
     candidate=result.json()['candidates'][0]
     assert result.json()['provider_label']=='UPCitemdb' and candidate['cover_url'] is None
-    assert candidate['fields']=={'title':'Synthetic movie [DVD]'}
-    assert api.get('/api/v1/barcode-lookups/movie/0012345678905/cover').status_code==404
-    assert api.post('/api/v1/barcode-lookups/movie',json={**READING.model_dump(),'url':'http://internal'}).status_code==422
+    assert candidate['fields']=={'title':title}
+    assert api.get(path + '/0012345678905/cover').status_code==404
+    assert api.post(path,json={**READING.model_dump(),'url':'http://internal'}).status_code==422
     assert {t:db.scalar(text('SELECT count(*) FROM '+t)) for t in tables}==before
     def busy(*args):raise LookupBusy('untrusted secret',retry_after=60)
     monkeypatch.setitem(PROVIDERS['upcitemdb'],'search',busy)
-    response=api.post('/api/v1/barcode-lookups/movie',json=READING.model_dump());assert response.status_code==429
+    response=api.post(path,json=READING.model_dump());assert response.status_code==429
     assert response.headers['Retry-After']=='60' and 'secret' not in response.text
     api.headers.pop('Authorization')
-    assert api.post('/api/v1/barcode-lookups/movie',json=READING.model_dump()).status_code==401
+    assert api.post(path,json=READING.model_dump()).status_code==401
     assert len(calls)==1
