@@ -22,6 +22,8 @@
 
 > **Early development.** RelicRat is an experimental single-owner application, not a production-ready deployment. The setup below is for private local testing with synthetic data. Production hardening and recovery remain unfinished.
 
+For a pinned, private installation on Linux, see the [Docker Compose install guide](docs/linux-compose-install.md).
+
 ## What works today
 
 Start with a title. Add the details when you have them.
