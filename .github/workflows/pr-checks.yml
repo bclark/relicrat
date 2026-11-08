@@ -92,6 +92,13 @@ jobs:
             --test-name-pattern='^(review, retry and undo overlapping CSV imports|organize a large CSV import) on (desktop|mobile)$' \
             tests/import.browser.mjs
           node --test tests/location-browse.browser.mjs
+      - name: Exercise the read-only MCP server on the disposable API
+        env:
+          RELICRAT_TEST_DISPOSABLE_MCP_API: '1'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/relicrat-mcp"
+          "$RUNNER_TEMP/relicrat-mcp/bin/python" -m pip install -r apps/mcp/requirements.txt
+          "$RUNNER_TEMP/relicrat-mcp/bin/python" apps/mcp/smoke_test.py
       - name: Remove the disposable stack
         if: always()
         run: |

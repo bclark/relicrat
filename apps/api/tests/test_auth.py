@@ -113,3 +113,80 @@ def test_missing_owner_configuration_fails_closed(setup, monkeypatch):
     monkeypatch.delenv('RELICRAT_OWNER_PASSWORD_HASH')
     assert login(api).status_code == 503
     assert api.get('/api/v1/inventory').status_code == 503
+
+
+def test_revocable_agent_credential_reads_only_collection_projections(setup, monkeypatch):
+    from uuid import UUID, uuid4
+
+    from relicrat.models import AgentCredential, CopyLocationEvent, LocationAudit, OwnedCopy, StorageLocation
+
+    api, engine = setup
+    owner = {'Authorization': 'Bearer ' + login(api).json()['token']}
+    base = '/api/v1'
+    management = base + '/auth/agent-credential'
+    reads = base + '/agent'
+    audit_id = uuid4()
+
+    def create(path, payload, status=201):
+        response = api.post(base + path, headers=owner, json=payload)
+        assert response.status_code == status, response.text
+        return response.json()
+
+    box = create('/storage-locations', {'name': 'Synthetic agent audit box'})
+    destination = create('/storage-locations', {'name': 'Synthetic agent destination'})
+    copy = create('/inventory', {'title': 'Synthetic agent search copy', 'description': 'Private test note'})
+    location = f"/inventory/{copy['id']}/location"
+    move = {'storage_location_id': box['id'], 'expected_storage_revision': 0}
+    audits = f"/storage-locations/{box['id']}/audits"
+
+    try:
+        create(location, move, status=200)
+        preview = api.get(base + audits, headers=owner).json()
+        create(audits, {'request_id': str(audit_id), 'snapshot': preview['snapshot'],
+                        'found_ids': [], 'extras': ['Synthetic extra']}, status=200)
+        assert api.post(management).status_code == 401
+        issued = api.post(management, headers=owner)
+        assert issued.status_code == 201
+        assert issued.headers['cache-control'] == 'no-store'
+        token = issued.json()['token']
+        agent = {'Authorization': 'Bearer ' + token}
+        with Session(engine) as db:
+            stored = db.get(AgentCredential, 1)
+            assert stored.token_hash != token and token not in repr(stored.__dict__)
+
+        expected = {'id': copy['id'], 'title': copy['title'], 'edition': None,
+                    'location': {'id': box['id'], 'name': box['name']}}
+        search = api.get(reads + '/copies', headers=agent, params={'q': copy['title'], 'limit': 1})
+        assert search.status_code == 200 and search.json() == [expected]
+        assert api.get(reads + '/copies', headers=agent, params={'limit': 101}).status_code == 422
+        assert api.get(f"{reads}/copies/{copy['id']}", headers=agent).json() == expected
+        findings = api.get(reads + '/unresolved-locations', headers=agent)
+        assert findings.status_code == 200
+        assert {'id': box['id'], 'name': box['name'], 'unresolved': 2} in findings.json()
+
+        denied = api.post(base + location, headers=agent,
+                          json={'storage_location_id': destination['id'], 'expected_storage_revision': 1})
+        assert denied.status_code == 403
+        assert api.get(f"{reads}/copies/{copy['id']}", headers=agent).json() == expected
+        assert api.get(base + '/inventory', headers=agent).status_code == 403
+        assert api.post(reads + '/copies', headers=agent).status_code == 403
+        assert api.post(management, headers=agent).status_code == 403
+        assert api.delete(management, headers=agent).status_code == 403
+
+        replacement = api.post(management, headers=owner).json()['token']
+        assert api.get(reads + '/copies', headers=agent).status_code == 401
+        agent = {'Authorization': 'Bearer ' + replacement}
+        assert api.get(reads + '/copies', headers=agent).status_code == 200
+        with monkeypatch.context() as settings:
+            settings.setenv('RELICRAT_SESSION_SECRET', '29' * 32)
+            assert api.get(reads + '/copies', headers=agent).status_code == 401
+        assert api.delete(management, headers=owner).json() == {'active': False}
+        assert api.get(reads + '/copies', headers=agent).status_code == 401
+    finally:
+        with engine.begin() as connection:
+            connection.execute(delete(LocationAudit).where(LocationAudit.id == audit_id))
+            connection.execute(delete(AgentCredential).where(AgentCredential.id == 1))
+            connection.execute(delete(CopyLocationEvent).where(CopyLocationEvent.owned_copy_id == UUID(copy['id'])))
+            connection.execute(delete(OwnedCopy).where(OwnedCopy.id == UUID(copy['id'])))
+            connection.execute(delete(StorageLocation).where(
+                StorageLocation.id.in_([UUID(box['id']), UUID(destination['id'])])))
