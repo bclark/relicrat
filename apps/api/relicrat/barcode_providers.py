@@ -5,7 +5,11 @@ then register its bounded field names and public source origin here. Adapters
 must validate input/response, pin HTTPS destinations and keep credentials private.
 """
 from uuid import UUID
-from relicrat import musicbrainz, upcitemdb
+from relicrat import igdb, musicbrainz, upcitemdb
+
+TITLE_PROVIDERS = {
+    "igdb": {"label": "IGDB", "enabled": igdb.enabled, "search": igdb.search},
+}
 
 PROVIDERS = {
     'upcitemdb': {

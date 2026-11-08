@@ -73,6 +73,12 @@ test('video game release and physical contents survive reload', async t => {
   await context.route('**/*', route =>
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort('internetdisconnected'));
   const page = await context.newPage();
+  await page.route('**/api/v1/collection-settings/types', async route => {
+    const response = await route.fetch();
+    const types = await response.json();
+    types.game.title_lookup = {provider: 'igdb', max_results: 5};
+    await route.fulfill({response, json: types});
+  });
   await page.goto(origin);
   await page.waitForURL('**/login');
   await page.getByLabel('Owner password').fill(password);
@@ -130,6 +136,24 @@ test('video game release and physical contents survive reload', async t => {
   assert.equal(await titleInput.inputValue(), suggestion);
   await titleInput.clear();
   await page.getByRole('button', {name: 'Remove barcode from draft', exact: true}).click();
+  const query = 'Synthetic Adventure';
+  const canonical = 'Synthetic Adventure II';
+  await page.route('**/api/v1/title-lookups/game', route => {
+    assert.equal(route.request().method(), 'POST');
+    assert.deepEqual(route.request().postDataJSON(), {title: query});
+    return route.fulfill({json: {provider_label: 'IGDB', candidates: [{
+      id: '42', title: canonical, description: 'Catalog title',
+      fields: {title: canonical}, cover_url: null,
+    }]}});
+  });
+  await titleInput.fill(query);
+  await page.getByRole('button', {name: 'Search online by title', exact: true}).click();
+  const titleMatch = page.getByRole('button', {name: new RegExp(canonical)});
+  await titleMatch.waitFor();
+  assert.equal(await titleInput.inputValue(), query);
+  await titleMatch.click();
+  assert.equal(await titleInput.inputValue(), canonical);
+  await titleInput.clear();
   await page.getByRole('button', {name: 'Back to Video games', exact: true}).click();
   await page.getByRole('button', {name: 'Open ' + title, exact: true}).click();
   await page.getByText('Release: ' + release, {exact: true}).waitFor();

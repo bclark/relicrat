@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from relicrat.database import get_db
 from relicrat.models import CatalogItem, Category, CollectionSettings, OwnedCopy, Release
 from relicrat.catalog import GAME_CATEGORY_SLUG
+from relicrat.barcode_providers import TITLE_PROVIDERS
 from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
@@ -105,7 +106,9 @@ def saved_suggestions(db, column, collection_type, q):
 
 @router.get('/types', response_model=dict[str, CollectionType])
 def read_types():
-    return COLLECTION_TYPES
+    return {key: definition.model_copy(update={"title_lookup": None})
+            if definition.title_lookup and not TITLE_PROVIDERS[definition.title_lookup.provider]["enabled"]()
+            else definition for key, definition in COLLECTION_TYPES.items()}
 
 
 @router.get('', response_model=SettingsInfo)

@@ -267,3 +267,18 @@ or set `lookup` to null to disable external lookup.
 Autocomplete searches only the local game inventory and catalog for titles and
 saved game releases for platform, region, and edition. It works without internet
 access and accepts values that do not appear in the suggestions.
+
+Video games also support **Search online by title** using [IGDB](https://api-docs.igdb.com/).
+The action sends only the title after a click; local autocomplete never uses
+IGDB. Selecting a result fills the draft title. Platform, region, edition,
+artwork and copy contents are unaffected.
+
+The bundled game definition selects `title_lookup.provider: "igdb"`. To enable
+it, register a confidential Twitch application and pass
+`RELICRAT_IGDB_CLIENT_ID` and `RELICRAT_IGDB_CLIENT_SECRET` to the **API container
+only**, for example through a private Compose override using an API service
+`env_file` (restrict the file to owner access). The API needs outbound HTTPS to
+`id.twitch.tv` and `api.igdb.com`. The private offline Linux installation needs
+no changes and continues to work without this action. Keep credentials out of
+collection JSON, source control, and shared logs. An operator config can set
+`title_lookup` to null or choose another installed title adapter.
