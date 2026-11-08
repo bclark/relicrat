@@ -512,3 +512,12 @@ individual copies, and the review shows unchecked copies and manually entered
 extras before saving. The last completed result is visible from Check contents.
 Audits are observations and do not change inventory or storage. Migration
 0018 retains completed results. It refuses downgrade while audits exist.
+
+### Resolve saved box audit findings (2026-11-07, implemented for review)
+
+The owner approved resolving findings from a scanned box. The saved audit keeps
+its original missing and extra entries. Each confirmed resolution is recorded
+alongside its finding. A missing copy can be marked found in the box or moved
+to the place it was found. An extra can match an existing copy or become a
+new provisional copy assigned to the box. Changes use the existing storage
+history and require confirmation. Deployment remains separate.

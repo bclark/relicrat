@@ -299,7 +299,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
                   </button>
                 </>}
               </div>}
-              {currentLocation&&auditLocationId===currentLocation.id&&<LocationAudit key={`audit:${auditLocationId}`} id={auditLocationId} busy={busy} runSave={runSave}/>}
+              {currentLocation&&auditLocationId===currentLocation.id&&<LocationAudit key={`audit:${auditLocationId}`} box={currentLocation} busy={busy} runSave={runSave} changed={changed}/>}
               {locationEditor&&<LocationEditor key={locationEditor} path={locationEditor==='edit'?locationBrowse.path.slice(0,-1):locationBrowse.path}
                 location={locationEditor==='edit'?currentLocation:undefined} busy={busy} runSave={runSave}
                 onSaved={path=>browseLocations(path)} onCancel={()=>setLocationEditor(null)}/>}

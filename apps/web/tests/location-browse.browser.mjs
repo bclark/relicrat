@@ -189,7 +189,7 @@ for(const [layout,viewport] of [
   });
 }
 
-test('a printed QR opens the moved box and saves a mobile audit after sign-in',async t=>{
+test('a printed QR opens the moved box and resolves a mobile audit after sign-in',async t=>{
   const owner=await browser.newContext();
   const phone=await browser.newContext({viewport:{width:320,height:840},isMobile:true,hasTouch:true});
   t.after(()=>Promise.all([owner.close(),phone.close()]));
@@ -202,6 +202,9 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const source=await post('storage-locations',{name:'Synthetic QR source shelf'});
   const destination=await post('storage-locations',{name:'Synthetic QR destination shelf'});
   const box=await post('storage-locations',{name:'Synthetic QR box',parent_id:source.id});
+  const otherBox=await post('storage-locations',{name:'Synthetic other box',parent_id:source.id});
+  const extra=await post('inventory',{title:'Synthetic extra found in box',collection_type:'comic'});
+  await post(`inventory/${extra.id}/location`,{storage_location_id:otherBox.id,expected_storage_revision:0});
   const copy=await post('inventory',{title:'Synthetic QR copy',collection_type:'comic'});
   await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
   const missing=await post('inventory',{title:'Synthetic missing QR copy',collection_type:'comic'});
@@ -280,16 +283,109 @@ test('a printed QR opens the moved box and saves a mobile audit after sign-in',a
   const savedAudit=summary.locator('..');
   await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
   await savedAudit.getByText('Synthetic extra found in box',{exact:true}).waitFor();
+  const resolve=savedAudit.getByRole('region',{name:'Resolve discrepancy',exact:true});
+  await savedAudit.getByRole('button',{name:'Resolve Synthetic missing QR copy',exact:true}).click();
+  await resolve.getByRole('button',{name:'Found elsewhere',exact:true}).click();
+  await resolve.getByRole('button',{name:source.name,exact:true}).click();
+  await resolve.getByRole('button',{name:otherBox.name,exact:true}).click();
+  await resolve.getByRole('button',{name:`Confirm move to ${otherBox.name}`,exact:true}).click();
+  await savedAudit.getByText(`Resolved · Located in ${otherBox.name}`,{exact:true}).waitFor();
+
+  await savedAudit.getByRole('button',{name:`Resolve ${extra.title}`,exact:true}).click();
+  await resolve.getByRole('button',{name:'Search inventory',exact:true}).click();
+  await resolve.getByRole('button',{name:new RegExp(`^${extra.title}.*${otherBox.name}`)}).click();
+  const resolutionUrl=`${auditUrl}/${firstResult.id}/resolutions`;
+  const matchResponse=scanPage.waitForResponse(response=>response.url()===resolutionUrl&&response.request().method()==='POST');
+  await resolve.getByRole('button',{name:'Confirm match and assignment',exact:true}).click();
+  const matched=await matchResponse;
+  assert.ok(matched.ok(),await matched.text());
+  const matchedResult=await matched.json();
+  const extraStatus=`Resolved · Matched ${extra.title} and assigned it to ${renamed}`;
+  await savedAudit.getByText(extraStatus,{exact:true}).waitFor();
+  await scanPage.locator(`#copy-row-${extra.id}`).waitFor();
+  assert.equal(await scanPage.locator(`#copy-row-${missing.id}`).count(),0);
+  const matchRetry=await phone.request.post(resolutionUrl,{headers:{Origin:base},data:matched.request().postDataJSON()});
+  assert.ok(matchRetry.ok(),await matchRetry.text());
+  assert.deepEqual(await matchRetry.json(),matchedResult);
+
+  await scanPage.reload();
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  await summary.click();
+  await savedAudit.getByRole('heading',{name:'Original findings',exact:true}).waitFor();
+  await savedAudit.getByText(/Synthetic missing QR copy/).waitFor();
+  await savedAudit.getByText(extra.title,{exact:true}).waitFor();
+  await savedAudit.getByText(`Resolved · Located in ${otherBox.name}`,{exact:true}).waitFor();
+  await savedAudit.getByText(extraStatus,{exact:true}).waitFor();
+  assert.deepEqual(pageErrors,[]);
+
   const persisted=await phone.request.get(`${base}/api/v1/storage-locations/${box.id}/audits`);
   assert.ok(persisted.ok(),await persisted.text());
   const {latest}=await persisted.json();
   assert.equal(latest.id,firstResult.id);
   assert.deepEqual(latest.copies.filter(copy=>!copy.found).map(copy=>copy.id),[missing.id]);
-  assert.deepEqual(latest.extras,['Synthetic extra found in box']);
+  assert.deepEqual(latest.copies,firstResult.copies);
+  assert.deepEqual(latest.extras,firstResult.extras);
+  assert.equal(latest.resolutions[`missing:${missing.id}`].location_id,otherBox.id);
+  assert.equal(latest.resolutions['extra:0'].copy_id,extra.id);
+  assert.equal(latest.resolutions['extra:0'].location_id,box.id);
+  const conflictingResolution=await phone.request.post(resolutionUrl,{headers:{Origin:base},data:{
+    action:'create_extra',extra_index:0,title:extra.title,
+  }});
+  assert.equal(conflictingResolution.status(),409);
   const copyResponse=await phone.request.get(`${base}/api/v1/inventory/${missing.id}`);
   assert.ok(copyResponse.ok(),await copyResponse.text());
-  assert.equal((await copyResponse.json()).storage_location_id,box.id);
+  const movedMissing=await copyResponse.json();
+  assert.equal(movedMissing.storage_location_id,otherBox.id);
+  assert.equal(movedMissing.storage_revision,2);
+  const assignedExtra=await phone.request.get(`${base}/api/v1/inventory/${extra.id}`);
+  assert.ok(assignedExtra.ok(),await assignedExtra.text());
+  const movedExtra=await assignedExtra.json();
+  assert.equal(movedExtra.storage_location_id,box.id);
+  assert.equal(movedExtra.storage_revision,2);
 
   await scanPage.goto(base+'/login?location='+encodeURIComponent('https://example.invalid'));
   assert.equal(scanPage.url(),base+'/');
+});
+
+test('audit resolutions validate the observed copies and replay new copy creation safely',async t=>{
+  const context=await browser.newContext();
+  t.after(()=>context.close());
+  const request=(path,data)=>context.request.post(`${base}/api/v1/${path}`,{headers:{Origin:base},data});
+  const post=async(path,data)=>{
+    const response=await request(path,data);
+    assert.ok(response.ok(),await response.text());
+    return response.json();
+  };
+  await post('auth/login',{password:'synthetic-only-owner-password'});
+  const box=await post('storage-locations',{name:'Synthetic resolution validation box'});
+  const missing=await post('inventory',{title:'Synthetic found-in-place copy'});
+  await post(`inventory/${missing.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+  const auditPath=`storage-locations/${box.id}/audits`;
+  const preview=await context.request.get(`${base}/api/v1/${auditPath}`);
+  assert.ok(preview.ok(),await preview.text());
+  const {snapshot}=await preview.json();
+  const audit=await post(auditPath,{
+    request_id:crypto.randomUUID(),snapshot,found_ids:[],extras:['Synthetic new extra'],
+  });
+  const resolutionPath=`${auditPath}/${audit.id}/resolutions`;
+  const stale=await request(resolutionPath,{
+    action:'match_extra',extra_index:0,copy_id:missing.id,expected_storage_revision:0,
+  });
+  assert.equal(stale.status(),409);
+  const expected=await request(resolutionPath,{
+    action:'match_extra',extra_index:0,copy_id:missing.id,expected_storage_revision:1,
+  });
+  assert.equal(expected.status(),422);
+  const found=await post(resolutionPath,{action:'found',copy_id:missing.id});
+  assert.equal(found.resolutions[`missing:${missing.id}`].action,'found');
+  const payload={action:'create_extra',extra_index:0,title:'Synthetic new extra',collection_type:'comic'};
+  const created=await post(resolutionPath,payload);
+  assert.deepEqual(await post(resolutionPath,payload),created);
+  const newId=created.resolutions['extra:0'].copy_id;
+  const contents=await context.request.get(`${base}/api/v1/inventory?storage_location_id=${box.id}`);
+  assert.ok(contents.ok(),await contents.text());
+  const copies=await contents.json();
+  assert.equal(copies.length,2);
+  assert.equal(copies.find(copy=>copy.id===missing.id).storage_revision,1);
+  assert.equal(copies.find(copy=>copy.id===newId).collection_type,'comic');
 });

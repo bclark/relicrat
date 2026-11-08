@@ -1,7 +1,8 @@
-"""Record observed storage discrepancies without changing inventory."""
+"""Record storage observations and explicitly confirmed resolutions."""
 import hashlib
 import json
-from typing import Annotated
+from datetime import datetime, timezone
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from relicrat.database import get_db
+from relicrat.intake import CreateProvisionalCopy, stage_copy
+from relicrat.storage import stage_location_assignment
 from relicrat.models import LocationAudit, OwnedCopy, StorageLocation
 
 router = APIRouter(prefix='/api/v1/storage-locations', tags=['storage'])
@@ -47,7 +50,7 @@ def expected_copies(db, location_id):
 
 
 def audit_result(audit):
-    return {'id': str(audit.id), 'created_at': audit.created_at, **audit.result} if audit else None
+    return {'id': str(audit.id), 'created_at': audit.created_at, 'resolutions': {}, **audit.result} if audit else None
 
 
 def require_location(db, location_id):
@@ -84,5 +87,99 @@ def save_audit(location_id: UUID, payload: AuditRequest, db: Session = Depends(g
     if prior.location_id != location_id or prior.request_digest != request_digest:
         raise HTTPException(409, 'This audit request ID is already in use.')
     response = audit_result(prior)
+    db.commit()
+    return response
+
+class ResolutionAction(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+
+class Found(ResolutionAction):
+    action: Literal['found']
+    copy_id: UUID
+
+
+class MoveMissing(ResolutionAction):
+    action: Literal['move_missing']
+    copy_id: UUID
+    destination_id: UUID
+    expected_storage_revision: int = Field(ge=0)
+
+
+class MatchExtra(ResolutionAction):
+    action: Literal['match_extra']
+    extra_index: int = Field(ge=0)
+    copy_id: UUID
+    expected_storage_revision: int = Field(ge=0)
+
+
+class CreateExtra(ResolutionAction):
+    action: Literal['create_extra']
+    extra_index: int = Field(ge=0)
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500, pattern=r'^[^\x00]*$')]
+    collection_type: Literal['other', 'record', 'comic', 'movie'] = 'other'
+
+
+Resolution = Annotated[Found | MoveMissing | MatchExtra | CreateExtra, Field(discriminator='action')]
+
+
+@router.post('/{location_id}/audits/{audit_id}/resolutions')
+def resolve_audit(location_id: UUID, audit_id: UUID, payload: Resolution, db: Session = Depends(get_db)):
+    audit = db.scalar(select(LocationAudit).where(
+        LocationAudit.id == audit_id, LocationAudit.location_id == location_id).with_for_update())
+    if audit is None:
+        raise HTTPException(404, 'Audit not found')
+
+    expected = {row['id']: row for row in audit.result['copies']}
+    if isinstance(payload, (Found, MoveMissing)):
+        observed = expected.get(str(payload.copy_id))
+        if observed is None or observed['found']:
+            raise HTTPException(422, 'Only a copy recorded as missing can be resolved here.')
+        key = f'missing:{payload.copy_id}'
+    else:
+        if payload.extra_index >= len(audit.result['extras']):
+            raise HTTPException(422, 'Extra item not found in this audit.')
+        key = f'extra:{payload.extra_index}'
+
+    resolutions = audit.result.get('resolutions', {})
+    request_digest = digest(payload.model_dump(mode='json'))
+    if prior := resolutions.get(key):
+        if prior['request_digest'] != request_digest:
+            raise HTTPException(409, 'This discrepancy is already resolved. Reopen the audit to review it.')
+        return audit_result(audit)
+
+    destination = location_id
+    if isinstance(payload, CreateExtra):
+        copy = stage_copy(db, CreateProvisionalCopy(title=payload.title, collection_type=payload.collection_type))
+        db.flush()
+    else:
+        copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == payload.copy_id).with_for_update())
+        if copy is None or copy.deleted_at is not None or copy.ownership_status != 'owned':
+            raise HTTPException(404, 'Active owned copy not found.')
+        if isinstance(payload, Found):
+            if copy.storage_location_id != location_id:
+                raise HTTPException(409, 'This copy is assigned elsewhere. Choose where you found it.')
+        else:
+            if copy.storage_revision != payload.expected_storage_revision:
+                raise HTTPException(409, 'The copy location changed. Select it again before confirming.')
+            if isinstance(payload, MoveMissing):
+                destination = payload.destination_id
+                if destination == location_id:
+                    raise HTTPException(422, 'Choose another location or mark the copy found here.')
+                require_location(db, destination)
+            elif str(copy.id) in expected or any(
+                name.startswith('extra:') and value['copy_id'] == str(copy.id)
+                for name, value in resolutions.items()
+            ):
+                raise HTTPException(422, 'This copy already accounts for an item in this audit.')
+
+    stage_location_assignment(db, copy, destination)
+    resolution = {
+        'action': payload.action, 'copy_id': str(copy.id), 'title': copy.provisional_title or 'Untitled copy',
+        'location_id': str(destination), 'location_name': db.get(StorageLocation, destination).name,
+        'resolved_at': datetime.now(timezone.utc).isoformat(), 'request_digest': request_digest,
+    }
+    audit.result = {**audit.result, 'resolutions': {**resolutions, key: resolution}}
+    response = audit_result(audit)
     db.commit()
     return response
