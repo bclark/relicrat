@@ -103,3 +103,46 @@ def test_identification_preserves_copy_media_storage_and_retained_history(client
     assert len(history) == 2 and history[-1]['before_release_id'] == release['id']
     assert api.get(f'/api/v1/inventory/{cid}/photos/{photo["id"]}').content == image.getvalue()
     assert api.post(f'/api/v1/inventory/{cid}/reconcile', json={'catalog_item_id': item['id'], 'expected_revision': 0}).status_code == 409
+
+
+def test_game_releases_are_shared_and_copy_contents_are_independent(client):
+    api, connection = client
+    inventory = '/api/v1/inventory'
+    assert api.post(inventory, json={'collection_type': 'game', 'description': 'Title unknown'}).status_code == 422
+    assert api.post(inventory, json={'title': 'Other', 'game_contents': {'manual': 'missing'}}).status_code == 422
+    title = 'Synthetic Orbit Racer'
+    response = api.post(inventory, json={'collection_type': 'game', 'title': title})
+    assert response.status_code == 201, response.text
+    first = response.json()
+    assert first['game_contents'] == {} and first['release_id'] is None
+    response = api.post(inventory, json={'collection_type': 'game', 'title': title,
+                                        'game_contents': {'media': 'present', 'packaging': 'present'}})
+    assert response.status_code == 201, response.text
+    second = response.json()
+    item = created(api, '/items', {'video_game': True, 'canonical_name': title})
+    other = created(api, '/items', {'video_game': True, 'canonical_name': 'Synthetic Other Game'})
+    assert other['category_id'] == item['category_id']
+    assert api.get(BASE + '/items', params={'video_game': 'true', 'q': title}).json() == [item]
+    release_path = f"/items/{item['id']}/releases"
+    details = {'platform': 'Example 64', 'region': 'Japan', 'edition': 'Launch'}
+    release = created(api, release_path, {'game_details': details})
+    assert api.get(BASE + release_path).json() == [release]
+    for copy in (first, second):
+        response = api.post(f"{inventory}/{copy['id']}/reconcile",
+                            json={'catalog_item_id': item['id'], 'release_id': release['id'], 'expected_revision': 0})
+        assert response.status_code == 200, response.text
+        assert response.json()['game_contents'] == copy['game_contents']
+
+    path = f"{inventory}/{first['id']}"
+    edit = {'title': title, 'edition_label': None, 'expected_details_revision': 0,
+            'expected_identification_revision': 1, 'game_contents': {'packaging': 'missing', 'inserts': 'not_applicable'}}
+    response = api.post(path + '/details', json=edit)
+    assert response.status_code == 200, response.text
+    assert response.json()['release_id'] == release['id']
+    assert api.post(path + '/details', json=edit).status_code == 409
+    event = api.get(path + '/detail-history').json()[0]
+    assert event['before_game_contents'] == {} and event['after_game_contents'] == edit['game_contents']
+    assert api.get(f"{inventory}/{second['id']}").json()['game_contents'] == second['game_contents']
+    assert api.get(BASE + release_path + '/' + release['id']).json()['game_details'] == details
+    assert connection.execute(text('SELECT attributes FROM releases WHERE id=:id'), {'id': release['id']}).scalar_one() == {'game': details}
+    assert {r['id'] for r in api.get(inventory, params={'collection_type': 'game'}).json()} >= {first['id'], second['id']}

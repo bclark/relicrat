@@ -55,7 +55,7 @@ class BarcodeLookup(BaseModel):
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
-    id: Literal['other', 'record', 'comic', 'movie']
+    id: Literal['other', 'record', 'comic', 'movie', 'game']
     label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     barcode_formats: list[BarcodeFormat] = Field(default_factory=list, max_length=4)
@@ -78,7 +78,7 @@ class CollectionType(BaseModel):
             raise ValueError('Barcode formats must be unique')
         # These limits describe deployed storage, not an arbitrary custom-field engine.
         limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250, 'media_format': 100, 'studio': 250}
-        allowed = {'other': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}, 'movie': {'media_format','studio','edition','notes'}}[self.id]
+        allowed = {'other': {'notes'}, 'game': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}, 'movie': {'media_format','studio','edition','notes'}}[self.id]
         if self.lookup:
             lookup=self.lookup
             if lookup.provider not in PROVIDERS:
@@ -119,7 +119,7 @@ def _unique_keys(pairs):
 
 
 def load_types() -> dict[str, CollectionType]:
-    identifiers = ('other', 'record', 'comic', 'movie')
+    identifiers = ('other', 'record', 'comic', 'movie', 'game')
     bundled = Path(__file__).with_suffix('')
     overrides = {}
     directory = os.environ.get('RELICRAT_COLLECTION_TYPES_DIR')

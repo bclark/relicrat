@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, Fragment, type FormEvent, type RefObject } from 'react';
 import { api, ApiError, copyName, errorText, jsonSave, type InventoryCopy, type Location, type Photo, type Movement, type RecordField, type ComicField, type MovieField, type CollectionTypes, type RunSave } from '../lib/inventory-client';
 
-import Identification from './identification';
+import { GameContentsSummary } from './game-contents';
+import Identification, {releaseName,type Release} from './identification';
 import CopyDetailsForm from './copy-details-form';
 import ChecklistMatch from './checklist-match';
 
@@ -22,6 +23,15 @@ export default function CopyDetail({ types, copyId, runSave, busy, blocked, chan
   const otherDirty=catalogDirty||checklistDirty;
   const detailsChanged=useCallback((dirty:boolean,uncertain:boolean)=>{detailsState.current={dirty,uncertain};setDetailsDirty(dirty);setDetailsReview(uncertain);},[]);
   const [copy, setCopy] = useState<InventoryCopy | null>(null);
+  const [gameRelease,setGameRelease] = useState<{id:string;label:string}|null>(null);
+  useEffect(() => {
+    if (copy?.collection_type!=='game'||!copy.catalog_item_id||!copy.release_id) return;
+    const controller = new AbortController();
+    api<Release>(`catalog/items/${copy.catalog_item_id}/releases/${copy.release_id}`, {signal:controller.signal})
+      .then(release=>{if(!controller.signal.aborted)setGameRelease({id:release.id,label:releaseName(release)});})
+      .catch(()=>{if(!controller.signal.aborted)setGameRelease({id:copy.release_id!,label:'Release details could not load'});});
+    return ()=>controller.abort();
+  }, [copy?.collection_type,copy?.catalog_item_id,copy?.release_id]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationOffset, setLocationOffset] = useState(0);
@@ -202,6 +212,10 @@ export default function CopyDetail({ types, copyId, runSave, busy, blocked, chan
       <p className="detail-context">{copy.custom_collection_name||types?.[copy.collection_type]?.plural_label||copy.collection_type}{editing?` · ${copyName(copy)}`:''}</p><div hidden={editing} className="item-reading"><p className="copy-subtitle">{[copy.record_details.artist,copy.record_details.format,copy.movie_details?.media_format,copy.movie_details?.studio,copy.comic_details?.publisher,copy.edition_label].filter(Boolean).join(' · ')}</p>
 
       {photos.find(photo=>photo.role==='catalog_cover')&&<figure className="inspector-cover"><img src={`/api/v1/inventory/${copyId}/photos/${photos.find(photo=>photo.role==='catalog_cover')!.id}`} alt={`Catalog cover for ${copyName(copy)}`} /><figcaption>Catalog artwork, not a photo of your copy.</figcaption></figure>}
+      {copy.collection_type==='game'&&<>
+        <p>Release: {copy.release_id ? (gameRelease?.id===copy.release_id ? gameRelease.label : 'Loading release…') : 'Unspecified'}</p>
+        <GameContentsSummary value={copy.game_contents||{}}/>
+      </>}
       {!editing&&<button className="primary" type="button" id="copy-edit" disabled={locked} onClick={()=>{setNotice('');setEditing(true);requestAnimationFrame(()=>(document.querySelector('.copy-details-form form input') as HTMLInputElement|null)?.focus());}}>{detailsDirty?'Continue editing':'Edit details'}</button>}
       </div>{!editing&&copy.custom_collection_id&&<ChecklistMatch key={loadedVersion} collectionId={copy.custom_collection_id} copyId={copy.id} locked={locked} runSave={runSave} changed={()=>{setChecklistDirty(false);changed();}} />}
       <CopyDetailsForm key={loadedVersion} active={active} editing={editing} cancel={()=>{setEditing(false);requestAnimationFrame(()=>document.getElementById('copy-edit')?.focus());}} stateChanged={detailsChanged} types={types} fields={recordFields} movieFields={movieFields} comicFields={comicFields} copy={copy} runSave={runSave} locked={locked} saved={(record,artwork) => { setCopy(record);setEditing(false);detailsState.current={dirty:false,uncertain:false};setDetailsReview(false);setInspected(null);setNotice('Changes saved.');requestAnimationFrame(()=>document.getElementById('copy-edit')?.focus()); changed(); if(artwork)void api<Photo[]>(`inventory/${copyId}/photos`).then(setPhotos).catch(()=>setError('Details saved, but artwork could not reload. Reload this copy.')); }} failed={failed} />
@@ -238,7 +252,7 @@ export default function CopyDetail({ types, copyId, runSave, busy, blocked, chan
       {moreLocations && <button className="quiet" disabled={busy || readBusy || loading} onClick={() => loadMore('locations')}>Load more locations</button>}
       <details className="new-location"><summary>Create a storage location</summary><form onSubmit={createLocation} aria-label="Create storage"><fieldset disabled={locked}><label htmlFor="location-name">Location name</label><input id="location-name" value={name} maxLength={250} required onChange={e => setName(e.target.value)} placeholder="e.g. Comic box A" /><label htmlFor="location-parent">Inside another location</label><select id="location-parent" value={parent} onChange={e => setParent(e.target.value)}><option value="">No parent location</option>{locations.map(location => <option key={location.id} value={location.id}>{optionLabel(location)}</option>)}</select><button type="submit">Create location</button></fieldset></form></details>
       </section></div>{copy.description&&<section className="item-section"><h3>Notes</h3><p className="copy-notes">{copy.description}</p><p className="hint">Notes are read-only.</p></section>}<details className="movement-history"><summary>Movement history · {moves.length}{moreMoves ? '+' : ''} recorded</summary><p className="hint">Oldest first. Locations not loaded above are shown by their full reference.</p>{moves.length ? <ol>{moves.map(move => <li key={move.id}><span>{locationName(move.before_location_id)} to {locationName(move.after_location_id)}</span><small>Revision {move.after_revision} · {new Date(move.created_at).toLocaleString()}</small></li>)}</ol> : <p>No movements recorded.</p>}{moreMoves && <button disabled={busy || readBusy || loading} onClick={() => loadMore('moves')}>Load more movements</button>}</details>
-      <details key={loadedVersion} className="new-location" onToggle={event => { if (event.currentTarget.open) setCatalogRequested(true); }}><summary>Advanced: catalog matching</summary>{catalogRequested && <Identification copy={copy} runSave={runSave} locked={locked||detailsDirty} saved={record => {setCatalogDirty(false);setCopy(record);changed();}} failed={failed} />}</details>
+      <details key={loadedVersion} className="new-location" onToggle={event => { if (event.currentTarget.open) setCatalogRequested(true); }}><summary>{copy.collection_type==='game'?'Game release and catalog match':'Advanced: catalog matching'}</summary>{catalogRequested && <Identification copy={copy} runSave={runSave} locked={locked||detailsDirty} saved={record => {setCatalogDirty(false);setCopy(record);changed();}} failed={failed} />}</details>
       <details className="copy-meta"><summary>Record information</summary><dl><dt>Physical copy ID</dt><dd>{copy.id}</dd><dt>Added</dt><dd>{new Date(copy.created_at).toLocaleString()}</dd><dt>Ownership status</dt><dd>{copy.ownership_status}</dd><dt>Identification</dt><dd>{copy.identification_status}</dd>{copy.catalog_item_id && <><dt>Catalog reference</dt><dd>{copy.catalog_item_id}</dd></>}</dl>{!review&&!error&&<button type="button" disabled={busy||loading||readBusy} onClick={reloadCopy}>Reload copy</button>}<p className="hint">Manual identification keeps this physical copy and its provisional information. Catalog editing and automatic matching remain unavailable.</p></details>
       </div>
     </>}

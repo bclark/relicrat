@@ -539,3 +539,11 @@ Resume audit or Discard draft. A changed inventory snapshot requires a review
 of what was added, removed, or changed before a new submission. Unchanged
 checks and extras carry forward. An interrupted submission can retry its
 original request. Deployment remains separate.
+
+### Video game collection · November 8, 2026
+
+Implemented for review in the Video games collection. Intake requires a game
+title and offers optional physical contents. Catalog matching can link the copy
+to a shared release with platform, region, and edition. Cartridge or disc, box
+or case, manual, and inserts are saved on the individual copy. The contents
+controls distinguish missing, unknown, and not applicable.

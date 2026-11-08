@@ -85,7 +85,7 @@ export default function AuditResolution({finding,box,expected,busy,confirm,cance
         <p>The new copy will be stored in {box.name}.</p>
         <label>Copy title<input value={title} maxLength={500} required disabled={locked} onChange={event=>setTitle(event.target.value)}/></label>
         <label>Collection type<select value={type} disabled={locked} onChange={event=>setType(event.target.value)}>
-          <option value="other">Other</option><option value="record">Album</option><option value="comic">Comic</option><option value="movie">Movie</option>
+          <option value="other">Other</option><option value="record">Album</option><option value="comic">Comic</option><option value="movie">Movie</option><option value="game">Video game</option>
         </select></label>
         <button type="submit" disabled={locked||!title.trim()}>Confirm new copy</button>
       </form>}

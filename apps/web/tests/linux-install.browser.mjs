@@ -66,3 +66,45 @@ for (const [layout, profile] of [
     assert.deepEqual(await saved.body(), photo);
   });
 }
+
+test('video game release and physical contents survive reload', async t => {
+  const context = await browser.newContext({...devices['Pixel 7'], serviceWorkers: 'block'});
+  t.after(() => context.close());
+  await context.route('**/*', route =>
+    new URL(route.request().url()).origin === origin ? route.continue() : route.abort('internetdisconnected'));
+  const page = await context.newPage();
+  await page.goto(origin);
+  await page.waitForURL('**/login');
+  await page.getByLabel('Owner password').fill(password);
+  await page.getByRole('button', {name: 'Sign in', exact: true}).click();
+  await page.waitForURL(origin + '/');
+  const title = 'Synthetic Orbital Racer';
+  const release = 'Example 64 · Japan · Launch';
+  await chooseCollection(page, 'game');
+  if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
+    await showIntake(page);
+    await page.getByRole('form', {name: 'Add an item', exact: true}).getByLabel('Game title', {exact: true}).fill(title);
+    await page.getByRole('button', {name: 'Save item', exact: true}).click();
+    await page.getByRole('button', {name: 'View item', exact: true}).click();
+    await openDisclosure(page, 'Game release and catalog match');
+    await openDisclosure(page, 'Can’t find it? Add a collectible');
+    await page.getByLabel('Catalog game title').fill(title);
+    await page.getByRole('button', {name: 'Add game title', exact: true}).click();
+    await openDisclosure(page, 'Add a game release');
+    const form = page.getByRole('form', {name: 'Add game release'});
+    await form.getByLabel('Platform', {exact: true}).fill('Example 64');
+    await form.getByLabel('Region', {exact: true}).fill('Japan');
+    await form.getByLabel('Edition', {exact: true}).fill('Launch');
+    await form.getByRole('button', {name: 'Add game release', exact: true}).click();
+    await page.getByRole('button', {name: 'Save catalog match', exact: true}).click();
+    await page.getByText('Release: ' + release, {exact: true}).waitFor();
+    await page.getByRole('button', {name: 'Edit details', exact: true}).click();
+    await page.getByRole('form', {name: 'Edit copy details'}).getByLabel('Manual', {exact: true}).selectOption('missing');
+    await page.getByRole('button', {name: 'Save changes', exact: true}).click();
+    await page.getByText('Changes saved.', {exact: true}).waitFor();
+    await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
+  }
+  await page.getByRole('button', {name: 'Open ' + title, exact: true}).click();
+  await page.getByText('Release: ' + release, {exact: true}).waitFor();
+  await page.getByRole('definition').filter({hasText: 'Missing'}).waitFor();
+});
