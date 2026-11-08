@@ -18,6 +18,8 @@ jobs:
           persist-credentials: false
       - name: Test API and migrations on disposable PostgreSQL
         run: sh scripts/test-api.sh
+      - name: Test operations and missed backup alerts
+        run: python3 -m unittest discover -s scripts -p test_operations.py
 
   web:
     name: Web build and tests

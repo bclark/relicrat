@@ -1,6 +1,7 @@
 """Private read-only health snapshots and loopback dashboard, using stdlib only."""
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import fcntl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -12,6 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from zoneinfo import ZoneInfo
 
 UTC = timezone.utc
 GOOD = {'verified-offhost-copy-and-disposable-restore', 'verified-offsite-parts', 'verified-and-cleaned'}
@@ -76,18 +78,24 @@ def receipt_path(item):
     return candidate
 
 
+def verified_receipt_age(ident, r, current):
+    if not isinstance(r, dict):
+        raise ValueError('Invalid receipt object')
+    if not re.fullmatch('[0-9a-f]{40}', r.get('source_commit','')) or not re.fullmatch('[0-9a-f]{64}',r.get('sha256','')):
+        raise ValueError('Missing recovery identity')
+    if r.get('status') not in GOOD:
+        raise ValueError('Unverified receipt')
+    if ident == 'mac-backup' and not all(r.get(k) is True for k in ('restore_verified', 'member_checksums_verified', 'saved_image_ids_verified')):
+        raise ValueError('Missing restore evidence')
+    if ident == 'cloud-backup' and not all(r.get(k) is True for k in ('all_downloaded_parts_verified', 'downloaded_manifest_verified', 'full_archive_sha256_verified', 'owner_only_metadata_verified', 'cms_authenticated_decryption_verified')):
+        raise ValueError('Missing cloud readback evidence')
+    return age(r['completed_at_utc'], current)
+
+
 def receipt_check(ident, label, receipt, current, max_age=36*3600):
     try:
         r = read_json(receipt)
-        if not re.fullmatch('[0-9a-f]{40}', r.get('source_commit','')) or not re.fullmatch('[0-9a-f]{64}',r.get('sha256','')):
-            raise ValueError('Missing recovery identity')
-        if r.get('status') not in GOOD:
-            raise ValueError('Unverified receipt')
-        if ident == 'mac-backup' and not all(r.get(k) is True for k in ('restore_verified', 'member_checksums_verified', 'saved_image_ids_verified')):
-            raise ValueError('Missing restore evidence')
-        if ident == 'cloud-backup' and not all(r.get(k) is True for k in ('all_downloaded_parts_verified', 'downloaded_manifest_verified', 'full_archive_sha256_verified', 'owner_only_metadata_verified', 'cms_authenticated_decryption_verified')):
-            raise ValueError('Missing cloud readback evidence')
-        seconds = age(r['completed_at_utc'], current)
+        seconds = verified_receipt_age(ident, r, current)
         return check(ident, label, 'ok' if seconds <= max_age else 'action', f'Verified {int(seconds // 3600)} hours ago; source {r["source_commit"][:7]}')
     except (OSError, ValueError, KeyError, TypeError):
         return check(ident, label, 'unknown', 'Verified evidence is missing or invalid')
@@ -101,7 +109,8 @@ checks=[]
 for service,name in c['containers'].items():
  v=json.loads(subprocess.check_output(D+['inspect',name],stderr=subprocess.DEVNULL))[0]
  checks.append({'service':service,'running':v['State']['Running'],'image_matches':v['Image']==c['images']['web' if service=='phone' else service],'private':not bool(v['HostConfig']['PortBindings']),'restart_policy':v['HostConfig']['RestartPolicy']['Name'],'healthy':v['State'].get('Health',{}).get('Status')=='healthy' if service=='db' else True})
-api_health=subprocess.run(D+['exec',c['containers']['api'],'python','-c',"import urllib.request;assert urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5).status==200"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15).returncode==0
+api_health=subprocess.run(D+['exec',c['containers']['api'],'python','-c',"import urllib.request
+from zoneinfo import ZoneInfo;assert urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5).status==200"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15).returncode==0
 web_health=subprocess.run(D+['exec',c['containers']['web'],'node','-e',"fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15).returncode==0
 print(json.dumps({'api_health':api_health,'web_health':web_health,'services':checks,'free_bytes':shutil.disk_usage(c['capacity_path']).free,'symphony_stopped':json.loads(Path(c['symphony_state']).read_text())['status']=='stopped'}))
 '''
@@ -222,6 +231,46 @@ def record(snapshot, output):
     atomic_json(p, snapshot)
 
 
+def offsite_state(config, current):
+    local = current.astimezone(ZoneInfo(config['timezone']))
+    due = local.date() - timedelta(days=local.hour < 4)
+    try:
+        path = Path(config['offsite_receipt'])
+        receipt = read_json(path)
+        verified_receipt_age('cloud-backup', receipt, current)
+        if receipt['status'] != 'verified-offsite-parts':
+            raise ValueError('Cloud readback proof is invalid')
+        capture = receipt['captured_at_utc']
+        seconds = age(capture, current)
+        stamp = datetime.fromisoformat(capture)
+        if stamp > current or stamp > datetime.fromisoformat(receipt['completed_at_utc']):
+            raise ValueError('Invalid capture order')
+    except (OSError, ValueError, KeyError, TypeError):
+        return 'missing'
+    if seconds >= 26 * 3600:
+        return 'critical'
+    if stamp.astimezone(local.tzinfo).date() < due:
+        return 'missed'
+    return 'ok'
+
+
+def watch_offsite(config, output, current):
+    # Keep a separate cursor and acknowledge only successful notifier delivery.
+    with output.with_suffix('.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        state = offsite_state(config, current)
+        try:
+            previous = read_json(output)['state']
+        except FileNotFoundError:
+            previous = 'ok'
+        if state == previous:
+            return
+        message = {'check': 'offsite-backup', 'state': 'recovered' if state == 'ok' else state}
+        subprocess.run(config['notify_command'], input=json.dumps(message) + '\n', text=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=True)
+        atomic_json(output, {'state': state})
+
+
 def sync_evidence(config):
     """Send only verification metadata, never archives, keys or collection data."""
     fields = {'status', 'source_commit', 'sha256', 'completed_at_utc', 'restore_verified', 'member_checksums_verified', 'saved_image_ids_verified', 'all_downloaded_parts_verified', 'downloaded_manifest_verified', 'full_archive_sha256_verified', 'owner_only_metadata_verified', 'cms_authenticated_decryption_verified'}
@@ -232,12 +281,19 @@ def sync_evidence(config):
         if checked['state'] == 'unknown':
             raise ValueError('Cannot synchronize unverified recovery evidence')
         r = read_json(receipt_path(item))
+        verified_receipt_age(ident, r, now())
         payload[name] = {key: r[key] for key in fields if key in r}
+        if ident == 'mac-backup':
+            captured_at = r.get('captured_at_utc')
+    mac, cloud = payload['mac.json'], payload['cloud.json']
+    if (captured_at and cloud['status'] == 'verified-offsite-parts' and
+            mac['sha256'] == cloud['sha256'] and mac['source_commit'] == cloud['source_commit']):
+        payload['offsite.json'] = {**cloud, 'captured_at_utc': captured_at}
     code = """import json,os,tempfile
 from pathlib import Path
 r=Path(ROOT);assert r.is_dir() and not r.is_symlink() and not r.stat().st_mode & 0o077
 for name,value in PAYLOAD.items():
- assert name in {'mac.json','cloud.json'}
+ assert name in {'mac.json','cloud.json','offsite.json'}
  with tempfile.NamedTemporaryFile(mode='w',dir=r,delete=False) as f:
   os.chmod(f.name,0o600);json.dump(value,f);f.flush();os.fsync(f.fileno());temporary=Path(f.name)
  temporary.replace(r/name)
@@ -299,7 +355,7 @@ def serve(config, report, output, port):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['collect', 'serve', 'sync-evidence'])
+    parser.add_argument('mode', choices=['collect', 'serve', 'sync-evidence', 'watch-offsite'])
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--report', type=Path)
@@ -309,6 +365,8 @@ def main():
     config = private_config(args.config)
     if args.mode == 'sync-evidence':
         sync_evidence(config)
+    elif args.mode == 'watch-offsite':
+        watch_offsite(config, args.output, now())
     elif args.mode == 'collect':
         record(collect(config), args.output)
     else:
