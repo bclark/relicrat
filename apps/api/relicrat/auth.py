@@ -12,6 +12,7 @@ import secrets
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
@@ -19,10 +20,12 @@ from starlette.responses import JSONResponse
 
 from relicrat.credentials import owner_config, verify_password
 from relicrat.database import session_factory
-from relicrat.models import OwnerLoginGuard, OwnerSession
+from relicrat.models import AgentCredential, OwnerLoginGuard, OwnerSession
 
 router = APIRouter(prefix='/api/v1/auth', tags=['owner access'])
 TOKEN = re.compile(r'^Bearer ([A-Za-z0-9_-]{43})$')
+AGENT_TOKEN = re.compile(r'^Bearer (rr_agent_[A-Za-z0-9_-]{43})$')
+AGENT_PREFIX = '/api/v1/agent'
 TTL = timedelta(hours=12)
 WINDOW = timedelta(minutes=15)
 
@@ -109,6 +112,36 @@ def logout(request: Request):
         raise HTTPException(503, 'Sign out could not be confirmed') from None
 
 
+@router.post('/agent-credential', status_code=201)
+def issue_agent_credential():
+    """Replace the active credential and return its secret once."""
+    _, fingerprint = owner_config()
+    token = 'rr_agent_' + secrets.token_urlsafe(32)
+    fields = {'token_hash': token_hash(token), 'credential_fingerprint': fingerprint}
+    with session_factory()() as db:
+        db.execute(insert(AgentCredential).values(id=1, **fields)
+                   .on_conflict_do_update(index_elements=['id'], set_=fields))
+        db.commit()
+    return {'token': token}
+
+
+@router.delete('/agent-credential')
+def revoke_agent_credential():
+    with session_factory()() as db:
+        db.execute(delete(AgentCredential).where(AgentCredential.id == 1))
+        db.commit()
+    return {'active': False}
+
+
+def authenticate_agent(token: str):
+    _, fingerprint = owner_config()
+    with session_factory()() as db:
+        credential = db.get(AgentCredential, 1)
+        if (credential is None or credential.credential_fingerprint != fingerprint or
+                not secrets.compare_digest(credential.token_hash, token_hash(token))):
+            raise HTTPException(401, 'Agent credential is invalid or revoked', headers={'WWW-Authenticate': 'Bearer'})
+
+
 class OwnerBoundary:
     """Authorize before reading protected bodies; cap unauthenticated login bytes."""
     def __init__(self, app):
@@ -123,6 +156,17 @@ class OwnerBoundary:
                 message['headers'] = headers + [(b'cache-control', b'no-store'), (b'x-content-type-options', b'nosniff')]
             await send(message)
         if scope['path'] == '/health' and scope['method'] == 'GET':
+            return await self.app(scope, receive, private_send)
+        authorization = Headers(scope=scope).get('authorization')
+        if agent := AGENT_TOKEN.fullmatch(authorization or ''):
+            try:
+                await run_in_threadpool(authenticate_agent, agent[1])
+            except HTTPException as error:
+                return await JSONResponse({'detail': error.detail}, status_code=error.status_code, headers=error.headers)(scope, receive, private_send)
+            except (ValueError, SQLAlchemyError):
+                return await JSONResponse({'detail': 'Agent access is unavailable'}, status_code=503)(scope, receive, private_send)
+            if scope['method'] != 'GET' or not scope['path'].startswith(AGENT_PREFIX + '/'):
+                return await JSONResponse({'detail': 'Agent credential permits only agent API reads'}, status_code=403)(scope, receive, private_send)
             return await self.app(scope, receive, private_send)
         if scope['path'] == '/api/v1/auth/login' and scope['method'] == 'POST':
             body = bytearray()
@@ -145,7 +189,7 @@ class OwnerBoundary:
                 return {'type': 'http.request', 'body': bytes(body), 'more_body': False}
             return await self.app(scope, buffered_receive, private_send)
         try:
-            owner = await run_in_threadpool(authenticate, Headers(scope=scope).get('authorization'))
+            owner = await run_in_threadpool(authenticate, authorization)
         except HTTPException as error:
             return await JSONResponse({'detail': error.detail}, status_code=error.status_code, headers=error.headers)(scope, receive, private_send)
         except (ValueError, SQLAlchemyError):

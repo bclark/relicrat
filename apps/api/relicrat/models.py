@@ -385,3 +385,12 @@ class LocationAudit(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     request_digest: Mapped[str] = mapped_column(String(64))
     result: Mapped[dict] = mapped_column(JSONB)
+
+
+class AgentCredential(Base):
+    __tablename__ = 'agent_credentials'
+    __table_args__ = (CheckConstraint('id = 1', name='agent_credential_singleton'),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    token_hash: Mapped[str] = mapped_column(String(64))
+    credential_fingerprint: Mapped[str] = mapped_column(String(64))
