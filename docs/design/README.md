@@ -547,3 +547,14 @@ title and offers optional physical contents. Catalog matching can link the copy
 to a shared release with platform, region, and edition. Cartridge or disc, box
 or case, manual, and inserts are saved on the individual copy. The contents
 controls distinguish missing, unknown, and not applicable.
+
+November 8, 2026 — implemented for review: Game intake uses the same reviewed
+barcode suggestions as Movies, with a title only. Titles and release fields
+suggest saved local values while allowing free entry. See the
+[lookup and autocomplete contract](../barcode-lookup.md#video-game-title-lookup-and-autocomplete).
+
+November 8, 2026 — implemented for review: Video games can also explicitly
+search an enabled external catalog by title. The search is separate from local
+autocomplete and uses the same draft review. See the
+[lookup guide](../barcode-lookup.md#video-game-title-lookup-and-autocomplete)
+for configuration; live setup and rollout are separate.

@@ -73,6 +73,12 @@ test('video game release and physical contents survive reload', async t => {
   await context.route('**/*', route =>
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort('internetdisconnected'));
   const page = await context.newPage();
+  await page.route('**/api/v1/collection-settings/types', async route => {
+    const response = await route.fetch();
+    const types = await response.json();
+    types.game.title_lookup = {provider: 'igdb', max_results: 5};
+    await route.fulfill({response, json: types});
+  });
   await page.goto(origin);
   await page.waitForURL('**/login');
   await page.getByLabel('Owner password').fill(password);
@@ -104,6 +110,51 @@ test('video game release and physical contents survive reload', async t => {
     await page.getByText('Changes saved.', {exact: true}).waitFor();
     await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
   }
+  await showIntake(page);
+  const titleInput = page.getByRole('form', {name: 'Add an item', exact: true}).getByLabel('Game title', {exact: true});
+  await titleInput.fill('Synthetic Orbi');
+  await page.waitForFunction(value =>
+    Array.from(document.querySelectorAll('#find-title-suggestions option')).some(option => option.value === value), title);
+  await titleInput.clear();
+  const barcode = '012345678905';
+  const suggestion = 'Synthetic Barcode Game';
+  await page.route('**/api/v1/barcode-lookups/game', route => {
+    assert.equal(route.request().method(), 'POST');
+    assert.equal(route.request().postDataJSON().value, barcode);
+    return route.fulfill({json: {provider_label: 'UPCitemdb', candidates: [{
+      id: barcode, title: suggestion, description: 'Retail product match',
+      fields: {title: suggestion}, cover_url: null,
+    }]}});
+  });
+  await page.getByRole('button', {name: 'Type a barcode instead', exact: true}).click();
+  await page.getByLabel('Barcode', {exact: true}).fill(barcode);
+  await page.getByRole('button', {name: 'Use barcode', exact: true}).click();
+  const match = page.getByRole('button', {name: new RegExp(suggestion)});
+  await match.waitFor();
+  assert.equal(await titleInput.inputValue(), '');
+  await match.click();
+  assert.equal(await titleInput.inputValue(), suggestion);
+  await titleInput.clear();
+  await page.getByRole('button', {name: 'Remove barcode from draft', exact: true}).click();
+  const query = 'Synthetic Adventure';
+  const canonical = 'Synthetic Adventure II';
+  await page.route('**/api/v1/title-lookups/game', route => {
+    assert.equal(route.request().method(), 'POST');
+    assert.deepEqual(route.request().postDataJSON(), {title: query});
+    return route.fulfill({json: {provider_label: 'IGDB', candidates: [{
+      id: '42', title: canonical, description: 'Catalog title',
+      fields: {title: canonical}, cover_url: null,
+    }]}});
+  });
+  await titleInput.fill(query);
+  await page.getByRole('button', {name: 'Search online by title', exact: true}).click();
+  const titleMatch = page.getByRole('button', {name: new RegExp(canonical)});
+  await titleMatch.waitFor();
+  assert.equal(await titleInput.inputValue(), query);
+  await titleMatch.click();
+  assert.equal(await titleInput.inputValue(), canonical);
+  await titleInput.clear();
+  await page.getByRole('button', {name: 'Back to Video games', exact: true}).click();
   await page.getByRole('button', {name: 'Open ' + title, exact: true}).click();
   await page.getByText('Release: ' + release, {exact: true}).waitFor();
   await page.getByRole('definition').filter({hasText: 'Missing'}).waitFor();

@@ -1,6 +1,6 @@
 # Barcode lookup configuration
 
-Status: MusicBrainz Album lookup and UPCitemdb Movie title lookup are implemented;
+Status: MusicBrainz Album lookup and UPCitemdb Movie and Video game title lookup are implemented;
 verify deployment separately. Mounted configuration overrides remain available.
 The installed registry, not browser code, selects each external service. Lookup reads public suggestions; it never establishes catalog identity
 or ownership. Physical camera capture and saved barcode observations remain
@@ -254,3 +254,31 @@ Checked 2026-11-01 against the provider's [free-plan limits](https://www.upcitem
 [service terms](https://www.upcitemdb.com/terms). Availability, metadata accuracy and
 coverage are not guaranteed. The private deployment needs its existing API-only
 outbound access; this implementation does not change network topology.
+
+
+## Video game title lookup and autocomplete
+
+The bundled Video games config uses the same UPCitemdb adapter and sends only
+the scanned or typed barcode. Review a retail match to fill the title. It does
+not infer platform, region, edition, or physical contents, and it does not
+supply artwork. Change the provider in `game.json` to another installed adapter,
+or set `lookup` to null to disable external lookup.
+
+Autocomplete searches only the local game inventory and catalog for titles and
+saved game releases for platform, region, and edition. It works without internet
+access and accepts values that do not appear in the suggestions.
+
+Video games also support **Search online by title** using [IGDB](https://api-docs.igdb.com/).
+The action sends only the title after a click; local autocomplete never uses
+IGDB. Selecting a result fills the draft title. Platform, region, edition,
+artwork and copy contents are unaffected.
+
+The bundled game definition selects `title_lookup.provider: "igdb"`. To enable
+it, register a confidential Twitch application and pass
+`RELICRAT_IGDB_CLIENT_ID` and `RELICRAT_IGDB_CLIENT_SECRET` to the **API container
+only**, for example through a private Compose override using an API service
+`env_file` (restrict the file to owner access). The API needs outbound HTTPS to
+`id.twitch.tv` and `api.igdb.com`. The private offline Linux installation needs
+no changes and continues to work without this action. Keep credentials out of
+collection JSON, source control, and shared logs. An operator config can set
+`title_lookup` to null or choose another installed title adapter.

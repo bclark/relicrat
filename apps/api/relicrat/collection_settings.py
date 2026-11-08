@@ -5,7 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from relicrat.database import get_db
-from relicrat.models import CollectionSettings, OwnedCopy
+from relicrat.models import CatalogItem, Category, CollectionSettings, OwnedCopy, Release
+from relicrat.catalog import GAME_CATEGORY_SLUG
+from relicrat.barcode_providers import TITLE_PROVIDERS
 from relicrat.collection_types import COLLECTION_TYPES, CollectionType
 
 router = APIRouter(prefix='/api/v1/collection-settings', tags=['collection settings'])
@@ -70,6 +72,28 @@ def publisher_suggestions(q: str = Query(default='', max_length=250, pattern=r'^
     return saved_suggestions(db, OwnedCopy.comic_details['publisher'].astext, 'comic', q)
 
 
+@router.get('/game-suggestions/{field}', response_model=list[str])
+def game_suggestions(field: Literal['title', 'platform', 'region', 'edition'],
+                     q: str = Query(default='', max_length=500, pattern=r'^[^\x00]*$'),
+                     db: Session = Depends(get_db)):
+    term = q.strip()
+    if not term:
+        return []
+    if field == 'title':
+        names = select(OwnedCopy.provisional_title.label('value')).where(
+            OwnedCopy.deleted_at.is_(None), OwnedCopy.collection_type == 'game'
+        ).union_all(select(CatalogItem.canonical_name).join(Category).where(
+            Category.slug == GAME_CATEGORY_SLUG
+        )).subquery()
+        value = func.btrim(names.c.value)
+    else:
+        value = func.btrim(Release.attributes['game'][field].astext)
+    folded = func.lower(value)
+    return list(db.scalars(select(func.min(value.collate('C')))
+                           .where(value.istartswith(term, autoescape=True))
+                           .group_by(folded).order_by(folded.collate('C')).limit(20)))
+
+
 def saved_suggestions(db, column, collection_type, q):
     # The routes supply fixed columns/type IDs; clients never choose expressions.
     value = func.btrim(column)
@@ -82,7 +106,9 @@ def saved_suggestions(db, column, collection_type, q):
 
 @router.get('/types', response_model=dict[str, CollectionType])
 def read_types():
-    return COLLECTION_TYPES
+    return {key: definition.model_copy(update={"title_lookup": None})
+            if definition.title_lookup and not TITLE_PROVIDERS[definition.title_lookup.provider]["enabled"]()
+            else definition for key, definition in COLLECTION_TYPES.items()}
 
 
 @router.get('', response_model=SettingsInfo)

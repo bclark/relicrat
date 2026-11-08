@@ -33,7 +33,7 @@ def parse_items(data, reading, limit):
         ident = '0'+codes[0] if len(codes[0]) == 12 else codes[0]; title = clean(row.get('title'), 500)
         if not title or ident in seen: continue
         seen.add(ident)
-        description = ['Retail product match; confirm the movie and edition.']
+        description = ['Retail product match; confirm the title and edition.']
         for key in ('brand', 'category'):
             value = clean(row.get(key), 250)
             if value: description.append(key.capitalize()+': '+value)

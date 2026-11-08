@@ -1,5 +1,6 @@
 'use client';
 
+import ObservationInput from './observation-input';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, errorText, jsonSave, type InventoryCopy, type GameReleaseDetails, type RunSave } from '../lib/inventory-client';
 
@@ -150,11 +151,16 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
         <p className="hint">{game ? 'Enter any release details you know. Use Save catalog match to link this physical copy.' : 'Missing from the list? Add a name such as First printing, Copper cover or Blue vinyl. Then use Save catalog match to apply it to this copy.'}</p>
         <form aria-label={game?'Add game release':'Add edition'} onSubmit={event => create(event, 'release')}>
           <fieldset disabled={disabled || releases.busy || !!releases.error}>
-            {game ? gameReleaseFields.map(field => <label key={field}>
-              {{platform:'Platform',region:'Region',edition:'Edition'}[field]}
-              <input maxLength={field==='edition'?500:100} value={gameRelease[field]||''}
-                onChange={event=>setGameRelease({...gameRelease,[field]:event.target.value})}/>
-            </label>) : <><label htmlFor="release-name">Edition or variant name</label>
+            {game ? gameReleaseFields.map(field => {
+              const label = {platform:'Platform',region:'Region',edition:'Edition'}[field];
+              return <div key={field}>
+                <label htmlFor={`game-release-${field}`}>{label}</label>
+                <ObservationInput id={`game-release-${field}`}
+                  field={{max_length:field==='edition'?500:100,placeholder:''}}
+                  suggestionsPath={`collection-settings/game-suggestions/${field}`}
+                  value={gameRelease[field]||''} change={value=>setGameRelease({...gameRelease,[field]:value})}/>
+              </div>;
+            }) : <><label htmlFor="release-name">Edition or variant name</label>
               <input id="release-name" required maxLength={500} value={newRelease} onChange={event => setNewRelease(event.target.value)} /></>}
             <button disabled={game ? !gameReleaseReady : !newRelease.trim()} type="submit">{game ? 'Add game release' : 'Add edition'}</button>
           </fieldset>
