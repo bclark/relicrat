@@ -87,6 +87,10 @@ def open_audit_locations(
     limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
+    return query_open_audit_locations(db, limit, offset)
+
+
+def query_open_audit_locations(db: Session, limit: int, offset: int):
     rows = db.execute(text(f"""
         SELECT l.id, l.name, CAST(sum(a.unresolved) AS bigint) AS unresolved
         FROM ({AUDIT_COUNTS}) AS a

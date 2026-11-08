@@ -539,3 +539,28 @@ No filesystem path or external image URL is returned. Fetch image bytes through
 the existing owner-authenticated copy/photo endpoint and label catalog artwork
 separately from evidence of the physical object. A missing preview is unknown,
 not permission to invent artwork. Pagination and search never merge copies.
+
+## Read-only agent API
+
+Apply migration `0019_agent_credential` before issuing a credential. Use the
+private API connection and an authenticated owner session to call
+`POST /api/v1/auth/agent-credential`. The response returns the secret in
+`token` once. Store it in the agent's secret store and send it as
+`Authorization: Bearer <token>`. The API stores only its hash. Issuing another
+credential replaces the active one. `DELETE /api/v1/auth/agent-credential`
+revokes it, and rotating the owner password or session secret invalidates it.
+After restoring an older database, rotate the session secret before reopening
+access to prevent older credentials from becoming valid again.
+
+The agent credential is accepted only for reads under `/api/v1/agent`.
+
+| Read | Result |
+| --- | --- |
+| `GET /copies?q=...` | Owned copies matching inventory search, ordered by title and copy ID. |
+| `GET /copies/{copy_id}` | Copy ID, title, edition and current location ID/name. An unassigned copy has a null location. |
+| `GET /unresolved-locations` | Location IDs and names with counts of unresolved findings across saved audits. |
+
+List endpoints accept `limit` (default 20, maximum 100) and `offset` (default
+0). Missing or revoked credentials return 401. Valid agent credentials receive
+403 for owner routes and writes. A missing owned copy returns 404. The web
+gateway does not expose credential management or these agent routes.
