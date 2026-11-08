@@ -18,6 +18,8 @@ def main():
     parser.add_argument('--origin', required=True, help='Exact private browser origin, including port')
     parser.add_argument('--allow-loopback-http', action='store_true')
     parser.add_argument('--output', type=Path, default=Path('.env.owner'))
+    parser.add_argument('--generate-database-password', action='store_true',
+                        help='Generate the database password for a fresh Linux Compose install')
     args = parser.parse_args()
     origin = urlsplit(args.origin)
     if origin.scheme != 'https' and not (args.allow_loopback_http and origin.scheme == 'http' and origin.hostname in ('127.0.0.1', 'localhost', '::1')):
@@ -48,6 +50,8 @@ def main():
     values = {'RELICRAT_OWNER_PASSWORD_HASH': encoded, 'RELICRAT_SESSION_SECRET': secrets.token_hex(32),
               'RELICRAT_WEB_ORIGIN': origin.scheme + '://' + origin.netloc,
               'RELICRAT_ALLOW_LOOPBACK_HTTP': '1' if args.allow_loopback_http else '0'}
+    if args.generate_database_password:
+        values['POSTGRES_PASSWORD'] = secrets.token_hex(32)
     descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as stream:
         stream.write('# Private owner configuration. Do not commit or share.\n')

@@ -107,3 +107,82 @@ jobs:
             docker compose -p relicrat-csv-ci -f infra/docker/compose.web-test.yaml \
               -f "$override" down --volumes --remove-orphans
           fi
+
+  linux-install:
+    name: Private Linux Compose install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: relicrat
+      COMPOSE_FILE: compose.linux.yaml
+      RELICRAT_TEST_LINUX_INSTALL: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Prepare browser tooling
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Follow the private install guide
+        run: |
+          export RELICRAT_RELEASE="$(git rev-parse HEAD)"
+          printf 'RELICRAT_RELEASE=%s\n' "$RELICRAT_RELEASE" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import runpy, sys
+          from unittest.mock import patch
+          sys.argv = ['scripts/configure-owner.py', '--origin', 'http://127.0.0.1:3000',
+                      '--allow-loopback-http', '--generate-database-password', '--output', '.env']
+          with patch('getpass.getpass', return_value='synthetic-only-linux-install-password'):
+              runpy.run_path(sys.argv[0], run_name='__main__')
+          PY
+          test "$(stat -c %a .env)" = 600
+          docker pull postgres:17-alpine
+          docker compose build --pull
+          docker compose up -d --wait db
+          docker compose run --rm --no-deps api alembic upgrade head
+          docker compose up -d --no-build --wait
+          curl -fsS --retry 20 --retry-connrefused http://127.0.0.1:3000/login -o /dev/null
+      - name: Verify private binding and blocked app egress
+        run: |
+          test "$(docker compose port web 3000)" = "127.0.0.1:3000"
+          test "$(docker network inspect relicrat_default --format '{{.Internal}}')" = true
+          for service in web api db; do
+            container="$(docker compose ps -q "$service")"
+            test "$(docker inspect "$container" --format '{{len .NetworkSettings.Networks}}')" = 1
+            test "$(docker inspect "$container" --format '{{.HostConfig.RestartPolicy.Name}}')" = unless-stopped
+            docker compose exec -T "$service" awk '$2 == "00000000" { exit 1 }' /proc/net/route
+            if [ "$service" != web ]; then
+              test "$(docker inspect "$container" --format '{{len .HostConfig.PortBindings}}')" = 0
+            fi
+          done
+          docker compose exec -T api python - <<'PY'
+          import errno, socket
+          try:
+              socket.create_connection(('1.1.1.1', 443), timeout=3).close()
+          except OSError as error:
+              assert error.errno in {errno.ENETUNREACH, errno.EHOSTUNREACH}, error
+          else:
+              raise AssertionError('The API reached an external address')
+          PY
+      - name: Add, photograph, move and find copies from desktop and phone
+        run: node --test apps/web/tests/linux-install.browser.mjs
+      - name: Take the pre-upgrade backup and verify persistence after recreation
+        run: |
+          python3 scripts/backup.py create --engine "$(docker info --format '{{.Name}}')" \
+            --compose compose.linux.yaml --project relicrat --offline-confirmed "$RUNNER_TEMP/relicrat-backup"
+          test -s "$RUNNER_TEMP/relicrat-backup/manifest.json"
+          docker compose down
+          docker compose up -d --no-build --wait
+          RELICRAT_TEST_AFTER_RESTART=1 node --test apps/web/tests/linux-install.browser.mjs
+      - name: Remove the disposable install
+        if: always()
+        run: |
+          if [ -f .env ] && [ -n "$RELICRAT_RELEASE" ]; then
+            docker compose down --volumes
+          fi
