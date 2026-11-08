@@ -89,7 +89,8 @@ python3 scripts/backup.py create --engine YOUR_CONFIRMED_ENGINE_NAME \
 
 Check for `manifest.json` and confirm the app is reachable before proceeding.
 Retain the backup and matching images and source. See the existing operator
-guide for [backup and restore details](backup-restore.md). Keep the PostgreSQL
+guide for [backup and restore details](backup-restore.md) and the
+[replacement-host rehearsal](replacement-recovery.md). Keep the PostgreSQL
 major version fixed for application upgrades.
 
 Fetch and check out the new reviewed commit, export its full SHA as above,
