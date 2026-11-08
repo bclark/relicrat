@@ -7,6 +7,7 @@ from uuid import UUID
 
 import httpx
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -39,13 +40,13 @@ def build_server(origin: str, token: str) -> MCPServer:
             ) as client:
                 response = await client.get('/api/v1/agent/' + path, params=params)
             if response.status_code in (401, 403):
-                raise RuntimeError('RelicRat denied access. Check the configured read-only credential.')
+                raise ToolError('RelicRat denied access. Check the configured read-only credential.')
             if response.status_code == 404 and path.startswith('copies/'):
-                raise RuntimeError('No owned copy was found for that ID.')
+                raise ToolError('No owned copy was found for that ID.')
             response.raise_for_status()
             return response.json()
         except (httpx.HTTPError, ValueError):
-            raise RuntimeError('The private RelicRat API did not return a usable response.') from None
+            raise ToolError('The private RelicRat API did not return a usable response.') from None
 
     @server.tool(annotations=READ_ONLY, structured_output=True)
     async def search_collection(query: Search, limit: Limit = 20, offset: Offset = 0) -> dict[str, Any]:
