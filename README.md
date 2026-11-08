@@ -20,9 +20,10 @@
   <img src="docs/brand/mascot-vinyl-v2-PROPOSED.png" alt="RelicRat’s collector mascot carefully holding a record by its edges, wearing a burgundy waistcoat and leather satchel." width="260">
 </p>
 
-> **Early development.** RelicRat is an experimental single-owner application, not a production-ready deployment. The setup below is for private local testing with synthetic data. Production hardening and recovery remain unfinished.
+> **Early development.** RelicRat is an experimental single-owner application, not a production-ready deployment. The setup below is for private local testing with synthetic data. The Linux Compose guide documents the private install and replacement recovery path.
 
 For a pinned, private installation on Linux, see the [Docker Compose install guide](docs/linux-compose-install.md).
+See [first release readiness](docs/release-readiness.md) for the tested candidate and remaining release decisions.
 
 ## What works today
 
