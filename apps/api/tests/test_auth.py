@@ -116,9 +116,9 @@ def test_missing_owner_configuration_fails_closed(setup, monkeypatch):
 
 
 def test_revocable_agent_credential_reads_only_collection_projections(setup, monkeypatch):
-    from uuid import uuid4
+    from uuid import UUID, uuid4
 
-    from relicrat.models import AgentCredential, LocationAudit
+    from relicrat.models import AgentCredential, CopyLocationEvent, LocationAudit, OwnedCopy, StorageLocation
 
     api, engine = setup
     owner = {'Authorization': 'Bearer ' + login(api).json()['token']}
@@ -137,11 +137,11 @@ def test_revocable_agent_credential_reads_only_collection_projections(setup, mon
     copy = create('/inventory', {'title': 'Synthetic agent search copy', 'description': 'Private test note'})
     location = f"/inventory/{copy['id']}/location"
     move = {'storage_location_id': box['id'], 'expected_storage_revision': 0}
-    create(location, move, status=200)
     audits = f"/storage-locations/{box['id']}/audits"
-    preview = api.get(base + audits, headers=owner).json()
 
     try:
+        create(location, move, status=200)
+        preview = api.get(base + audits, headers=owner).json()
         create(audits, {'request_id': str(audit_id), 'snapshot': preview['snapshot'],
                         'found_ids': [], 'extras': ['Synthetic extra']}, status=200)
         assert api.post(management).status_code == 401
@@ -186,3 +186,7 @@ def test_revocable_agent_credential_reads_only_collection_projections(setup, mon
         with engine.begin() as connection:
             connection.execute(delete(LocationAudit).where(LocationAudit.id == audit_id))
             connection.execute(delete(AgentCredential).where(AgentCredential.id == 1))
+            connection.execute(delete(CopyLocationEvent).where(CopyLocationEvent.owned_copy_id == UUID(copy['id'])))
+            connection.execute(delete(OwnedCopy).where(OwnedCopy.id == UUID(copy['id'])))
+            connection.execute(delete(StorageLocation).where(
+                StorageLocation.id.in_([UUID(box['id']), UUID(destination['id'])])))
