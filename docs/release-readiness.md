@@ -24,15 +24,33 @@ separate replacement-host rehearsal describes recovery from a Drive copy. The
 phone check used browser automation over USB. Touch gestures and iOS were
 outside this run.
 
-## Release decisions still open
+## v0.1.0 release scope
 
-- Agree on backup retention, maximum acceptable data loss, recovery time, and
-  how a failed backup reaches the operator before expanding the trial.
-- Pick the public release pin and publish its support scope. The evidence above
-  applies to the named candidate.
-- Track portable data export and shareable themes as separate epics. Native
-  clients and immersive browsing can build on the API after the single-owner
-  web release.
+The initial support target is private, single-owner Ubuntu 24.04 on amd64 with
+Docker Engine 29.1.3 and Compose v2. After the release PR merges, compare the
+release commit's application and recovery files to the tested candidate, run the
+Linux install smoke test on the exact release SHA, then tag that commit
+`v0.1.0`. Publish the tag and full SHA together.
+
+The [backup policy](backup-policy.md) defines retention, freshness and recovery
+targets, and the independent missed-run watcher.
+
+## Backup policy launch checks
+
+- **Timed restore · November 8, 2026.** A 508 MiB archive with over 2,300 copies
+  and eight media files recovered in **55.4 seconds** on a fresh Ubuntu VM,
+  including archive authentication, transfer to the VM, row and media
+  verification, Docker restart, and signed-in access to a recovered copy, its
+  box and photo. The timer started with the host, key and archive available.
+  The Mac archive matched a previously verified Drive readback by SHA-256.
+  The archived release predates the candidate above. The candidate's exact
+  release recovery is covered by the synthetic rehearsal.
+- **Missed-run drill · November 8, 2026.** An independent Linux process used
+  synthetic receipts while the publisher was absent. The test exercised the
+  local deadline, stale escalation, failed delivery retry, duplicate suppression,
+  and recovery. The CLI delivered the critical and recovery notices to an
+  isolated receiver. Operators must configure and test their own notification
+  destination before relying on the watchdog.
 
 [Linux Compose install](linux-compose-install.md) ·
 [Replacement recovery](replacement-recovery.md)
