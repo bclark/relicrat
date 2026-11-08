@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { GameContents } from '../lib/inventory-client';
 
 const components = {
@@ -13,11 +14,13 @@ const statuses = {
 } as const;
 
 export function GameContentsFields({value, change}: {value: GameContents; change: (value: GameContents) => void}) {
+  const prefix = useId();
   return <fieldset><legend>What’s included with this copy</legend>
     {Object.entries(components).map(([key, label]) => {
       const component = key as keyof GameContents;
-      return <label key={component}>{label}
-        <select value={value[component] || ''} onChange={event => {
+      const id = `${prefix}-${component}`;
+      return <div key={component}><label htmlFor={id}>{label}</label>
+        <select id={id} value={value[component] || ''} onChange={event => {
           const next = {...value};
           if (event.target.value) next[component] = event.target.value as keyof typeof statuses;
           else delete next[component];
@@ -26,7 +29,7 @@ export function GameContentsFields({value, change}: {value: GameContents; change
           <option value="">Unknown</option>
           {Object.entries(statuses).map(([status, name]) => <option key={status} value={status}>{name}</option>)}
         </select>
-      </label>;
+      </div>;
     })}
   </fieldset>;
 }
