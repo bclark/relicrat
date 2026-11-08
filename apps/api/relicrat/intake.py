@@ -7,14 +7,16 @@ from relicrat.barcodes import BarcodeReading
 from relicrat.record_details import RecordDetails
 from relicrat.comic_details import ComicDetails
 from relicrat.movie_details import MovieDetails
+from relicrat.game_details import GameContents
 from relicrat.collection_types import COLLECTION_TYPES
 
 class CreateProvisionalCopy(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    collection_type: Literal['other', 'record', 'comic', 'movie'] = 'other'
+    collection_type: Literal['other', 'record', 'comic', 'movie', 'game'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
     comic_details: ComicDetails = Field(default_factory=ComicDetails)
     movie_details: MovieDetails = Field(default_factory=MovieDetails)
+    game_contents: GameContents = Field(default_factory=GameContents)
     barcode: BarcodeReading | None = None
     edition_label: str | None = Field(default=None, max_length=500, pattern=r'^[^\x00]*$')
     title: str | None = Field(default=None, max_length=500)
@@ -30,6 +32,10 @@ class CreateProvisionalCopy(BaseModel):
             raise ValueError('Choose Comic before adding issue number or publisher')
         if self.collection_type != 'movie' and self.movie_details.model_dump(exclude_none=True):
             raise ValueError('Choose Movie before adding movie format or studio')
+        if self.collection_type == 'game' and not self.title:
+            raise ValueError('A game title is required')
+        if self.collection_type != 'game' and self.game_contents.model_dump(exclude_none=True):
+            raise ValueError('Choose Video game before recording game contents')
         if not self.title and not self.description:
             raise ValueError("A title or description is required")
         return self
@@ -37,5 +43,6 @@ class CreateProvisionalCopy(BaseModel):
 
 def stage_copy(db: Session, payload: CreateProvisionalCopy) -> OwnedCopy:
     copy = OwnedCopy(barcode=payload.barcode.model_dump(exclude_none=True) if payload.barcode else {}, provisional_title=payload.title, description=payload.description, edition_label=payload.edition_label.strip() if payload.edition_label else None, collection_type=payload.collection_type, record_details=payload.record_details.model_dump(exclude_none=True), comic_details=payload.comic_details.model_dump(exclude_none=True), movie_details=payload.movie_details.model_dump(exclude_none=True))
+    copy.game_contents = payload.game_contents.model_dump(exclude_none=True)
     db.add(copy)
     return copy

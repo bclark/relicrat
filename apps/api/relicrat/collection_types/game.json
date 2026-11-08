@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "game",
+  "label": "Video game",
+  "plural_label": "Video games",
+  "title": {
+    "key": "title",
+    "label": "Game title",
+    "max_length": 500,
+    "placeholder": "e.g. Super Mario World",
+    "suggested": true
+  },
+  "fields": [
+    {
+      "key": "notes",
+      "label": "Notes",
+      "max_length": 10000,
+      "placeholder": "",
+      "suggested": false
+    }
+  ],
+  "entry_order": ["title", "notes"]
+}

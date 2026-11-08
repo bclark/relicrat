@@ -177,7 +177,7 @@ class CreateExtra(ResolutionAction):
     action: Literal['create_extra']
     extra_index: int = Field(ge=0)
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500, pattern=r'^[^\x00]*$')]
-    collection_type: Literal['other', 'record', 'comic', 'movie'] = 'other'
+    collection_type: Literal['other', 'record', 'comic', 'movie', 'game'] = 'other'
 
 
 Resolution = Annotated[Found | MoveMissing | MatchExtra | CreateExtra, Field(discriminator='action')]
