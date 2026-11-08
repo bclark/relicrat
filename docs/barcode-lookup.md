@@ -1,6 +1,6 @@
 # Barcode lookup configuration
 
-Status: MusicBrainz Album lookup and UPCitemdb Movie title lookup are implemented;
+Status: MusicBrainz Album lookup and UPCitemdb Movie and Video game title lookup are implemented;
 verify deployment separately. Mounted configuration overrides remain available.
 The installed registry, not browser code, selects each external service. Lookup reads public suggestions; it never establishes catalog identity
 or ownership. Physical camera capture and saved barcode observations remain
@@ -254,3 +254,16 @@ Checked 2026-11-01 against the provider's [free-plan limits](https://www.upcitem
 [service terms](https://www.upcitemdb.com/terms). Availability, metadata accuracy and
 coverage are not guaranteed. The private deployment needs its existing API-only
 outbound access; this implementation does not change network topology.
+
+
+## Video game title lookup and autocomplete
+
+The bundled Video games config uses the same UPCitemdb adapter and sends only
+the scanned or typed barcode. Review a retail match to fill the title. It does
+not infer platform, region, edition, or physical contents, and it does not
+supply artwork. Change the provider in `game.json` to another installed adapter,
+or set `lookup` to null to disable external lookup.
+
+Autocomplete searches only the local game inventory and catalog for titles and
+saved game releases for platform, region, and edition. It works without internet
+access and accepts values that do not appear in the suggestions.
