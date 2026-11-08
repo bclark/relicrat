@@ -13,6 +13,7 @@ from relicrat.location_audits import router as location_audit_router
 from relicrat.storage import router as storage_router
 from relicrat.media import router as media_router
 from relicrat.barcode_lookup import router as lookup_router
+from relicrat.title_lookup import router as title_lookup_router
 
 from relicrat.collection_settings import router as settings_router
 from relicrat.catalog import router as catalog_router
@@ -32,6 +33,7 @@ app.include_router(agent_router)
 app.include_router(inventory_router)
 app.include_router(media_router)
 app.include_router(lookup_router)
+app.include_router(title_lookup_router)
 app.include_router(storage_router)
 app.include_router(location_audit_router)
 app.include_router(catalog_router)

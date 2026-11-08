@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Literal
 from relicrat.barcodes import BarcodeFormat
-from relicrat.barcode_providers import PROVIDERS
+from relicrat.barcode_providers import PROVIDERS, TITLE_PROVIDERS
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -52,6 +52,12 @@ class BarcodeLookup(BaseModel):
     cover_art: bool = False
 
 
+class TitleLookup(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    provider: str
+    max_results: int = Field(default=5, ge=1, le=10)
+
+
 class CollectionType(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True, str_strip_whitespace=True)
     schema_version: Literal[1]
@@ -60,6 +66,7 @@ class CollectionType(BaseModel):
     plural_label: str = Field(min_length=1, max_length=80, pattern=r'^[^\x00]*$')
     barcode_formats: list[BarcodeFormat] = Field(default_factory=list, max_length=4)
     lookup: BarcodeLookup | None = None
+    title_lookup: TitleLookup | None = None
     grouping: BrowseGrouping | None = None
     title: TypeField
     fields: list[TypeField] = Field(max_length=4)
@@ -79,6 +86,8 @@ class CollectionType(BaseModel):
         # These limits describe deployed storage, not an arbitrary custom-field engine.
         limits = {'title': 500, 'artist': 500, 'format': 100, 'edition': 500, 'notes': 10000, 'issue_number': 100, 'publisher': 250, 'media_format': 100, 'studio': 250}
         allowed = {'other': {'notes'}, 'game': {'notes'}, 'record': {'artist','format','edition','notes'}, 'comic': {'issue_number','publisher','edition','notes'}, 'movie': {'media_format','studio','edition','notes'}}[self.id]
+        if self.title_lookup and (self.id != 'game' or self.title_lookup.provider not in TITLE_PROVIDERS):
+            raise ValueError('Title lookup requires an installed video game title provider')
         if self.lookup:
             lookup=self.lookup
             if lookup.provider not in PROVIDERS:
