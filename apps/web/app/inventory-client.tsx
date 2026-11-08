@@ -13,6 +13,7 @@ import CollectionRows from './collection-rows';
 import StorageFilter from './storage-filter';
 import LocationDirectory from './location-directory';
 import LocationEditor from './location-editor';
+import OpenAuditLocations from './open-audit-locations';
 import LocationAudit from './location-audit';
 import {locationLink} from '../lib/location-link';
 
@@ -287,6 +288,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
               {!locationIndex&&<button className="text-button" type="button" disabled={busy} onClick={()=>browseLocations(locationBrowse.path.slice(0,-1))}>
                 {locationBrowse.path.length>1?`Back to ${locationBrowse.path.at(-2)?.name}`:'All locations'}
               </button>}
+              {locationIndex&&<details><summary>Unresolved audit findings</summary><OpenAuditLocations/></details>}
               {locationIndex&&<button className="text-button" type="button" disabled={busy} onClick={()=>browseLocations([],true)}>Unassigned copies</button>}
               {!locationBrowse.unassigned&&<div className="form-actions">
                 <button type="button" disabled={busy} onClick={()=>setLocationEditor('create')}>{currentLocation?'Add nested location':'Add location'}</button>
