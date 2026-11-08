@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, errorText, jsonSave, type InventoryCopy, type RunSave } from '../lib/inventory-client';
+import { api, errorText, jsonSave, type InventoryCopy, type GameReleaseDetails, type RunSave } from '../lib/inventory-client';
 
 type Category = { id: string; name: string };
 type Item = { id: string; category_id: string; canonical_name: string };
-type Release = { id: string; catalog_item_id: string; name: string | null };
+export type Release = { id: string; catalog_item_id: string; name: string | null; game_details?: GameReleaseDetails | null };
 type History = { id: string; before_catalog_item_id: string | null; after_catalog_item_id: string; before_release_id: string | null; after_release_id: string | null; after_revision: number; created_at: string };
 type Props = { copy: InventoryCopy; runSave: RunSave; locked: boolean; saved: (copy: InventoryCopy) => void; failed: (error: unknown) => void };
-const releaseName = (release: Release) => release.name || `Unnamed edition · ${release.id}`;
+export const releaseName = (release: Release) => {
+  const game = release.game_details;
+  return [release.name, game?.platform, game?.region, game?.edition].filter(Boolean).join(' · ') ||
+    `Unnamed edition · ${release.id}`;
+};
 
 // Four bounded catalog/history readers share cancellation and page semantics.
 export function usePage<T>(path: string | null, page: number, refresh: string) {
@@ -46,11 +50,15 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
   const [category, setCategory] = useState<Category | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [newItem, setNewItem] = useState('');
+  const game = copy.collection_type === 'game';
+  const [gameRelease, setGameRelease] = useState<GameReleaseDetails>({});
+  const gameReleaseFields = ['platform', 'region', 'edition'] as const;
+  const gameReleaseReady = gameReleaseFields.some(field => gameRelease[field]?.trim());
   const [newRelease, setNewRelease] = useState('');
   const [addingEdition, setAddingEdition] = useState(false);
   const editionDisclosure = useRef<HTMLDetailsElement>(null);
   const [refresh, setRefresh] = useState(0);
-  const items = usePage<Item>(`catalog/items?q=${encodeURIComponent(search)}`, page, `${refresh}-${searchVersion}`);
+  const items = usePage<Item>(`catalog/items?q=${encodeURIComponent(search)}${game?'&video_game=true':''}`, page, `${refresh}-${searchVersion}`);
   const releases = usePage<Release>(selected ? `catalog/items/${selected.id}/releases` : null, releasePage, String(refresh));
   const categories = usePage<Category>('catalog/categories', categoryPage, String(refresh));
   const history = usePage<History>(`inventory/${copy.id}/reconciliations`, historyPage, `${refresh}-${copy.identification_revision}`);
@@ -70,7 +78,7 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
 
   function choose(item: Item) {
     if (item.id === selected?.id) return;
-    setSelected(item); setEdition(null); setReleasePage(0); setNewRelease(''); setAddingEdition(false); setNotice('');
+    setSelected(item); setEdition(null); setReleasePage(0); setNewRelease(''); setGameRelease({}); setAddingEdition(false); setNotice('');
   }
   async function create(event: FormEvent, kind: 'category' | 'item' | 'release') {
     event.preventDefault(); if (locked || !ready) return;
@@ -80,12 +88,14 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
         if (kind === 'category') {
           const result = await api<Category>('catalog/categories', jsonSave({ name: newCategory.trim() }));
           setCategory(result); setNewCategory(''); setNotice('Category added.');
-        } else if (kind === 'item' && category) {
-          const result = await api<Item>('catalog/items', jsonSave({ category_id: category.id, canonical_name: newItem.trim() }));
+        } else if (kind === 'item' && (game || category)) {
+          const result = await api<Item>('catalog/items', jsonSave({ ...(game ? {video_game:true} : {category_id:category!.id}), canonical_name: newItem.trim() }));
           choose(result); setNewItem(''); setNotice('Collectible added. Choose an edition below, then Save catalog match to apply it to this copy.');
         } else if (kind === 'release' && selected) {
-          const result = await api<Release>(`catalog/items/${selected.id}/releases`, jsonSave({ name: newRelease.trim() }));
-          setEdition(result); setNewRelease(''); setAddingEdition(false); editionDisclosure.current?.querySelector('summary')?.focus(); setNotice('Edition added and selected. Save catalog match to apply it to this copy.');
+          const result = await api<Release>(`catalog/items/${selected.id}/releases`, jsonSave(game
+            ? {game_details:Object.fromEntries(gameReleaseFields.map(field => [field, gameRelease[field]?.trim() || null]))}
+            : {name:newRelease.trim()}));
+          setEdition(result); setNewRelease(''); setGameRelease({}); setAddingEdition(false); editionDisclosure.current?.querySelector('summary')?.focus(); setNotice('Edition added and selected. Save catalog match to apply it to this copy.');
         }
       });
     } catch (problem) { setError(errorText(problem)); failed(problem); }
@@ -118,9 +128,16 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
     </>}
     <details className="new-location"><summary>Can’t find it? Add a collectible</summary>
       <p className="hint">Search first to avoid duplicates. Add shared details here; each physical copy keeps its own photos, storage and history.</p>
+      {game ? <form aria-label="Add game title" onSubmit={event => create(event, 'item')}>
+        <fieldset disabled={disabled}><label htmlFor="catalog-game-title">Catalog game title</label>
+          <input id="catalog-game-title" required maxLength={500} value={newItem} onChange={event => setNewItem(event.target.value)} />
+          <button disabled={!newItem.trim()} type="submit">Add game title</button>
+        </fieldset>
+      </form> : <>
       <form aria-label="Add collectible" onSubmit={event => create(event, 'item')}><fieldset disabled={disabled || categories.busy || !!categories.error}><label htmlFor="catalog-category">Category</label><select id="catalog-category" value={category?.id || ''} onChange={event => setCategory(categoryOptions.find(item => item.id === event.target.value) || null)}><option value="">Choose a category</option>{categoryOptions.map(item => <option key={item.id} value={item.id}>{item.name} · {item.id.slice(0, 8)}</option>)}</select><label htmlFor="catalog-name">Collectible name</label><input id="catalog-name" required maxLength={500} value={newItem} onChange={event => setNewItem(event.target.value)} /><button disabled={!category || !newItem.trim()} type="submit">Add collectible</button></fieldset></form>
       {categories.busy && <p role="status">Loading categories…</p>}{categories.error && <p role="alert" className="error">{categories.error} Use Reload details.</p>}<Pages label="Category pages" page={categoryPage} more={categories.more} disabled={disabled || categories.busy} select={setCategoryPage} />
       <form aria-label="Add category" onSubmit={event => create(event, 'category')}><fieldset disabled={disabled}><label htmlFor="category-name">New category name</label><input id="category-name" required maxLength={200} value={newCategory} onChange={event => setNewCategory(event.target.value)} /><button disabled={!newCategory.trim()} type="submit">Add category</button></fieldset></form>
+      </>}
     </details>
     {selected && <section aria-label="Choose collectible details" className="collectible-details">
       <form id="save-identification" aria-label="Save catalog match" onSubmit={identify}><fieldset disabled={disabled}>
@@ -128,7 +145,21 @@ export default function Identification({ copy, runSave, locked, saved, failed }:
         <label htmlFor="catalog-release">Edition or variant</label><select id="catalog-release" value={edition?.id || ''} disabled={releases.busy || !!releases.error} onChange={event => { setEdition(editionOptions.find(item => item.id === event.target.value) || null); setNotice(''); }}><option value="">Edition not specified</option>{editionOptions.map(item => <option key={item.id} value={item.id}>{releaseName(item)} · {item.id.slice(0, 8)}</option>)}</select>
         {releases.busy && <p role="status">Loading editions…</p>}{releases.error && <p className="error" role="alert">{releases.error} Use Reload details before saving.</p>}<Pages label="Edition pages" page={releasePage} more={releases.more} disabled={disabled || releases.busy} select={setReleasePage} />
       </fieldset></form>
-      <details ref={editionDisclosure} open={addingEdition} onToggle={event => setAddingEdition(event.currentTarget.open)} className="new-location"><summary>Add an edition or variant</summary><p className="hint">Missing from the list? Add a name such as First printing, Copper cover or Blue vinyl. Then use Save catalog match to apply it to this copy.</p><form aria-label="Add edition" onSubmit={event => create(event, 'release')}><fieldset disabled={disabled || releases.busy || !!releases.error}><label htmlFor="release-name">Edition or variant name</label><input id="release-name" required maxLength={500} value={newRelease} onChange={event => setNewRelease(event.target.value)} /><button disabled={!newRelease.trim()} type="submit">Add edition</button></fieldset></form></details>
+      <details ref={editionDisclosure} open={addingEdition} onToggle={event => setAddingEdition(event.currentTarget.open)} className="new-location">
+        <summary>{game ? 'Add a game release' : 'Add an edition or variant'}</summary>
+        <p className="hint">{game ? 'Enter any release details you know. Use Save catalog match to link this physical copy.' : 'Missing from the list? Add a name such as First printing, Copper cover or Blue vinyl. Then use Save catalog match to apply it to this copy.'}</p>
+        <form aria-label={game?'Add game release':'Add edition'} onSubmit={event => create(event, 'release')}>
+          <fieldset disabled={disabled || releases.busy || !!releases.error}>
+            {game ? gameReleaseFields.map(field => <label key={field}>
+              {{platform:'Platform',region:'Region',edition:'Edition'}[field]}
+              <input maxLength={field==='edition'?500:100} value={gameRelease[field]||''}
+                onChange={event=>setGameRelease({...gameRelease,[field]:event.target.value})}/>
+            </label>) : <><label htmlFor="release-name">Edition or variant name</label>
+              <input id="release-name" required maxLength={500} value={newRelease} onChange={event => setNewRelease(event.target.value)} /></>}
+            <button disabled={game ? !gameReleaseReady : !newRelease.trim()} type="submit">{game ? 'Add game release' : 'Add edition'}</button>
+          </fieldset>
+        </form>
+      </details>
       {pending && <p className="hint" role="status">Not saved to this copy yet: <strong>{selected.canonical_name}{edition ? ` · ${releaseName(edition)}` : ' · Edition not specified'}</strong></p>}
       <p className="hint">{!edition && copy.release_id ? 'Saving without an edition removes this copy’s current edition. Its history is kept.' : 'The edition is optional. This is your identification, not an independently verified match.'}</p>
       <button className="primary" type="submit" form="save-identification" disabled={disabled || releases.busy || !!releases.error || !pending}>Save catalog match</button>

@@ -60,6 +60,10 @@ class Release(Timestamps, Base):
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
 
+    @property
+    def game_details(self):
+        return self.attributes.get('game') if self.attributes else None
+
 class StorageLocation(Timestamps, Base):
     __tablename__ = "storage_locations"
     __table_args__ = (CheckConstraint("parent_id IS NULL OR parent_id <> id", name="no_self_parent"),)
@@ -108,7 +112,8 @@ class OwnedCopy(Timestamps, Base):
         CheckConstraint("jsonb_typeof(movie_details) = 'object' AND movie_details - 'media_format' - 'studio' = '{}'::jsonb AND (NOT movie_details ? 'media_format' OR (jsonb_typeof(movie_details->'media_format') = 'string' AND char_length(movie_details->>'media_format') BETWEEN 1 AND 100)) AND (NOT movie_details ? 'studio' OR (jsonb_typeof(movie_details->'studio') = 'string' AND char_length(movie_details->>'studio') BETWEEN 1 AND 250))", name="movie_details_valid"),
         CheckConstraint("release_id IS NULL OR catalog_item_id IS NOT NULL", name="release_requires_catalog"),
         CheckConstraint("storage_revision >= 0", name="storage_revision_nonnegative"),
-        CheckConstraint("collection_type::text IN ('other'::text, 'record'::text, 'comic'::text, 'movie'::text)", name="collection_type_valid"),
+        CheckConstraint("(jsonb_typeof(game_contents) = 'object' AND game_contents - ARRAY['media','packaging','manual','inserts'] = '{}'::jsonb AND (collection_type = 'game' OR game_contents = '{}'::jsonb) AND (collection_type <> 'game' OR COALESCE(btrim(provisional_title), '') <> '') AND (NOT game_contents ? 'media' OR (game_contents->>'media') IN ('present','missing','not_applicable')) AND (NOT game_contents ? 'packaging' OR (game_contents->>'packaging') IN ('present','missing','not_applicable')) AND (NOT game_contents ? 'manual' OR (game_contents->>'manual') IN ('present','missing','not_applicable')) AND (NOT game_contents ? 'inserts' OR (game_contents->>'inserts') IN ('present','missing','not_applicable'))) IS TRUE", name="game_contents_valid"),
+        CheckConstraint("collection_type::text IN ('other'::text, 'record'::text, 'comic'::text, 'movie'::text, 'game'::text)", name="collection_type_valid"),
         CheckConstraint("jsonb_typeof(record_details) = 'object' AND record_details - 'artist' - 'format' = '{}'::jsonb AND (NOT record_details ? 'artist' OR (jsonb_typeof(record_details->'artist') = 'string' AND char_length(record_details->>'artist') BETWEEN 1 AND 500)) AND (NOT record_details ? 'format' OR (jsonb_typeof(record_details->'format') = 'string' AND char_length(record_details->>'format') BETWEEN 1 AND 100))", name="record_details_valid"),
         CheckConstraint("jsonb_typeof(comic_details) = 'object' AND comic_details - 'issue_number' - 'publisher' = '{}'::jsonb AND (NOT comic_details ? 'issue_number' OR (jsonb_typeof(comic_details->'issue_number') = 'string' AND char_length(comic_details->>'issue_number') BETWEEN 1 AND 100)) AND (NOT comic_details ? 'publisher' OR (jsonb_typeof(comic_details->'publisher') = 'string' AND char_length(comic_details->>'publisher') BETWEEN 1 AND 250))", name="comic_details_valid"),
         CheckConstraint(BARCODE_CHECK, name="barcode_valid"),
@@ -132,6 +137,7 @@ class OwnedCopy(Timestamps, Base):
     # NULL follows a linked release; empty text explicitly leaves the edition unknown.
     collection_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="other")
     record_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    game_contents: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     movie_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     comic_details: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     barcode: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
@@ -152,7 +158,7 @@ class CopyDetailEvent(Base):
         UniqueConstraint('owned_copy_id', 'after_revision'),
         CheckConstraint('before_revision >= 0 AND after_revision = before_revision + 1', name='detail_revision_step'),
         CheckConstraint('identification_revision >= 0', name='detail_identification_revision'),
-        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode OR before_movie_details IS DISTINCT FROM after_movie_details OR before_custom_details IS DISTINCT FROM after_custom_details', name='details_changed'),
+        CheckConstraint('before_title IS DISTINCT FROM after_title OR before_edition_label IS DISTINCT FROM after_edition_label OR before_collection_type IS DISTINCT FROM after_collection_type OR before_record_details IS DISTINCT FROM after_record_details OR before_comic_details IS DISTINCT FROM after_comic_details OR before_barcode IS DISTINCT FROM after_barcode OR before_movie_details IS DISTINCT FROM after_movie_details OR before_custom_details IS DISTINCT FROM after_custom_details OR before_game_contents IS DISTINCT FROM after_game_contents', name='details_changed'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owned_copy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('owned_copies.id', ondelete='RESTRICT'), nullable=False)
@@ -168,6 +174,8 @@ class CopyDetailEvent(Base):
     after_barcode: Mapped[dict | None] = mapped_column(JSONB)
     before_custom_details: Mapped[dict | None] = mapped_column(JSONB)
     after_custom_details: Mapped[dict | None] = mapped_column(JSONB)
+    before_game_contents: Mapped[dict | None] = mapped_column(JSONB)
+    after_game_contents: Mapped[dict | None] = mapped_column(JSONB)
     before_movie_details: Mapped[dict | None] = mapped_column(JSONB)
     after_movie_details: Mapped[dict | None] = mapped_column(JSONB)
     before_comic_details: Mapped[dict | None] = mapped_column(JSONB)

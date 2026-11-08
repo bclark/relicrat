@@ -20,6 +20,7 @@ from relicrat.barcodes import BarcodeReading
 from relicrat.record_details import RecordDetails
 from relicrat.comic_details import ComicDetails
 from relicrat.movie_details import MovieDetails
+from relicrat.game_details import GameContents
 from relicrat.collection_types import COLLECTION_TYPES
 from relicrat.reconciliation import ReconciliationError, reconcile
 
@@ -34,13 +35,14 @@ class InventoryCopy(BaseModel):
     id: UUID
     title: str | None = Field(validation_alias="provisional_title")
     description: str | None
-    collection_type: Literal['other', 'record', 'comic', 'movie']
+    collection_type: Literal['other', 'record', 'comic', 'movie', 'game']
     custom_collection_id: UUID | None
     custom_collection_name: str | None = None
     custom_details: dict[str,StrictStr | StrictBool | list[StrictStr]]
     barcode: dict[str, str]
     record_details: dict[str, str]
     movie_details: dict[str, str]
+    game_contents: dict[str, str]
     comic_details: dict[str, str]
     edition_label: str | None
     details_revision: int
@@ -88,7 +90,7 @@ def list_copies(
     q: str | None = Query(default=None, max_length=200, pattern=r"^[^\x00]*$"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    collection_type: Literal['other', 'record', 'comic', 'movie'] | None = Query(default=None),
+    collection_type: Literal['other', 'record', 'comic', 'movie', 'game'] | None = Query(default=None),
     storage_location_id: UUID | None = None,
     unassigned: bool = False,
     custom_collection_id: UUID | None = None,
@@ -133,10 +135,11 @@ def list_copies(
 class EditCopyDetails(BaseModel):
     catalog_cover: CoverSelection | None = None
     barcode: BarcodeReading | None = None
-    collection_type: Literal['other', 'record', 'comic', 'movie'] = 'other'
+    collection_type: Literal['other', 'record', 'comic', 'movie', 'game'] = 'other'
     record_details: RecordDetails = Field(default_factory=RecordDetails)
     comic_details: ComicDetails = Field(default_factory=ComicDetails)
     movie_details: MovieDetails = Field(default_factory=MovieDetails)
+    game_contents: GameContents = Field(default_factory=GameContents)
     expected_type_revision: int | None = Field(default=None,ge=0,le=2147483646,strict=True)
     custom_details: dict[str, StrictStr | StrictBool | list[StrictStr]] = Field(default_factory=dict,max_length=12)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
@@ -156,6 +159,8 @@ class DetailEventInfo(BaseModel):
     after_barcode: dict | None
     before_custom_details: dict | None
     after_custom_details: dict | None
+    before_game_contents: dict | None
+    after_game_contents: dict | None
     before_movie_details: dict | None
     after_movie_details: dict | None
     before_comic_details: dict | None
@@ -183,6 +188,7 @@ def edit_copy_details(copy_id: UUID, payload: EditCopyDetails, db: Session = Dep
                             collection_type=payload.collection_type if 'collection_type' in payload.model_fields_set else None,
                             record_details=payload.record_details.model_dump(exclude_none=True) if 'record_details' in payload.model_fields_set else None,
                             comic_details=payload.comic_details.model_dump(exclude_none=True) if 'comic_details' in payload.model_fields_set else None,
+                            game_contents=payload.game_contents.model_dump(exclude_none=True) if 'game_contents' in payload.model_fields_set else None,
                             movie_details=payload.movie_details.model_dump(exclude_none=True) if 'movie_details' in payload.model_fields_set else None,
                             barcode=(payload.barcode.model_dump(exclude_none=True) if payload.barcode else {}) if 'barcode' in payload.model_fields_set else None,
                             catalog_cover=payload.catalog_cover)

@@ -1,11 +1,12 @@
 'use client';
 import {Fragment,useEffect,useRef,useState,type MutableRefObject} from 'react';
 import CollectionFilter from './collection-filter';
+import { GameContentsFields } from './game-contents';
 import ObservationInput from './observation-input';
 import BarcodeScanner from './barcode-scanner';
 import CustomField,{normalizeCustomValues,replaceCustomValue,type CustomValues} from './custom-field';
 import type {SavedCollection} from './custom-collections';
-import {api,ApiError,errorText,jsonSave,type BarcodeReading,type CollectionSettings,type CollectionTypeId,type CollectionTypes,type InventoryCopy,type RunSave} from '../lib/inventory-client';
+import {api,ApiError,errorText,jsonSave,type BarcodeReading,type CollectionSettings,type CollectionTypeId,type CollectionTypes,type InventoryCopy,type GameContents,type RunSave} from '../lib/inventory-client';
 
 export type IntakeStart={target:string;scope:string;name:string;entryId?:string;sequence:number};
 type Candidate={id:string;title:string;description:string;source_url:string;cover_url:string|null;fields:Record<string,string>};
@@ -13,6 +14,7 @@ type Result={provider:string;provider_label:string;candidates:Candidate[]};
 type Props={start:IntakeStart;visible:boolean;types:CollectionTypes|null;settings:CollectionSettings|null;busy:boolean;runSave:RunSave;guard:MutableRefObject<()=>boolean>;close:()=>void;saved:(copy:InventoryCopy)=>void;openCopy:(id:string)=>void};
 
 export default function ItemIntake({start,visible,types,settings,busy,runSave,guard,close,saved,openCopy}:Props){
+ const [gameContents,setGameContents]=useState<GameContents>({});
  const [target,setTarget]=useState('other'),[scope,setScope]=useState(''),[scopeName,setScopeName]=useState('All items');
  const [values,setValues]=useState<Record<string,string>>({}),[customValues,setCustomValues]=useState<CustomValues>({}),[custom,setCustom]=useState<SavedCollection|null>(null);
  const [reading,setReading]=useState<BarcodeReading|null>(null),[manual,setManual]=useState(''),[manualOpen,setManualOpen]=useState(false),[format,setFormat]=useState('UPC_A');
@@ -23,11 +25,11 @@ export default function ItemIntake({start,visible,types,settings,busy,runSave,gu
  const customId=target.startsWith('custom:')?target.slice(7):'';
  const definition=customId?null:types?.[target as CollectionTypeId];
  const name=customId?custom?.name||'Selected collection':definition?.plural_label||'Selected collection';
- const dirty=!!reading||Object.values(values).some(v=>v.trim())||Object.keys(normalizeCustomValues(customValues)).length>0;
+ const dirty=Object.keys(gameContents).length>0||!!reading||Object.values(values).some(v=>v.trim())||Object.keys(normalizeCustomValues(customValues)).length>0;
  const locked=busy||uncertain||loading;
  function canReplace(){return !uncertain&&!busy&&(!dirty||window.confirm('Discard this unfinished item and start in another collection?'));}
  guard.current=()=>!busy;
- function clear(){lookupRequest.current?.abort();setValues({});setCustomValues({});setReading(null);setManual('');setManualOpen(false);setResult(null);setCandidate(null);setChosen([]);setIncludeCover(false);setCoverReady(false);setCoverFailed(false);setError('');setLookupError('');pending.current=null;setCompleted(null);}
+ function clear(){lookupRequest.current?.abort();setValues({});setGameContents({});setCustomValues({});setReading(null);setManual('');setManualOpen(false);setResult(null);setCandidate(null);setChosen([]);setIncludeCover(false);setCoverReady(false);setCoverFailed(false);setError('');setLookupError('');pending.current=null;setCompleted(null);}
  useEffect(()=>{
   if(!types||!settings||!visible||!start.sequence||lastStart.current===start.sequence)return;
   const first=lastStart.current===0;lastStart.current=start.sequence;const next=start.target||(first?settings!.default_type:target);
@@ -54,7 +56,7 @@ export default function ItemIntake({start,visible,types,settings,busy,runSave,gu
  function toggleField(key:string,on:boolean){setValues(old=>({...old,[key]:on?candidate!.fields[key]:previous.current[key]||''}));setChosen(old=>on?[...old.filter(v=>v!==key),key]:old.filter(v=>v!==key));}
  async function submit(retry=false){
   if(submitting.current||busy||loading||(!retry&&uncertain)||!values.title?.trim()||(!customId&&!definition)||(customId&&!custom))return;
-  const payload=customId?{request_id:crypto.randomUUID(),title:values.title.trim(),description:values.notes?.trim()||null,custom_details:normalizeCustomValues(customValues),expected_type_revision:custom!.type_revision}:{title:values.title.trim(),description:values.notes?.trim()||null,collection_type:definition!.id,barcode:reading,edition_label:values.edition?.trim()||null,record_details:definition!.id==='record'?{artist:values.artist?.trim()||null,format:values.format?.trim()||null}:{},comic_details:definition!.id==='comic'?{issue_number:values.issue_number?.trim()||null,publisher:values.publisher?.trim()||null}:{},movie_details:definition!.id==='movie'?{media_format:values.media_format?.trim()||null,studio:values.studio?.trim()||null}:{},catalog_cover:includeCover&&coverReady&&candidate?{provider:definition!.lookup!.provider,candidate_id:candidate.id}:null};
+  const payload=customId?{request_id:crypto.randomUUID(),title:values.title.trim(),description:values.notes?.trim()||null,custom_details:normalizeCustomValues(customValues),expected_type_revision:custom!.type_revision}:{title:values.title.trim(),description:values.notes?.trim()||null,collection_type:definition!.id,...(definition!.id==='game'?{game_contents:gameContents}:{}),barcode:reading,edition_label:values.edition?.trim()||null,record_details:definition!.id==='record'?{artist:values.artist?.trim()||null,format:values.format?.trim()||null}:{},comic_details:definition!.id==='comic'?{issue_number:values.issue_number?.trim()||null,publisher:values.publisher?.trim()||null}:{},movie_details:definition!.id==='movie'?{media_format:values.media_format?.trim()||null,studio:values.studio?.trim()||null}:{},catalog_cover:includeCover&&coverReady&&candidate?{provider:definition!.lookup!.provider,candidate_id:candidate.id}:null};
   const request=retry?pending.current:{target,payload};if(!request)return;submitting.current=true;lookupRequest.current?.abort();setLookupBusy(false);
   try{await runSave(async()=>{pending.current=request;setError('');const copy=await api<InventoryCopy>(request.target.startsWith('custom:')?`custom-collections/${request.target.slice(7)}/copies`:'inventory',jsonSave(request.payload));pending.current=null;setUncertain(false);clear();setCompleted(copy);saved(copy);requestAnimationFrame(()=>heading.current?.focus());});}catch(e){setError(errorText(e));const unknown=e instanceof ApiError&&(e.uncertain||(customId&&e.status===409));setUncertain(!!unknown);if(!unknown)pending.current=null;}finally{submitting.current=false;}
  }
@@ -81,7 +83,7 @@ export default function ItemIntake({start,visible,types,settings,busy,runSave,gu
  {candidate&&<p className="hint">Review the catalog suggestions below. Only Save item adds a physical copy.</p>}
  {candidate?.cover_url&&definition?.lookup?.cover_art&&<div className="intake-cover"><img src={candidate.cover_url} alt={`Catalog cover for ${candidate.title}`} width={112} height={112} onLoad={()=>setCoverReady(true)} onError={()=>{setCoverReady(false);setIncludeCover(false);setCoverFailed(true);}}/><label className="lookup-field"><input type="checkbox" disabled={locked||!coverReady} checked={includeCover} onChange={e=>setIncludeCover(e.target.checked)}/><span>Include catalog cover{coverFailed&&<small>Cover preview unavailable. You can save without artwork.</small>}<small>Optional artwork, not a photo of your physical copy. <a href={candidate.source_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">View source</a></small></span></label></div>}
  <form aria-label="Add an item" onSubmit={e=>{e.preventDefault();void submit();}}><fieldset disabled={locked||(!definition&&!custom)}>
- {customId?<>{input('title')}{custom?.proposal.type_definition.optional_fields.map(field=><CustomField key={field.id} field={field} value={customValues[field.id]} change={value=>setCustomValues(old=>replaceCustomValue(old,field.id,value))}/>)}<label htmlFor="custom-intake-notes">Notes (optional)</label><textarea id="custom-intake-notes" maxLength={10000} rows={3} value={values.notes||''} onChange={e=>edit('notes',e.target.value)}/></>:<>{definition?.entry_order.filter(key=>key!=='notes'&&key!=='edition').map(input)}<details><summary>More details (optional)</summary>{definition?.entry_order.filter(key=>key==='notes'||key==='edition').map(input)}</details></>}
+ {customId?<>{input('title')}{custom?.proposal.type_definition.optional_fields.map(field=><CustomField key={field.id} field={field} value={customValues[field.id]} change={value=>setCustomValues(old=>replaceCustomValue(old,field.id,value))}/>)}<label htmlFor="custom-intake-notes">Notes (optional)</label><textarea id="custom-intake-notes" maxLength={10000} rows={3} value={values.notes||''} onChange={e=>edit('notes',e.target.value)}/></>:<>{definition?.entry_order.filter(key=>key!=='notes'&&key!=='edition').map(input)}<details><summary>More details (optional)</summary>{definition?.id==='game'&&<GameContentsFields value={gameContents} change={setGameContents}/>}{definition?.entry_order.filter(key=>key==='notes'||key==='edition').map(input)}</details></>}
  <div className="intake-actions"><button className="primary" type="submit" disabled={!values.title?.trim()}>{busy?'Saving…':'Save item'}</button><p className="hint">Adds one physical copy to {name}.</p></div><p className="hint">Photos and storage can be added after saving.</p></fieldset></form>
  {uncertain&&<p role="status">Saving needs confirmation. Inspect the collection before creating another copy. {customId?<button type="button" disabled={busy||loading} onClick={()=>void submit(true)}>Retry same save</button>:<button type="button" disabled={busy} onClick={close}>Check collection</button>} {!customId&&<button type="button" disabled={busy} onClick={()=>{if(window.confirm('Only clear this draft after inspecting the collection for the original save. Clear the inspected draft?')){setUncertain(false);clear();}}}>Clear inspected draft</button>}</p>}
  </>}{error&&<p role="alert" className="error">{error}{customId&&!uncertain&&<button type="button" disabled={busy||loading} onClick={()=>setDefinitionVersion(v=>v+1)}>Reload field controls</button>}</p>}

@@ -20,7 +20,7 @@ export default function CollectionRows({items,busy,selected,open,groupByType=fal
   </li>)}</ul></>;
  }
  if(!groupByType)return rows(items);
- const labels:Record<CollectionTypeId,string>={record:'Albums',comic:'Comics',movie:'Movies',other:'Other finds'};
+ const labels:Record<CollectionTypeId,string>={record:'Albums',comic:'Comics',movie:'Movies',game:'Video games',other:'Other finds'};
  return <div className="copy-type-groups">{(Object.keys(labels) as CollectionTypeId[]).map(type=>{
   const copies=items.filter(copy=>copy.collection_type===type&&!copy.custom_collection_id);
   return copies.length?<section className="copy-type-group" key={type} aria-labelledby={`${headingId}-${type}`}>

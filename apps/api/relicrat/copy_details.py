@@ -15,7 +15,7 @@ class DetailError(Exception):
 def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: str | None,
                  expected_details_revision: int, expected_identification_revision: int, *,
                  collection_type: str | None = None, record_details: dict | None = None, comic_details: dict | None = None, movie_details: dict | None = None,
-                 barcode: dict | None = None, catalog_cover=None, custom_details: dict | None = None, expected_type_revision: int | None = None) -> OwnedCopy:
+                 game_contents: dict | None = None, barcode: dict | None = None, catalog_cover=None, custom_details: dict | None = None, expected_type_revision: int | None = None) -> OwnedCopy:
     try:
         copy = db.scalar(select(OwnedCopy).where(OwnedCopy.id == copy_id)
                          .with_for_update().execution_options(populate_existing=True))
@@ -34,8 +34,13 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         validate_observations(db,copy.custom_collection_id,title,next_custom,expected_type_revision)
         if copy.custom_collection_id is not None and next_type != 'other':
             raise DetailError(422,'This figure belongs to a custom collection; its type cannot be replaced here.')
+        next_game_contents = copy.game_contents if game_contents is None else game_contents
+        if next_type == 'game' and not title:
+            raise DetailError(422, 'A game title is required.')
+        if next_type != 'game' and (copy.game_contents or next_game_contents):
+            raise DetailError(422, 'Clear the saved game contents before changing collection type.')
         next_barcode = copy.barcode if barcode is None else barcode
-        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.movie_details, copy.barcode, copy.custom_details) == (title, edition_label, next_type, next_record, next_comic, next_movie, next_barcode, next_custom):
+        if (copy.provisional_title, copy.edition_label, copy.collection_type, copy.record_details, copy.comic_details, copy.movie_details, copy.barcode, copy.custom_details, copy.game_contents) == (title, edition_label, next_type, next_record, next_comic, next_movie, next_barcode, next_custom, next_game_contents):
             with stage_cover(db,copy,next_type,catalog_cover):
                 db.commit()
             return copy
@@ -46,6 +51,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
             before_collection_type=copy.collection_type, after_collection_type=next_type,
             before_record_details=copy.record_details, after_record_details=next_record,
             before_comic_details=copy.comic_details, after_comic_details=next_comic,
+            before_game_contents=copy.game_contents, after_game_contents=next_game_contents,
             before_movie_details=copy.movie_details, after_movie_details=next_movie,
             before_edition_label=copy.edition_label, after_edition_label=edition_label,
             identification_revision=copy.identification_revision,
@@ -56,6 +62,7 @@ def save_details(db: Session, copy_id: UUID, title: str | None, edition_label: s
         copy.record_details = next_record
         copy.comic_details = next_comic
         copy.movie_details = next_movie
+        copy.game_contents = next_game_contents
         copy.provisional_title = title
         copy.edition_label = edition_label
         copy.details_revision += 1

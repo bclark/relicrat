@@ -32,6 +32,7 @@ def test_upgrade_initializes_existing_copy_and_roundtrip():
             assert after.pop('record_details') == {}
             assert after.pop('barcode') == {}
             assert after.pop('comic_details') == {}
+            assert after.pop('game_contents') == {}
             assert after.pop('movie_details') == {}
             assert after.pop('custom_collection_id') is None
             assert after.pop('custom_details') == {}
