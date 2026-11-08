@@ -530,3 +530,12 @@ across all saved audits, including earlier audits followed by a clean check.
 Opening an older audit allows explicit resolution against that audit alone.
 The existing audit schema stores the findings and resolutions. Deployment
 remains separate.
+
+### Resume a box audit (2026-11-08, implemented for review)
+
+The owner approved one saved draft per box. The browser saves checks, extras,
+and unfinished extra text on the current device. Scanning the box again offers
+Resume audit or Discard draft. A changed inventory snapshot requires a review
+of what was added, removed, or changed before a new submission. Unchanged
+checks and extras carry forward. An interrupted submission can retry its
+original request. Deployment remains separate.

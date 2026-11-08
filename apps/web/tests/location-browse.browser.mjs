@@ -189,7 +189,7 @@ for(const [layout,viewport] of [
   });
 }
 
-test('a printed QR opens the moved box and resolves a mobile audit after sign-in',async t=>{
+test('a printed QR opens the moved box and resumes and resolves mobile audits after sign-in',async t=>{
   const owner=await browser.newContext();
   const phone=await browser.newContext({viewport:{width:320,height:840},isMobile:true,hasTouch:true});
   t.after(()=>Promise.all([owner.close(),phone.close()]));
@@ -209,6 +209,9 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   await post(`inventory/${copy.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
   const missing=await post('inventory',{title:'Synthetic missing QR copy',collection_type:'comic'});
   await post(`inventory/${missing.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
+
+  const movedDuringDraft=await post('inventory',{title:'Synthetic copy moved during draft',collection_type:'comic'});
+  await post(`inventory/${movedDuringDraft.id}/location`,{storage_location_id:box.id,expected_storage_revision:0});
 
   const desktop=await owner.newPage();
   await desktop.goto(base);
@@ -243,7 +246,7 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   await post(`storage-locations/${box.id}`,{
     name:renamed,parent_id:destination.id,expected_name:box.name,expected_parent_id:source.id,
   });
-  const scanPage=await phone.newPage();
+  let scanPage=await phone.newPage();
   const pageErrors=[];
   scanPage.on('pageerror',error=>pageErrors.push(error.message));
   await scanPage.goto(scanned);
@@ -257,11 +260,32 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   await scanPage.getByRole('button',{name:`Back to ${destination.name}`,exact:true}).waitFor();
 
   await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
-  const audit=scanPage.getByRole('region',{name:'Check location contents',exact:true});
+  let audit=scanPage.getByRole('region',{name:'Check location contents',exact:true});
   await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).check();
   assert.equal(await audit.getByRole('checkbox',{name:/Synthetic missing QR copy/}).isChecked(),false);
   await audit.getByLabel('Extra item',{exact:true}).fill('Synthetic extra found in box');
   await audit.getByRole('button',{name:'Add extra item',exact:true}).click();
+  await audit.getByRole('checkbox',{name:/Synthetic copy moved during draft/}).check();
+  await scanPage.close();
+  scanPage=await phone.newPage();
+  scanPage.on('pageerror',error=>pageErrors.push(error.message));
+  await scanPage.goto(scanned);
+  await scanPage.getByRole('button',{name:'Check contents',exact:true}).click();
+  audit=scanPage.getByRole('region',{name:'Check location contents',exact:true});
+  await audit.getByRole('button',{name:'Resume audit',exact:true}).click();
+  assert.equal(await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).isChecked(),true);
+  assert.equal(await audit.getByRole('checkbox',{name:/Synthetic copy moved during draft/}).isChecked(),true);
+  await audit.getByRole('list',{name:'Recorded extra items'}).getByText('Synthetic extra found in box',{exact:false}).waitFor();
+
+  await post(`inventory/${movedDuringDraft.id}/location`,{storage_location_id:otherBox.id,expected_storage_revision:1});
+  await audit.getByRole('button',{name:'Review audit',exact:true}).click();
+  const changes=audit.getByRole('region',{name:'Review box changes',exact:true});
+  await changes.getByText(/Synthetic copy moved during draft/).waitFor();
+  assert.equal(await audit.getByRole('button',{name:'Save audit',exact:true}).count(),0);
+  await changes.getByRole('button',{name:'Review current checklist',exact:true}).click();
+  assert.equal(await audit.getByRole('checkbox',{name:/^Synthetic QR copy/}).isChecked(),true);
+  assert.equal(await audit.getByRole('checkbox',{name:/Synthetic copy moved during draft/}).count(),0);
+
   await audit.getByRole('button',{name:'Review audit',exact:true}).click();
   await audit.getByRole('heading',{name:'Missing copies (1)',exact:true}).waitFor();
   await audit.getByRole('heading',{name:'Extra items (1)',exact:true}).waitFor();
@@ -271,6 +295,8 @@ test('a printed QR opens the moved box and resolves a mobile audit after sign-in
   const saved=await saveResponse;
   assert.ok(saved.ok(),await saved.text());
   const firstResult=await saved.json();
+  assert.deepEqual(firstResult.copies.filter(row=>row.found).map(row=>row.id),[copy.id]);
+  assert.deepEqual(firstResult.extras,['Synthetic extra found in box']);
   await audit.getByRole('status').filter({hasText:'Audit saved.'}).waitFor();
   assert.deepEqual(pageErrors,[]);
   const replay=await phone.request.post(auditUrl,{headers:{Origin:base},data:saved.request().postDataJSON()});
