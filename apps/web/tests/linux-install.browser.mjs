@@ -105,10 +105,10 @@ test('video game release and physical contents survive reload', async t => {
     await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
   }
   await showIntake(page);
-  await page.getByLabel('Game title', {exact: true}).fill('Synthetic Orbi');
+  const titleInput = page.getByRole('form', {name: 'Add an item', exact: true}).getByLabel('Game title', {exact: true});
+  await titleInput.fill('Synthetic Orbi');
   await page.waitForFunction(value =>
     Array.from(document.querySelectorAll('#find-title-suggestions option')).some(option => option.value === value), title);
-  const titleInput = page.getByLabel('Game title', {exact: true});
   await titleInput.clear();
   const barcode = '012345678905';
   const suggestion = 'Synthetic Barcode Game';
