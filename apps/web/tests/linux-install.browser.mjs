@@ -118,10 +118,11 @@ test('video game release and physical contents survive reload', async t => {
   await titleInput.clear();
   const barcode = '012345678905';
   const suggestion = 'Synthetic Barcode Game';
+  let barcodeMiss = false;
   await page.route('**/api/v1/barcode-lookups/game', route => {
     assert.equal(route.request().method(), 'POST');
     assert.equal(route.request().postDataJSON().value, barcode);
-    return route.fulfill({json: {provider_label: 'UPCitemdb', candidates: [{
+    return route.fulfill({json: {provider_label: 'UPCitemdb', candidates: barcodeMiss ? [] : [{
       id: barcode, title: suggestion, description: 'Retail product match',
       fields: {title: suggestion}, cover_url: null,
     }]}});
@@ -135,7 +136,11 @@ test('video game release and physical contents survive reload', async t => {
   await match.click();
   assert.equal(await titleInput.inputValue(), suggestion);
   await titleInput.clear();
-  await page.getByRole('button', {name: 'Remove barcode from draft', exact: true}).click();
+  barcodeMiss = true;
+  await page.getByRole('button', {name: 'Find game details', exact: true}).click();
+  await page.getByRole('status').filter({hasText: 'No match for this barcode'}).waitFor();
+  await page.getByRole('button', {name: 'Continue with title search', exact: true}).click();
+  assert.equal(await titleInput.evaluate(input => input === document.activeElement), true);
   const query = 'Synthetic Adventure';
   const canonical = 'Synthetic Adventure II';
   await page.route('**/api/v1/title-lookups/game', route => {
@@ -153,6 +158,8 @@ test('video game release and physical contents survive reload', async t => {
   assert.equal(await titleInput.inputValue(), query);
   await titleMatch.click();
   assert.equal(await titleInput.inputValue(), canonical);
+  await page.getByText('Barcode '+barcode+' · UPC-A', {exact: true}).waitFor();
+  await page.getByRole('button', {name: 'Remove barcode from draft', exact: true}).click();
   await titleInput.clear();
   await page.getByRole('button', {name: 'Back to Video games', exact: true}).click();
   await page.getByRole('button', {name: 'Open ' + title, exact: true}).click();
