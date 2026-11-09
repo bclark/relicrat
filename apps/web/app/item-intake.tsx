@@ -77,7 +77,29 @@ export default function ItemIntake({start,visible,types,settings,busy,runSave,gu
   if(visibleFields&&!visibleFields.includes(key as never)&&!values[key]&&!candidate?.fields[key])return null;
   return <Fragment key={key}><label htmlFor={`find-${key}`}>{field.label} (optional)</label>{key==='notes'?<textarea id="find-notes" rows={3} maxLength={field.max_length} value={values.notes||''} onChange={e=>edit('notes',e.target.value)}/>:<ObservationInput id={`find-${key}`} field={field} value={values[key]||''} change={value=>edit(key,value)}/ >}{suggestion(key)}</Fragment>;
  }
- function matches(result:Result){return <section aria-label="Possible matches"><h3>Possible matches from {result.provider_label}</h3><p className="hint">{result.byTitle?'Choose a title to use in this draft.':'Choose a release to review. A barcode does not confirm the edition.'}</p>{!result.candidates.length?<p>{result.byTitle?'No matching titles found. You can enter the title manually.':'No matching releases found. Keep the barcode and enter details manually.'}</p>:<ul className="barcode-matches">{result.candidates.map(v=><li key={v.id}><button type="button" disabled={locked} onClick={()=>choose(v)}><strong>{v.title}</strong><span>{v.description}</span><span>{result.byTitle?'Use this title':'Review this match'}</span></button></li>)}</ul>}</section>;}
+ function matches(result:Result){
+  if(!result.byTitle&&!result.candidates.length&&definition?.title_lookup){
+   return <div className="intake-barcode">
+    <p role="status">No match for this barcode. It stays in your draft.</p>
+    <button type="button" disabled={locked}
+     onClick={()=>document.getElementById('find-title')?.focus()}>
+     Continue with title search
+    </button>
+   </div>;
+  }
+  return <section aria-label="Possible matches">
+   <h3>Possible matches from {result.provider_label}</h3>
+   {result.candidates.length ? <>
+    <p className="hint">{result.byTitle?'Choose a title to use in this draft.':'Choose a release to review. A barcode does not confirm the edition.'}</p>
+    <ul className="barcode-matches">{result.candidates.map(match=><li key={match.id}>
+     <button type="button" disabled={locked} onClick={()=>choose(match)}>
+      <strong>{match.title}</strong><span>{match.description}</span>
+      <span>{result.byTitle?'Use this title':'Review this match'}</span>
+     </button>
+    </li>)}</ul>
+   </> : <p role="status">{result.byTitle?'No matching titles found. You can enter the title manually.':'No matching releases found. Keep the barcode and enter details manually.'}</p>}
+  </section>;
+ }
  function suggestion(key:string){return candidate?.fields[key]?<label className="lookup-field"><input type="checkbox" checked={chosen.includes(key)} onChange={e=>toggleField(key,e.target.checked)}/><span>Use catalog suggestion: {candidate.fields[key]}</span></label>:null;}
  return <section className="item-intake" hidden={!visible} aria-labelledby="add-find">
  <button type="button" className="text-button" disabled={busy} onClick={close}>Back to {scope&&scope===target?name:scopeName}</button>
