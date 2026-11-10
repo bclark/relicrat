@@ -139,6 +139,7 @@ These are plans, not implemented capabilities. See the
 | [Operations and reliability](docs/operating-reliability.md) | [Replacement recovery guide](docs/replacement-recovery.md) |
 | [Owner setup and private access](docs/owner-access.md) | [Architecture decisions](docs/decisions/) |
 | [Development harness and Symphony boundaries](docs/harness.md) | [Offline backup and restore](docs/backup-restore.md) |
+| [Owner inventory export](docs/owner-export.md) | [Linux Compose install](docs/linux-compose-install.md) |
 | [Theme authoring guidelines](packages/themes/AUTHORING-PROMPT.md) | [Brand artwork and status](docs/brand/README.md) |
 
 The [project dashboard](docs/project-dashboard.html) is a manually maintained
