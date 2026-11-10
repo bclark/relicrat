@@ -361,3 +361,34 @@ for (const [layout, viewport] of [
   await inventory.locator(`#copy-row-${unrelated.id}`).waitFor();
  });
 }
+
+test('download an agent prompt and import a reviewed video game recipe', async t => {
+ const {page,context}=await pageFor(t,{width:390,height:844});
+ await page.getByLabel('Export format',{exact:true}).selectOption('custom_recipe');
+ await openDisclosure(page,'Create an import recipe with an agent');
+ const pending=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Download agent prompt',exact:true}).click();
+ assert.equal((await pending).suggestedFilename(),'relicrat-import-recipe-prompt.txt');
+ const recipe={schema_version:1,name:'Synthetic games',collection:'game',
+  columns:{title:'Name',platform:'System',quantity:'Copies',manual:'Booklet'}};
+ await page.getByLabel('Upload import recipe JSON',{exact:true}).setInputFiles({
+  name:'recipe.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(recipe))
+ });
+ await page.getByLabel('CSV file',{exact:true}).setInputFiles({
+  name:'synthetic-games.csv',mimeType:'text/csv',
+  buffer:Buffer.from('Name,System,Copies,Booklet\nRecipe smoke game,Synthetic console,2,present\n')
+ });
+ await page.getByRole('button',{name:'Preview import',exact:true}).click();
+ await page.getByText('1 valid rows → 2 physical copies in Video games.',{exact:true}).waitFor();
+ await page.getByText('manual: present',{exact:true}).waitFor();
+ await page.getByText('Synthetic console · 2 copies · CSV row 2',{exact:true}).waitFor();
+ assert.equal((await (await context.request.get(base+'/api/v1/inventory?collection_type=game&q=Recipe%20smoke%20game')).json()).length,0);
+ await page.getByRole('checkbox',{name:/I reviewed the preview/}).check();
+ await page.getByRole('button',{name:'Import 2 copies',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Imported 2 physical copies into Video games.'}).waitFor();
+ const copies=await (await context.request.get(base+'/api/v1/inventory?collection_type=game&q=Recipe%20smoke%20game')).json();
+ assert.equal(copies.length,2);
+ assert.equal(new Set(copies.map(copy=>copy.id)).size,2);
+ assert.ok(copies[0].release_id && copies[0].release_id===copies[1].release_id);
+ assert.ok(copies.every(copy=>copy.game_contents.manual==='present'));
+});

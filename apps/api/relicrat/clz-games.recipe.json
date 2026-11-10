@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "name": "CLZ Games",
+  "collection": "game",
+  "columns": {
+    "title": "Title",
+    "platform": "Platform"
+  }
+}
