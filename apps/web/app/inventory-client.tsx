@@ -87,6 +87,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
   function startIntake(target=browseCollection,entryId?:string){if(!intakeGuard.current())return;if(!intakeVisible)browseScroll.current=window.scrollY;if(target&&target!==browseCollection){setBrowseCollection(target);setLocationBrowse(null);setImportBatchId('');setShowImportStorage(false);setPage(0);}setIntakeStart(old=>({target,scope:target,name:target===browseCollection?(target?browseTitle:'All items'):'collection',entryId,sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}
   function closeIntake(){setIntakeVisible(false);requestAnimationFrame(()=>{(phone&&phoneHome?phoneAdd.current:collectionHeading.current)?.focus({preventScroll:true});window.scrollTo({top:browseScroll.current});});}
   const toolsPanel=useRef<HTMLDetailsElement>(null);
+  const [importsOpen,setImportsOpen]=useState(false);
   const accountNav = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -271,7 +272,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
         <CollectionManager open={settingsPanel==='collection'} close={closeSettings} guard={managementGuard} types={types} settings={settings} runSave={runSave} busy={busy} saved={setSettings} changed={()=>{changed();setCollectionVersion(v=>v+1);}} browse={value=>{chooseCollection(value);setSettingsPanel(null);}}/>
         {settingsError && <p className="error" role="alert">{settingsError} Collection preferences are unavailable. <button disabled={busy} onClick={()=>setSettingsVersion(value=>value+1)}>Reload settings</button> <button disabled={busy} onClick={()=>{if(!detailGuard.current()||!intakeGuard.current())return;setTypes(old=>old||({other:{schema_version:1,id:'other',label:'Other',plural_label:'Other finds',title:{key:'title',label:'Title',max_length:500,placeholder:'',suggested:true},fields:[{key:'notes',label:'Notes',max_length:10000,placeholder:'',suggested:true}],entry_order:['title','notes'],grouping:null}} as CollectionTypes));setSettings({status:'skipped',default_type:'other',records_enabled:false,record_fields:[],revision:0});setBrowseCollection('other');setLocationBrowse(null);setImportBatchId('');setShowImportStorage(false);setIntakeStart(old=>({target:'other',scope:'other',name:'Other finds',sequence:old.sequence+1}));setIntakeVisible(true);setDetailOpen(false);}}>Use generic entry</button></p>}
         {!settings && !settingsError && <p role="status">Loading collection settings…</p>}
-        <details className="collection-tools" ref={toolsPanel} hidden={settingsPanel==='collection'}><summary>Collection tools and imports</summary><CsvImport runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} browse={(type,batchId)=>{
+        <details className="collection-tools" ref={toolsPanel} onToggle={event=>{if(!event.currentTarget.open)setImportsOpen(false);}} hidden={settingsPanel==='collection'}><summary>Collection tools and imports</summary><CsvImport open={importsOpen} setOpen={setImportsOpen} runSave={runSave} locked={busy} changed={changed} openCopy={openCopy} browse={(type,batchId)=>{
           if(toolsPanel.current)toolsPanel.current.open=false;
           setDraftQuery('');setQuery('');setStorage({id:'',label:''});setSort('');setPage(0);chooseCollection(type,batchId);
           requestAnimationFrame(()=>collectionHeading.current?.focus());
@@ -279,7 +280,12 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
         {openingLocation&&<p role="status">Opening storage location…</p>}
         {locationError&&<p role="alert" className="error">Could not open this location. {locationError} <a href={locationLink(initialLocationId)}>Try again</a> <a href="/">Open RelicRat</a></p>}
         <div hidden={settingsPanel==='collection'||openingLocation||!!locationError} data-phone-home={showingPhoneHome} className={`workspace${detailOpen ? ' detail-open' : ''}${selected ? ' has-selection' : ''}`}>
-          <aside className="collection-sidebar"><CollectionFilter browseLocations={()=>browseLocations()} homeHeadingId={phone?"collection-home-title":undefined} value={locationBrowse?'locations':browseCollection} change={chooseCollection} types={types} busy={busy} refresh={collectionVersion} /></aside>
+          <aside className="collection-sidebar"><CollectionFilter browseLocations={()=>browseLocations()} homeHeadingId={phone?"collection-home-title":undefined} value={locationBrowse?'locations':browseCollection} change={chooseCollection} types={types} busy={busy} refresh={collectionVersion} />
+            {phone&&showingPhoneHome&&!importsOpen&&<button className="quiet phone-import-shortcut" type="button" disabled={busy||!types} aria-controls="csv-task" onClick={()=>{
+              if(toolsPanel.current)toolsPanel.current.open=true;
+              setImportsOpen(true);
+            }}>Start a CSV import</button>}
+          </aside>
           <ItemIntake start={intakeStart} visible={intakeVisible} guard={intakeGuard} close={closeIntake} openCopy={openCopy} types={types} settings={settings} busy={busy} runSave={runSave} saved={()=>changed()}/>
           <section className="collection" hidden={intakeVisible} aria-labelledby="collection-title">
             <button type="button" className="phone-back text-button" disabled={busy} onClick={showCollections}>Back to collections</button>

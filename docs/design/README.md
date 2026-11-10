@@ -558,3 +558,10 @@ search an enabled external catalog by title. The search is separate from local
 autocomplete and uses the same draft review. See the
 [lookup guide](../barcode-lookup.md#video-game-title-lookup-and-autocomplete)
 for configuration; live setup and rollout are separate.
+
+### First CSV import from phone collection home · November 10, 2026
+
+Implemented for review after the owner requested a clean Linux setup walkthrough.
+Start a CSV import opens the existing import form from the phone collection home
+and focuses its heading. The desktop tools entry still opens the same form.
+Review and confirmation use singular wording for one physical copy.
