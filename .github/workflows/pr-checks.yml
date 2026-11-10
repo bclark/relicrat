@@ -187,6 +187,8 @@ jobs:
           transfer="$RUNNER_TEMP/blueprint-export.json"
           sh scripts/linux-install-browser-check.sh apps/web/tests/theme-transfer.browser.mjs export "$transfer"
           export COMPOSE_PROJECT_NAME=relicrat-theme-recipient
+          test -z "$(docker compose ps -aq)"
+          test -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")"
           docker compose up -d --wait db
           docker compose run --rm --no-deps api alembic upgrade head
           docker compose up -d --no-build --wait
