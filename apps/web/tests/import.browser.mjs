@@ -379,7 +379,7 @@ test('download an agent prompt and import a reviewed video game recipe', async t
   buffer:Buffer.from('Name,System,Copies,Booklet\nRecipe smoke game,Synthetic console,2,present\n')
  });
  await page.getByRole('button',{name:'Preview import',exact:true}).click();
- await page.getByText('1 valid rows → 2 physical copies in Video games.',{exact:true}).waitFor();
+ await page.getByText('1 valid row → 2 physical copies in Video games.',{exact:true}).waitFor();
  await page.getByText('manual: present',{exact:true}).waitFor();
  await page.getByText('Synthetic console · 2 copies · CSV row 2',{exact:true}).waitFor();
  assert.equal((await (await context.request.get(base+'/api/v1/inventory?collection_type=game&q=Recipe%20smoke%20game')).json()).length,0);

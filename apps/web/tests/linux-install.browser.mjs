@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import {after, before, test} from 'node:test';
 import {chromium, devices} from 'playwright';
-import {chooseCollection, openDisclosure, showIntake} from './journey-test-helpers.mjs';
+import {chooseCollection, openDisclosure, showIntake, showTools} from './journey-test-helpers.mjs';
 
 assert.equal(process.env.RELICRAT_TEST_LINUX_INSTALL, '1', 'Use only the disposable install runner');
-const origin = 'http://127.0.0.1:3000';
+const origin = process.env.RELICRAT_TEST_WEB_URL ?? 'http://127.0.0.1:3000';
+assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/);
 const password = 'synthetic-only-linux-install-password';
 const photo = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 let browser;
-before(async () => { browser = await chromium.launch(); });
+before(async () => { browser = await chromium.launch({executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}); });
 after(async () => { await browser?.close(); });
 
 for (const [layout, profile] of [
@@ -21,7 +22,7 @@ for (const [layout, profile] of [
     await context.route('**/*', route =>
       new URL(route.request().url()).origin === origin ? route.continue() : route.abort('internetdisconnected'));
     const page = await context.newPage();
-    await page.goto(origin);
+    await page.goto(origin, {waitUntil: 'networkidle'});
     await page.waitForURL('**/login');
     await page.getByLabel('Owner password').fill(password);
     await page.getByRole('button', {name: 'Sign in', exact: true}).click();
@@ -29,6 +30,7 @@ for (const [layout, profile] of [
 
     const title = `Synthetic Linux copy for ${layout}`;
     const box = `Synthetic Linux box for ${layout}`;
+    let boxId;
     await chooseCollection(page, 'other');
     if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
       await showIntake(page);
@@ -47,7 +49,7 @@ for (const [layout, profile] of [
       await page.getByRole('button', {name: 'Create location', exact: true}).click();
       const location = await created;
       assert.equal(location.status(), 201);
-      const {id: boxId} = await location.json();
+      ({id: boxId} = await location.json());
       await page.getByRole('status').filter({hasText: `${box} created.`}).waitFor();
       await page.getByLabel('Location', {exact: true}).selectOption(boxId);
       await page.getByRole('status').filter({hasText: `Added to ${box}.`}).waitFor();
@@ -64,6 +66,39 @@ for (const [layout, profile] of [
     const saved = await context.request.get(new URL(source, origin).href);
     assert.equal(saved.status(), 200);
     assert.deepEqual(await saved.body(), photo);
+
+    const importedTitle = `Synthetic CSV game for ${layout}`;
+    await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
+    if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
+      if (layout === 'phone') {
+        await page.getByRole('button', {name: 'Back to collections', exact: true}).click();
+        await page.getByRole('button', {name: 'Start a CSV import', exact: true}).click();
+      } else {
+        await showTools(page);
+        await page.getByRole('button', {name: 'Import CSV', exact: true}).click();
+      }
+      await page.locator('h2:focus').filter({hasText: 'Import a collection'}).waitFor();
+      await page.getByLabel('Export format', {exact: true}).selectOption('game_recipe');
+      await page.getByLabel('CSV file', {exact: true}).setInputFiles({
+        name: 'synthetic-games.csv', mimeType: 'text/csv',
+        buffer: Buffer.from(`Platform,Title\nSynthetic Console,${importedTitle}\n`),
+      });
+      await page.getByRole('button', {name: 'Preview import', exact: true}).click();
+      await page.getByText('1 valid row → 1 physical copy in Video games.', {exact: true}).waitFor();
+      await page.getByRole('checkbox', {name: /I reviewed the preview/}).check();
+      await page.getByRole('button', {name: 'Import 1 copy', exact: true}).click();
+      await page.getByRole('status').filter({hasText: 'Imported 1 physical copy into Video games.'}).waitFor();
+      await page.getByRole('button', {name: 'View imported copies', exact: true}).click();
+      await page.getByRole('button', {name: `Open ${importedTitle}`, exact: true}).click();
+      await page.getByLabel('Location', {exact: true}).selectOption(boxId);
+      await page.getByRole('status').filter({hasText: `Added to ${box}.`}).waitFor();
+      await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
+    }
+    await chooseCollection(page, 'game');
+    await page.getByLabel('Find a copy', {exact: true}).fill(importedTitle);
+    await page.getByRole('button', {name: 'Search', exact: true}).click();
+    await page.getByRole('button', {name: `Open ${importedTitle}`, exact: true}).click();
+    await page.getByText(`Current location: ${box}`, {exact: true}).waitFor();
   });
 }
 

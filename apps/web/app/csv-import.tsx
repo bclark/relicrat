@@ -47,8 +47,8 @@ const collections={clz:'Comics',discogs:'Albums',bluray:'Movies',game_recipe:'Vi
 const collectionTypes = { clz: 'comic', discogs: 'record', bluray: 'movie', game_recipe: 'game' } as const;
 const steps = ['Choose export', 'Review', 'Result'] as const;
 type Step = 'choose' | 'review' | 'result' | 'recover';
-export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId,batchId?:string)=>void}){
- const [open,setOpen]=useState(false),[format,setFormat]=useState<Format>('clz'),[file,setFile]=useState<File|null>(null);
+export default function CsvImport({open,setOpen,runSave,locked,changed,openCopy,browse}:{open:boolean;setOpen:(value:boolean)=>void;runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId,batchId?:string)=>void}){
+ const [format,setFormat]=useState<Format>('clz'),[file,setFile]=useState<File|null>(null);
  const source = format === 'custom_recipe' ? 'game_recipe' : format;
  const [recipeText,setRecipeText] = useState('');
  function uploadHeaders(): Record<string,string> {
@@ -202,7 +202,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
  return <section className="collection-setup csv-import" aria-label="CSV imports">
   <button disabled={disabled} onClick={()=>setOpen(!open)} aria-expanded={open} aria-controls="csv-task">{open?'Close imports':'Import CSV'}</button>
   <div id="csv-task" hidden={!open}>
-   <h2>Import a collection</h2>
+   <h2 ref={step==='choose'?heading:undefined} tabIndex={-1}>Import a collection</h2>
    <p>Review the file before adding copies to your collection.</p>
    <ol className="csv-steps" aria-label="Import steps">{steps.map((label,index)=><li key={label} aria-current={index===(step==='choose'?0:step==='result'?2:1)?'step':undefined}>{label}</li>)}</ol>
    <fieldset disabled={disabled} hidden={step!=='choose'}>
@@ -245,7 +245,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <button className="text-button" disabled={disabled} onClick={()=>chooseFile()}>Back to file</button>
     <h3 ref={heading} tabIndex={-1} id="csv-review-heading">Review the import</h3>
     <p>{file?.name}</p>
-    <p><strong>{preview.row_count} valid rows → {preview.copy_count} physical copies in {collections[source]}.</strong></p>
+    <p><strong>{preview.row_count} valid {preview.row_count===1?'row':'rows'} → {preview.copy_count} physical {preview.copy_count===1?'copy':'copies'} in {collections[source]}.</strong></p>
     {source==='game_recipe'?<p>Confirm that these rows represent games you own. Mapped release fields create a new release for each row with release details. This import checks for exact-file retries.</p>:<p>A shared catalog ID may refer to more than one physical copy.</p>}
     <p>Every original column is retained as source information, including storage labels, prices and external IDs.</p>
     {source==='bluray'&&<p>A movie or box set counts as one owned item, regardless of disc count.</p>}
@@ -295,7 +295,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     </section>}
     {preview.existing_batch?<><p role="status">This exact file was already imported ({preview.existing_batch.copy_count} copies). No additional copies will be created.</p>
       <button disabled={disabled} onClick={()=>showResult(preview.existing_batch!,true)}>View previous import</button></>
-      :!preview.errors.length&&<><label><input type="checkbox" checked={reviewed} disabled={disabled||!duplicateReview||!!remaining||!copyCount} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the preview and want to create these {copyCount} physical copies.</label><button className="primary" disabled={disabled||!duplicateReview||!!remaining||!copyCount||!reviewed} onClick={()=>void commit()}>Import {copyCount} copies</button></>}
+      :!preview.errors.length&&<><label><input type="checkbox" checked={reviewed} disabled={disabled||!duplicateReview||!!remaining||!copyCount} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the preview and want to create {copyCount===1?'this physical copy':`these ${copyCount} physical copies`}.</label><button className="primary" disabled={disabled||!duplicateReview||!!remaining||!copyCount||!reviewed} onClick={()=>void commit()}>Import {copyCount} {copyCount===1?'copy':'copies'}</button></>}
    </section>}
    {step==='recover'&&<section aria-labelledby="csv-recover-heading">
     <h3 ref={heading} tabIndex={-1} id="csv-recover-heading">Import result needs checking</h3>
@@ -304,7 +304,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
    </section>}
    {step==='result'&&result&&<section aria-labelledby="csv-result-heading">
     <h3 ref={heading} tabIndex={-1} id="csv-result-heading">{result.reopened?'Previous import':'Import complete'}</h3>
-    <p className="notice" role="status">{result.reopened?`This exact file was already imported (${result.batch.copy_count} copies).`:`Imported ${result.batch.copy_count} physical copies into ${collections[result.batch.source]}.`}</p>
+    <p className="notice" role="status">{result.reopened?`This exact file was already imported (${result.batch.copy_count} copies).`:`Imported ${result.batch.copy_count} physical ${result.batch.copy_count===1?'copy':'copies'} into ${collections[result.batch.source]}.`}</p>
     <div className="form-actions">
      <button className="primary" disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source],result.batch.id)}>View imported copies</button>
      <button disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source])}>View {collections[result.batch.source]}</button>
