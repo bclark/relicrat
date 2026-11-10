@@ -166,3 +166,69 @@ test('video game release and physical contents survive reload', async t => {
   await page.getByText('Release: ' + release, {exact: true}).waitFor();
   await page.getByRole('definition').filter({hasText: 'Missing'}).waitFor();
 });
+
+test('game barcode offers existing copy or a separate copy on phone', {
+  skip: process.env.RELICRAT_TEST_AFTER_RESTART === '1',
+}, async t => {
+  const context = await browser.newContext({...devices['Pixel 7'], serviceWorkers: 'block'});
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(origin);
+  await page.waitForURL('**/login');
+  await page.getByLabel('Owner password').fill(password);
+  await page.getByRole('button', {name: 'Sign in', exact: true}).click();
+  await page.waitForURL(origin + '/');
+
+  const barcode = '012345678912';
+  const title = 'Synthetic Stored Game';
+  const box = 'Synthetic Game Box';
+  async function post(path, data, status) {
+    const response = await context.request.post(origin + '/api/v1/' + path, {
+      data, headers: {origin},
+    });
+    assert.equal(response.status(), status);
+    return response.json();
+  }
+  const stored = await post('inventory', {title, collection_type: 'game',
+    barcode: {value: barcode, format: 'UPC_A'}}, 201);
+  const location = await post('storage-locations', {name: box, kind: 'box'}, 201);
+  await post('inventory/'+stored.id+'/location', {
+    storage_location_id: location.id, expected_storage_revision: stored.storage_revision,
+  }, 200);
+  let onlineLookups = 0;
+  await page.route('**/api/v1/barcode-lookups/game', route => {
+    onlineLookups++;
+    return route.fulfill({json: {provider_label: 'UPCitemdb', candidates: []}});
+  });
+
+  await chooseCollection(page, 'game');
+  await showIntake(page);
+  await page.getByRole('button', {name: 'Type a barcode instead', exact: true}).click();
+  await page.getByLabel('Barcode', {exact: true}).fill(barcode);
+  await page.getByRole('button', {name: 'Use barcode', exact: true}).click();
+  const matches = page.getByRole('region', {name: 'Already in your collection'});
+  await matches.getByText(title, {exact: true}).waitFor();
+  await matches.getByText(box, {exact: true}).waitFor();
+  await matches.getByRole('button', {name: 'View copy', exact: true}).click();
+  await page.getByRole('heading', {name: title, exact: true}).waitFor();
+  await page.getByText('Current location: '+box, {exact: true}).waitFor();
+  assert.equal(onlineLookups, 0);
+
+  await showIntake(page);
+  await matches.getByRole('button', {name: 'Add another copy', exact: true}).click();
+  await page.getByText('Barcode '+barcode+' · UPC-A', {exact: true}).waitFor();
+  const titleInput = page.getByRole('form', {name: 'Add an item', exact: true}).getByLabel('Game title', {exact: true});
+  await titleInput.fill(title);
+  const saved = page.waitForResponse(response =>
+    response.url() === origin+'/api/v1/inventory' && response.request().method() === 'POST');
+  await page.getByRole('button', {name: 'Save item', exact: true}).click();
+  const response = await saved;
+  assert.equal(response.status(), 201);
+  const additional = await response.json();
+  assert.notEqual(additional.id, stored.id);
+  assert.equal(additional.barcode.value, barcode);
+  assert.equal(additional.storage_location_id, null);
+  const original = await context.request.get(origin+'/api/v1/inventory/'+stored.id);
+  assert.equal(original.status(), 200);
+  assert.equal((await original.json()).storage_location_id, location.id);
+});

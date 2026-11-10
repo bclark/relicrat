@@ -16,7 +16,7 @@ from relicrat.database import get_db
 from relicrat.models import CatalogItem, CopyDetailEvent, OwnedCopy, ImportCopy, ReconciliationEvent, Release, StorageLocation, MediaAsset
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.catalog_cover import CoverSelection,stage_cover
-from relicrat.barcodes import BarcodeReading
+from relicrat.barcodes import BarcodeFormat, BarcodeReading, LENGTHS, barcode_variants
 from relicrat.record_details import RecordDetails
 from relicrat.comic_details import ComicDetails
 from relicrat.movie_details import MovieDetails
@@ -98,9 +98,20 @@ def list_copies(
     group: Annotated[str | None, Query(max_length=500,pattern=r'^[^\x00]*$')] = None,
     sort: Literal['recent', 'title', 'artist'] | None = None,
     import_batch_id: UUID | None = None,
+    barcode: str | None = Query(default=None, min_length=8, max_length=13, pattern=r"^[0-9]+$"),
+    barcode_format: BarcodeFormat | None = None,
     db: Session = Depends(get_db),
 ) -> list[InventoryCopy]:
     stmt=copies_query(q,collection_type,storage_location_id,unassigned,group,custom_collection_id=custom_collection_id,exclude_custom=exclude_custom)
+    if barcode is not None or barcode_format is not None:
+        if barcode is None or barcode_format is None or len(barcode) != LENGTHS[barcode_format]:
+            raise HTTPException(422, 'Supply a barcode and its matching format')
+        reading = BarcodeReading(value=barcode, format=barcode_format)
+        value, kind = OwnedCopy.barcode['value'].astext, OwnedCopy.barcode['format'].astext
+        if barcode_format in ('UPC_A', 'EAN_13'):
+            stmt = stmt.where(value.in_(barcode_variants(reading)), kind.in_(('UPC_A', 'EAN_13')))
+        else:
+            stmt = stmt.where(value == barcode, kind == barcode_format)
     if import_batch_id is not None:
         stmt = stmt.where(OwnedCopy.id.in_(
             select(ImportCopy.owned_copy_id).where(ImportCopy.batch_id == import_batch_id)
