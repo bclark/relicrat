@@ -56,7 +56,9 @@ def record_decision(db: Session, batch_id: UUID, request: DuplicateDecisionReque
     if len(rows) != 2 or len(copies) != 2:
         raise HTTPException(404, 'Imported copies not found')
     (first, source), (second, other_source) = rows
-    column = EXTERNAL_ID_COLUMNS[source]
+    column = EXTERNAL_ID_COLUMNS.get(source)
+    if column is None:
+        raise HTTPException(422, 'This import has no stable source IDs for comparison')
     identifier = first.source_row.get(column, '').strip(ID_WHITESPACE)
     if (source != other_source or first.batch_id == second.batch_id
             or batch_id not in (first.batch_id, second.batch_id) or not identifier

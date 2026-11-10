@@ -307,7 +307,7 @@ class ImportBatch(Base):
     __tablename__ = 'import_batches'
     __table_args__ = (
         UniqueConstraint('source', 'sha256', name='import_file_once'),
-        CheckConstraint("source IN ('clz', 'discogs', 'bluray')", name='import_source'),
+        CheckConstraint("source IN ('clz', 'discogs', 'bluray', 'game_recipe')", name='import_source'),
         CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name='import_sha256'),
         CheckConstraint('row_count BETWEEN 1 AND 5000 AND copy_count BETWEEN 1 AND 10000', name='import_counts'),
         CheckConstraint('parser_version = 1', name='import_parser_version'),
