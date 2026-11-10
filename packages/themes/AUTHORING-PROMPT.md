@@ -92,3 +92,5 @@ accessibility-certified merely because the palette meets these checks.
 AI output is a proposal. RelicRat validates and previews it without changing the
 saved appearance or creating inventory. Only **Apply theme** saves it. A stale
 revision or unconfirmed save requires reload and review before another write.
+
+See [Blueprint](examples/README.md) for a ready-to-share theme file and import instructions.
