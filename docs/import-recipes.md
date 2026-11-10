@@ -9,7 +9,7 @@ import history.
 
 To use another video game export, choose **Custom video game recipe**. Open
 **Create an import recipe with an agent** and download the prompt. Give your
-agent the prompt, the CSV header and a few anonymized rows. Load the returned
+agent the prompt and the CSV export. The prompt asks the agent to read the file directly. Load the returned
 JSON with the full CSV, review the sample and copy count, then explicitly
 confirm. Downloading the CLZ Games recipe gives you a starting example.
 
