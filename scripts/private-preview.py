@@ -50,6 +50,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not 0 <= length <= 17 * 1024 * 1024:
             self.send_error(413); return
         headers = {key: self.headers[key] for key in ['Host', 'Origin', 'Content-Type', 'Accept'] if key in self.headers}
+        if self.command == 'POST' and self.path.split('?', 1)[0] in (
+            '/api/v1/imports/preview', '/api/v1/imports/commit',
+        ):
+            recipe = self.headers.get('X-RelicRat-Import-Recipe')
+            if recipe is not None:
+                if len(recipe) > 2732:
+                    self.send_error(413)
+                    return
+                headers['X-RelicRat-Import-Recipe'] = recipe
         # Do not relay unrelated localhost apps' cookies, or browser Authorization.
         cookies = [value.strip() for value in self.headers.get('Cookie', '').split(';') if value.strip().startswith('relicrat_loopback_session=')]
         if cookies:
