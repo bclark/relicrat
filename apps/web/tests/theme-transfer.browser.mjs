@@ -42,8 +42,8 @@ try {
   await page.getByLabel('Owner password').fill('synthetic-only-linux-install-password');
   await button('Sign in').click();
   await page.waitForURL(origin + '/');
-  assert.equal((await saved()).revision, 0);
-  assert.deepEqual((await saved()).theme, JSON.parse(factory));
+  const baseline = await saved();
+  assert.deepEqual(baseline.theme, JSON.parse(factory));
   await openAppearance();
   await page.getByText('Import or export a theme', {exact: true}).click();
   const input = source ? example : await readFile(transferFile, 'utf8');
@@ -51,7 +51,7 @@ try {
   await page.getByLabel('Theme JSON (up to 8 KiB)', {exact: true}).fill(input);
   await button('Import and preview').click();
   await page.getByRole('status').filter({hasText: 'Preview ready'}).waitFor();
-  assert.equal((await saved()).revision, 0);
+  assert.equal((await saved()).revision, baseline.revision);
   await waitForColor(JSON.parse(factory).colors.page);
   await apply();
   await page.reload();
@@ -60,6 +60,8 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await openAppearance();
   if (process.env.RELICRAT_THEME_SCREENSHOTS) {
+    await button('Preview theme').click();
+    await page.getByRole('status').filter({hasText: 'Preview ready'}).waitFor();
     await page.screenshot({path: `${process.env.RELICRAT_THEME_SCREENSHOTS}/blueprint-${source ? 'desktop' : 'phone'}.png`, fullPage: true});
   }
   if (source) {

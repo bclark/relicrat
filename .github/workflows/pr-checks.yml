@@ -180,9 +180,29 @@ jobs:
           docker compose down
           docker compose up -d --no-build --wait
           RELICRAT_TEST_AFTER_RESTART=1 sh scripts/linux-install-browser-check.sh
+      - name: Transfer Blueprint between clean Linux installs
+        run: |
+          export RELICRAT_THEME_SCREENSHOTS="$RUNNER_TEMP/theme-screenshots"
+          mkdir "$RELICRAT_THEME_SCREENSHOTS"
+          transfer="$RUNNER_TEMP/blueprint-export.json"
+          sh scripts/linux-install-browser-check.sh apps/web/tests/theme-transfer.browser.mjs export "$transfer"
+          export COMPOSE_PROJECT_NAME=relicrat-theme-recipient
+          test -z "$(docker compose ps -aq)"
+          test -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")"
+          docker compose up -d --wait db
+          docker compose run --rm --no-deps api alembic upgrade head
+          docker compose up -d --no-build --wait
+          sh scripts/linux-install-browser-check.sh apps/web/tests/theme-transfer.browser.mjs import "$transfer"
+      - name: Upload Blueprint previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: blueprint-previews
+          path: ${{ runner.temp }}/theme-screenshots/*.png
+          if-no-files-found: error
       - name: Remove the disposable install
         if: always()
         run: |
           if [ -f .env ] && [ -n "$RELICRAT_RELEASE" ]; then
+            COMPOSE_PROJECT_NAME=relicrat-theme-recipient docker compose down --volumes
             docker compose down --volumes
           fi
