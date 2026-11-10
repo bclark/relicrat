@@ -101,3 +101,21 @@ def test_database_rejects_invalid_barcode(context,bad):
     _,engine,create=context;copy=create()
     with pytest.raises(IntegrityError),engine.begin() as db:
         db.execute(text('UPDATE owned_copies SET barcode=CAST(:value AS jsonb) WHERE id=:id'),{'value':json.dumps(bad),'id':copy['id']})
+
+
+def test_inventory_barcode_filter_matches_exact_values_and_compatible_formats(context):
+    api, _, create = context
+    game = create(collection_type='game', barcode=READING)
+    equivalent = create(collection_type='game', barcode={'value': '0' + READING['value'], 'format': 'EAN_13'})
+    create(collection_type='game', barcode={'value': '1' + READING['value'], 'format': 'EAN_13'})
+    create(collection_type='record', barcode=READING)
+    ean8 = {'value': '01234565', 'format': 'EAN_8'}
+    short = create(collection_type='game', barcode=ean8)
+    create(collection_type='game', barcode={**ean8, 'format': 'UPC_E'})
+    for barcode, expected in ((READING, {game['id'], equivalent['id']}), (ean8, {short['id']})):
+        response = api.get('/api/v1/inventory', params={
+            'collection_type': 'game', 'barcode': barcode['value'], 'barcode_format': barcode['format'],
+        })
+        assert response.status_code == 200
+        assert {copy['id'] for copy in response.json()} == expected
+    assert api.get('/api/v1/inventory', params={'barcode': READING['value']}).status_code == 422
