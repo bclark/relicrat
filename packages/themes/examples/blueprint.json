@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "Blueprint",
+  "mode": "dark",
+  "colors": {
+    "page": "#142238",
+    "paper": "#1C2D46",
+    "ink": "#F1F6FD",
+    "muted": "#AEC2DD",
+    "rule": "#607B9B",
+    "accent": "#9FD9FF",
+    "accent_text": "#10243A",
+    "soft": "#263E5B"
+  },
+  "font": "sans",
+  "heading_font": "mono",
+  "spacing": "balanced",
+  "corners": "square",
+  "density": "comfortable"
+}
