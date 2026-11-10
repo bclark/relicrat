@@ -72,7 +72,11 @@ for (const [layout, profile] of [
     if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
       if (layout === 'phone') {
         await page.getByRole('button', {name: 'Back to collections', exact: true}).click();
-        await page.getByRole('button', {name: 'Start a CSV import', exact: true}).click();
+        const shortcut = page.getByRole('button', {name: 'Start a CSV import', exact: true});
+        await shortcut.click();
+        await page.locator('h2:focus').filter({hasText: 'Import a collection'}).waitFor();
+        await page.locator('.collection-tools > summary').click();
+        await shortcut.click();
       } else {
         await showTools(page);
         await page.getByRole('button', {name: 'Import CSV', exact: true}).click();
