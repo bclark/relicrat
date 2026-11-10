@@ -210,7 +210,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <label htmlFor="csv-source">Export format</label><select id="csv-source" value={format} onChange={e=>{setFormat(e.target.value as Format);chooseFile(true);}}><option value="clz">CLZ Comics</option><option value="discogs">Discogs Albums</option><option value="bluray">Blu-ray.com Movies</option><option value="game_recipe">CLZ Games</option><option value="custom_recipe">Custom video game recipe</option></select>
     <p>Collection: <strong>{collections[source]}</strong></p>
     {source==='game_recipe'&&<details><summary>Create an import recipe with an agent</summary>
-     <p>Give the prompt and a few anonymized CSV rows to your preferred agent. Return here with the recipe JSON.</p>
+     <p>Give the prompt and your CSV export to your preferred agent. Return here with the recipe JSON.</p>
      <button type="button" onClick={()=>downloadText(IMPORT_RECIPE_PROMPT,'relicrat-import-recipe-prompt.txt','text/plain')}>Download agent prompt</button>
      <button type="button" onClick={()=>void task(async()=>{
       const recipe=await api('imports/recipes/clz-games');
