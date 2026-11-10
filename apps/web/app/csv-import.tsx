@@ -1,14 +1,16 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import ImportStorage from './import-storage';
+import {IMPORT_RECIPE_PROMPT} from '../lib/import-recipe-prompt';
 import {api,ApiError,errorText,jsonSave,type CollectionTypeId,type RunSave} from '../lib/inventory-client';
-type Batch={id:string;source:'clz'|'discogs'|'bluray';row_count:number;copy_count:number;created_at:string};
+type Batch={id:string;source:'clz'|'discogs'|'bluray'|'game_recipe';row_count:number;copy_count:number;created_at:string};
 type PreviewDuplicateReview = {
  digest:string;
  rows:{row:number;group:number;quantity:number;title:string;edition:string|null;issue:string|null}[];
  groups:{count:number;copies:{copy_id:string;title:string|null;edition:string|null;format:string|null;storage:string|null}[]}[];
 };
-type Preview={duplicate_review:PreviewDuplicateReview|null;sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
+type Format = Batch['source'] | 'custom_recipe';
+type Preview={duplicate_review:PreviewDuplicateReview|null;sha256:string;row_count:number;copy_count:number;errors:{row:number;message:string}[];warnings?:{row:number;message:string}[];repeated_external_ids:number;mapping:Record<string,string>;preserved_columns:string[];existing_batch:Batch|null;sample:{game_release?:{platform?:string;region?:string;edition?:string};game_contents?:Record<string,string>;movie_details?:{media_format?:string;studio?:string};row:number;quantity:number;title:string;edition_label:string|null;record_details:{artist?:string;format?:string};comic_details:{issue_number?:string;publisher?:string}}[]};
 type DuplicateGroup = {anchor:string; title:string|null; selected_count:number; other_count:number};
 type DuplicateCopy = {
  copy_id:string; updated_at:string; selected_import:boolean; imported_at:string; row:number; copy_number:number;
@@ -38,15 +40,28 @@ function skippedRowsMask(choices:Record<number,'skip'|'import'>) {
  }
  return Array.from(mask,value=>value.toString(16).padStart(2,'0')).join('');
 }
-const matchLabels = {clz:'CLZ comic ID',discogs:'Discogs release ID',bluray:'Blu-ray.com product ID'};
+const matchLabels = {clz:'CLZ comic ID',discogs:'Discogs release ID',bluray:'Blu-ray.com product ID',game_recipe:'source ID'};
 type SourceRow={copy_id:string;row:number;copy_number:number;source:Record<string,string>};
-const names={clz:'CLZ Comics',discogs:'Discogs Albums',bluray:'Blu-ray.com Movies'};
-const collections={clz:'Comics',discogs:'Albums',bluray:'Movies'};
-const collectionTypes = { clz: 'comic', discogs: 'record', bluray: 'movie' } as const;
+const names={clz:'CLZ Comics',discogs:'Discogs Albums',bluray:'Blu-ray.com Movies',game_recipe:'Video game recipe'};
+const collections={clz:'Comics',discogs:'Albums',bluray:'Movies',game_recipe:'Video games'};
+const collectionTypes = { clz: 'comic', discogs: 'record', bluray: 'movie', game_recipe: 'game' } as const;
 const steps = ['Choose export', 'Review', 'Result'] as const;
 type Step = 'choose' | 'review' | 'result' | 'recover';
 export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runSave:RunSave;locked:boolean;changed:()=>void;openCopy:(id:string)=>void;browse:(type:CollectionTypeId,batchId?:string)=>void}){
- const [open,setOpen]=useState(false),[source,setSource]=useState<'clz'|'discogs'|'bluray'>('clz'),[file,setFile]=useState<File|null>(null);
+ const [open,setOpen]=useState(false),[format,setFormat]=useState<Format>('clz'),[file,setFile]=useState<File|null>(null);
+ const source = format === 'custom_recipe' ? 'game_recipe' : format;
+ const [recipeText,setRecipeText] = useState('');
+ function uploadHeaders(): Record<string,string> {
+  if(format!=='custom_recipe')return {'Content-Type':'text/csv'};
+  const bytes=new TextEncoder().encode(recipeText);
+  if(!bytes.length || bytes.length>2048)throw new Error('Use a recipe JSON file of at most 2 KiB.');
+  return {'Content-Type':'text/csv','X-RelicRat-Import-Recipe':btoa(String.fromCharCode(...bytes))};
+ }
+ function downloadText(text:string,name:string,type:string){
+  const url=URL.createObjectURL(new Blob([text],{type}));
+  const link=document.createElement('a');link.href=url;link.download=name;link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
  const [previewChoices,setPreviewChoices] = useState<Record<number,'skip'|'import'>>({});
  const [previewPage,setPreviewPage] = useState(0);
  const [preview,setPreview]=useState<Preview|null>(null),[reviewed,setReviewed]=useState(false),[working,setWorking]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -156,7 +171,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
   const selectedFile=file;
   await task(async()=>{
    if(!selectedFile.size||selectedFile.size>4*1024*1024)throw new Error('Choose a nonempty UTF-8 CSV file of at most 4 MiB.');
-   const checked=await api<Preview>(`imports/preview?source=${source}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:selectedFile});
+   const checked=await api<Preview>(`imports/preview?source=${source}`,{method:'POST',headers:uploadHeaders(),body:selectedFile});
    setPreviewChoices({});setPreviewPage(0);setReviewed(false);setNotice('');setPreview(checked);setStep('review');
    if(step==='recover'&&!checked.existing_batch)setNotice('No completed import was found for this file. Review this fresh preview before deciding whether to import.');
   });
@@ -172,7 +187,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     await runSave(async()=>{
      const query=new URLSearchParams({source,reviewed_sha256:preview.sha256,
       duplicate_digest:duplicateReview.digest,skip_mask:skippedRowsMask(previewChoices)});
-     const saved=await api<{batch:Batch;already_imported:boolean}>(`imports/commit?${query}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:file});
+     const saved=await api<{batch:Batch;already_imported:boolean}>(`imports/commit?${query}`,{method:'POST',headers:uploadHeaders(),body:file});
      showResult(saved.batch,saved.already_imported);changed();
     });
    }catch(problem){
@@ -192,24 +207,52 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
    <ol className="csv-steps" aria-label="Import steps">{steps.map((label,index)=><li key={label} aria-current={index===(step==='choose'?0:step==='result'?2:1)?'step':undefined}>{label}</li>)}</ol>
    <fieldset disabled={disabled} hidden={step!=='choose'}>
     <legend>Choose an export</legend>
-    <label htmlFor="csv-source">Export format</label><select id="csv-source" value={source} onChange={e=>{setSource(e.target.value as Batch['source']);chooseFile(true);}}><option value="clz">CLZ Comics</option><option value="discogs">Discogs Albums</option><option value="bluray">Blu-ray.com Movies</option></select>
+    <label htmlFor="csv-source">Export format</label><select id="csv-source" value={format} onChange={e=>{setFormat(e.target.value as Format);chooseFile(true);}}><option value="clz">CLZ Comics</option><option value="discogs">Discogs Albums</option><option value="bluray">Blu-ray.com Movies</option><option value="game_recipe">CLZ Games</option><option value="custom_recipe">Custom video game recipe</option></select>
     <p>Collection: <strong>{collections[source]}</strong></p>
+    {source==='game_recipe'&&<details><summary>Create an import recipe with an agent</summary>
+     <p>Give the prompt and your CSV export to your preferred agent. Return here with the recipe JSON.</p>
+     <button type="button" onClick={async()=>{
+      try {
+       await navigator.clipboard.writeText(IMPORT_RECIPE_PROMPT);
+       setNotice('Prompt copied.');
+      } catch {
+       setNotice('Could not copy the prompt. Use Download agent prompt instead.');
+      }
+     }}>Copy prompt</button>
+     <button type="button" onClick={()=>downloadText(IMPORT_RECIPE_PROMPT,'relicrat-import-recipe-prompt.txt','text/plain')}>Download agent prompt</button>
+     <button type="button" onClick={()=>void task(async()=>{
+      const recipe=await api('imports/recipes/clz-games');
+      downloadText(JSON.stringify(recipe,null,2),'clz-games.recipe.json','application/json');
+     })}>Download CLZ Games example recipe</button>
+    </details>}
+    {format==='custom_recipe'&&<>
+     <label htmlFor="csv-recipe-file">Upload import recipe JSON</label>
+     <input id="csv-recipe-file" type="file" accept=".json,application/json" onChange={e=>{
+      const selected=e.currentTarget.files?.[0];e.currentTarget.value='';
+      if(selected)void task(async()=>{
+       if(selected.size>2048)throw new Error('Use a recipe JSON file of at most 2 KiB.');
+       setRecipeText(await selected.text());reset();
+      });
+     }}/>
+     <label htmlFor="csv-recipe">Or paste import recipe JSON</label>
+     <textarea id="csv-recipe" rows={6} maxLength={2048} value={recipeText} onChange={e=>{setRecipeText(e.target.value);reset();}}/>
+    </>}
     <label htmlFor="csv-file">CSV file</label><input ref={input} id="csv-file" type="file" accept=".csv,text/csv" onChange={e=>{setFile(e.target.files?.[0]||null);reset();}} aria-describedby="csv-limits"/>
     <p id="csv-limits" className="hint">UTF-8, comma-separated, up to 4 MiB and 5,000 rows. Up to 10,000 physical copies per import.</p>
-    <button className="primary" onClick={()=>void inspect()} disabled={!file}>Preview import</button>
+    <button className="primary" onClick={()=>void inspect()} disabled={!file||(format==='custom_recipe'&&!recipeText.trim())}>Preview import</button>
    </fieldset>
    {step==='review'&&preview&&<section aria-labelledby="csv-review-heading">
     <button className="text-button" disabled={disabled} onClick={()=>chooseFile()}>Back to file</button>
     <h3 ref={heading} tabIndex={-1} id="csv-review-heading">Review the import</h3>
     <p>{file?.name}</p>
     <p><strong>{preview.row_count} valid rows → {preview.copy_count} physical copies in {collections[source]}.</strong></p>
-    <p>A shared catalog ID may refer to more than one physical copy.</p>
+    {source==='game_recipe'?<p>Confirm that these rows represent games you own. Mapped release fields create a new release for each row with release details. This import checks for exact-file retries.</p>:<p>A shared catalog ID may refer to more than one physical copy.</p>}
     <p>Every original column is retained as source information, including storage labels, prices and external IDs.</p>
     {source==='bluray'&&<p>A movie or box set counts as one owned item, regardless of disc count.</p>}
     {!!preview.warnings?.length&&<div role="status"><p>Review these notes (up to 50):</p><ul>{preview.warnings.map((warning,index)=><li key={index}>Row {warning.row}: {warning.message}</li>)}</ul></div>}
     {preview.repeated_external_ids>0&&<p>{preview.repeated_external_ids} repeated external IDs found. These copies will remain separate.</p>}
     <details><summary>Field mapping and retained columns</summary><dl>{Object.entries(preview.mapping).map(([from,to])=><div key={from}><dt>{from}</dt><dd>{to}</dd></div>)}</dl><p>{preview.preserved_columns.join(', ')}</p></details>
-    <ol className="csv-sample" aria-label="Sample from the export">{preview.sample.map(r=><li key={r.row}><strong>{r.record_details.artist?`${r.record_details.artist} — `:''}{r.title}{r.comic_details.issue_number?` #${r.comic_details.issue_number}`:''}</strong><p>{r.edition_label||r.movie_details?.media_format||r.record_details.format||'Edition not specified'} · {r.quantity} {r.quantity===1?'copy':'copies'} · CSV row {r.row}</p></li>)}</ol>
+    <ol className="csv-sample" aria-label="Sample from the export">{preview.sample.map(r=><li key={r.row}><strong>{r.record_details.artist?`${r.record_details.artist} — `:''}{r.title}{r.comic_details.issue_number?` #${r.comic_details.issue_number}`:''}</strong><p>{[r.game_release?.platform,r.game_release?.region,r.game_release?.edition].filter(Boolean).join(' · ')||r.edition_label||r.movie_details?.media_format||r.record_details.format||'Edition not specified'} · {r.quantity} {r.quantity===1?'copy':'copies'} · CSV row {r.row}</p>{r.game_contents&&Object.entries(r.game_contents).some(([,value])=>value)&&<p>{Object.entries(r.game_contents).filter(([,value])=>value).map(([key,value])=>key+': '+value).join(' · ')}</p>}</li>)}</ol>
     {preview.errors.length>0&&<div className="error" role="alert"><p>No import is available until every row is valid. Showing up to 50 errors.</p><ul>{preview.errors.map(e=><li key={e.row}>Row {e.row}: {e.message}</li>)}</ul></div>}
     {!!duplicateReview?.rows.length&&<section className="duplicate-review" aria-labelledby="preview-matches">
      <h4 id="preview-matches">Review possible duplicates before importing</h4>
@@ -266,7 +309,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
      <button className="primary" disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source],result.batch.id)}>View imported copies</button>
      <button disabled={disabled} onClick={()=>browse(collectionTypes[result.batch.source])}>View {collections[result.batch.source]}</button>
      <button disabled={disabled} onClick={()=>void task(()=>sourceRows(result.batch,0))}>View original rows</button>
-     <button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(result.batch,0))}>Review possible duplicates</button>
+     {result.batch.source!=='game_recipe'&&<button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(result.batch,0))}>Review possible duplicates</button>}
      {result.batch.source==='clz'&&<button disabled={disabled} onClick={()=>setMappingBatch(result.batch)}>Review imported storage labels</button>}
      <button disabled={disabled} onClick={()=>chooseFile(true)}>Import another file</button>
     </div>
@@ -274,7 +317,7 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
    {working&&<p role="status">Working… Keep this page open.</p>}{notice&&<p role="status">{notice}</p>}
    {error&&<p className="error" role="alert">{error}{step==='recover'?' Preview the same file again to check whether an import completed.':''}</p>}
    <details className="csv-history"><summary>Import history</summary><button disabled={disabled} onClick={()=>void task(()=>history(0))}>Reload import history</button>
-   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button><button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(b,0))}>Review possible duplicates</button>{b.source==='clz'?<button disabled={disabled} onClick={()=>setMappingBatch(b)}>Map storage boxes</button>:<span> · {b.source==='discogs' ? 'Discogs folders are source information, not physical locations.' : 'Original packaging and disc details are retained as source information.'}</span>}</li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}</details>
+   {historyLoaded&&<>{!batches.length?<p>No imports recorded.</p>:<ul>{batches.slice(0,20).map(b=><li key={b.id}><button disabled={disabled} onClick={()=>void task(()=>sourceRows(b,0))}>{names[b.source]} · {b.copy_count} copies · {new Date(b.created_at).toLocaleString()}</button>{b.source!=='game_recipe'&&<button disabled={disabled} onClick={()=>void task(()=>loadDuplicates(b,0))}>Review possible duplicates</button>}{b.source==='clz'?<button disabled={disabled} onClick={()=>setMappingBatch(b)}>Map storage boxes</button>:<span> · {b.source==='discogs' ? 'Discogs folders are source information, not physical locations.' : b.source==='bluray' ? 'Original packaging and disc details are retained as source information.' : 'Original game fields are retained as source information.'}</span>}</li>)}</ul>}<nav aria-label="Import history pages"><button disabled={disabled||!batchPage} onClick={()=>void task(()=>history(batchPage-1))}>Previous imports</button><span>Page {batchPage+1}</span><button disabled={disabled||batches.length<=20} onClick={()=>void task(()=>history(batchPage+1))}>Next imports</button></nav></>}</details>
    {duplicates&&<section className="duplicate-review" aria-labelledby="duplicate-review-heading">
     <h3 id="duplicate-review-heading" tabIndex={-1} ref={duplicateHeading}>{comparison?'Compare copies':'Possible duplicates'}</h3>
     <p>{names[duplicates.batch.source]} · {new Date(duplicates.batch.created_at).toLocaleString()}</p>

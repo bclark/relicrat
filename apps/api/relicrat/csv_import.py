@@ -1,4 +1,6 @@
 """Bounded, explicit CSV intake. Source rows are evidence, never catalog authority."""
+import base64
+import binascii
 import csv
 import hashlib
 import io
@@ -22,10 +24,11 @@ from relicrat.import_duplicates import (
 from relicrat.intake import CreateProvisionalCopy, stage_copy
 from relicrat.models import ImportBatch, ImportCopy, ImportDuplicateDecision, OwnedCopy, StorageLocation
 from relicrat.barcodes import BarcodeReading
+from relicrat.import_recipes import CLZ_GAMES, MAX_RECIPE_BYTES, ImportRecipe, stage_game_release
 
 router=APIRouter(prefix='/api/v1/imports',tags=['imports'])
 MAX_BYTES=4*1024*1024
-Source=Literal['clz','discogs','bluray']
+Source=Literal['clz','discogs','bluray','game_recipe']
 MAPPINGS={
  'bluray':{'Title':'Movie or box-set title (one owned item per row)','Studio':'Studio','Blu-ray discs / DVD discs':'Format when known; disc counts never expand ownership','Casing':'Edition or packaging','Comment':'Notes','UPC / EAN':'Barcode only when valid and consistent; originals always retained'},
  'clz':{'Series':'Title','Issue':'Issue number','Publisher':'Publisher','Variant Description':'Edition (falls back to Variant)','Notes':'Notes','Quantity':'Physical copies'},
@@ -62,7 +65,7 @@ def movie_row(value):
         edition_label=value('Casing') or None,description=value('Comment') or None,barcode=barcode),warnings
 
 
-def parse_csv(source: Source, raw: bytes):
+def parse_csv(source: Source, raw: bytes, recipe: ImportRecipe | None = None):
     if not raw or len(raw)>MAX_BYTES:
         raise HTTPException(413,'Choose a nonempty CSV of at most 4 MiB')
     try:
@@ -76,8 +79,13 @@ def parse_csv(source: Source, raw: bytes):
         headers=next(reader)
         if not headers or len(headers)>100 or len(set(headers))!=len(headers) or any(not h.strip() or len(h)>120 for h in headers):
             raise HTTPException(422,'Use unique nonempty column headers (at most 100 columns)')
-        if not REQUIRED[source].issubset(headers):
+        mapping = {column: field for field, column in recipe.columns.model_dump(exclude_none=True).items()} if recipe else MAPPINGS[source]
+        required = set(mapping) if recipe else REQUIRED[source]
+        if not required.issubset(headers) and recipe:
+            raise HTTPException(422, 'The CSV is missing one or more headers named by the recipe')
+        if not required.issubset(headers):
             raise HTTPException(422,'Required columns are missing. Choose the matching CLZ, Discogs or Blu-ray.com export format.')
+        releases={}
         rows=[];errors=[];warnings=[];copies=0;ids=set();repeated=0;retained_bytes=0
         for number,values in enumerate(reader,2):
             if number>5001:
@@ -87,7 +95,11 @@ def parse_csv(source: Source, raw: bytes):
             original=dict(zip(headers,values))
             value=lambda key: original.get(key,'').strip()
             try:
-                if source=='clz':
+                if recipe:
+                    payload, quantity, release = recipe.row(value)
+                    if release is not None:
+                        releases[number] = release
+                elif source=='clz':
                     if value('Collection Status')!='In Collection':
                         raise ValueError('Only In Collection rows can create owned copies')
                     q=value('Quantity')
@@ -107,7 +119,7 @@ def parse_csv(source: Source, raw: bytes):
             except (ValueError,ValidationError):
                 if len(errors)<50: errors.append({'row':number,'message':'Check title, field lengths, ownership status and positive whole quantity.'})
                 continue
-            external = value(EXTERNAL_ID_COLUMNS[source])
+            external = value(EXTERNAL_ID_COLUMNS.get(source, ''))
             if external:
                 repeated+=external in ids;ids.add(external)
             retained_bytes+=len(json.dumps(original).encode())*quantity
@@ -118,14 +130,17 @@ def parse_csv(source: Source, raw: bytes):
     except (csv.Error,StopIteration):
         raise HTTPException(422,'CSV is empty, malformed or contains an oversized field') from None
     if not rows and not errors: raise HTTPException(422,'CSV has no inventory rows')
-    return {'sha256':hashlib.sha256(raw).hexdigest(),'rows':rows,'copy_count':copies,'errors':errors,'warnings':warnings,'repeated_external_ids':repeated,'headers':headers}
+    return {'sha256':hashlib.sha256(raw).hexdigest(),'rows':rows,'copy_count':copies,'errors':errors,'warnings':warnings,'repeated_external_ids':repeated,'headers':headers,'mapping':mapping,'releases':releases}
 
 
 def batch_info(batch):
     return {'id':str(batch.id),'source':batch.source,'sha256':batch.sha256,'parser_version':batch.parser_version,'row_count':batch.row_count,'copy_count':batch.copy_count,'created_at':batch.created_at}
 
 
-def review_duplicates(db, source, parsed):
+def review_duplicates(db, source, parsed, recipe=None):
+    if recipe:
+        digest = hashlib.sha256((parsed['sha256'] + recipe.fingerprint).encode()).hexdigest()
+        return {'digest': digest, 'rows': [], 'groups': []}
     column = EXTERNAL_ID_COLUMNS[source]
     rows = [(number, original.get(column, '').strip(ID_WHITESPACE), payload, quantity)
             for number, original, payload, quantity in parsed['rows']]
@@ -150,15 +165,17 @@ def skip_duplicate_rows(mask: str) -> set[int]:
 
 
 
-def preview_import(source,raw,db):
-    parsed=parse_csv(source,raw)
+def preview_import(source,raw,db,recipe=None):
+    parsed=parse_csv(source,raw,recipe)
     existing=db.scalar(select(ImportBatch).where(ImportBatch.source==source,ImportBatch.sha256==parsed['sha256']))
-    review = None if existing or parsed['errors'] else review_duplicates(db, source, parsed)
-    return {'duplicate_review':review,'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'warnings':parsed['warnings'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':MAPPINGS[source],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump()} for n,_,p,q in parsed['rows'][:10]]}
+    review = None if existing or parsed['errors'] else review_duplicates(db, source, parsed, recipe)
+    return {'duplicate_review':review,'sha256':parsed['sha256'],'parser_version':1,'row_count':len(parsed['rows']),'copy_count':parsed['copy_count'],'errors':parsed['errors'],'warnings':parsed['warnings'],'repeated_external_ids':parsed['repeated_external_ids'],'mapping':parsed['mapping'],'preserved_columns':parsed['headers'],'existing_batch':batch_info(existing) if existing else None,'sample':[{'row':n,'quantity':q,**p.model_dump(),**({'game_release':parsed['releases'][n].model_dump(exclude_none=True)} if n in parsed['releases'] else {})} for n,_,p,q in parsed['rows'][:10]]}
 
 
-def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=None):
-    parsed=parse_csv(source,raw)
+def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=None,recipe=None):
+    parsed=parse_csv(source,raw,recipe)
+    if recipe and duplicate_digest is None:
+        raise HTTPException(422, 'Preview the recipe and CSV before importing')
     if reviewed_sha256!=parsed['sha256']:
         raise HTTPException(409,'The file changed. Preview it again before importing.')
     if parsed['errors']:
@@ -169,7 +186,7 @@ def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=
         # Serialize imports from the same source, including older clients, so a
         # changed export cannot slip between duplicate review and commit.
         db.execute(text('SELECT pg_advisory_xact_lock(737701, :source)'),
-                   {'source': ('clz', 'discogs', 'bluray').index(source)})
+                   {'source': ('clz', 'discogs', 'bluray', 'game_recipe').index(source)})
         rows = parsed['rows']
         if duplicate_digest is not None:
             batch = db.scalar(select(ImportBatch).where(
@@ -178,9 +195,10 @@ def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=
                 result = {'batch': batch_info(batch), 'already_imported': True}
                 db.commit()
                 return result
-            review = review_duplicates(db, source, parsed)
+            review = review_duplicates(db, source, parsed, recipe)
             if review['digest'] != duplicate_digest:
-                raise HTTPException(409, 'Existing matches changed. Preview the file again before importing.')
+                detail = 'The recipe changed. Preview the file again before importing.' if recipe else 'Existing matches changed. Preview the file again before importing.'
+                raise HTTPException(409, detail)
             skipped = skip_duplicate_rows(skip_mask)
             if not skipped <= {row['row'] for row in review['rows']}:
                 raise HTTPException(422, 'Skip only rows with reviewed matches')
@@ -193,8 +211,14 @@ def commit_import(source,raw,reviewed_sha256,db,duplicate_digest=None,skip_mask=
             batch=db.scalar(select(ImportBatch).where(ImportBatch.source==source,ImportBatch.sha256==parsed['sha256']))
             result={'batch':batch_info(batch),'already_imported':True};db.commit();return result
         for number,original,payload,quantity in rows:
+            release = parsed['releases'].get(number)
+            catalog_id, release_id = stage_game_release(db, payload.title, release) if release else (None, None)
             for index in range(1,quantity+1):
-                copy=stage_copy(db,payload);db.flush()
+                copy = stage_copy(db, payload)
+                if release_id:
+                    copy.catalog_item_id, copy.release_id = catalog_id, release_id
+                    copy.identification_status = 'identified'
+                db.flush()
                 db.add(ImportCopy(owned_copy_id=copy.id,batch_id=ident,row_number=number,copy_number=index,source_row=original))
         db.flush();result={'batch':batch_info(db.get(ImportBatch,ident)),'already_imported':False};db.commit();return result
     except Exception:
@@ -211,10 +235,34 @@ async def csv_body(request: Request):
     return bytes(raw)
 
 
+def request_recipe(request, source):
+    encoded = request.headers.get('x-relicrat-import-recipe')
+    if source != 'game_recipe':
+        if encoded is not None:
+            raise HTTPException(422, 'Choose the video game recipe import format')
+        return None
+    if encoded is None:
+        return CLZ_GAMES
+    if len(encoded) > 4 * ((MAX_RECIPE_BYTES + 2) // 3):
+        raise HTTPException(413, 'Import recipe must be at most 2 KiB')
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        if len(raw) > MAX_RECIPE_BYTES:
+            raise HTTPException(413, 'Import recipe must be at most 2 KiB')
+        return ImportRecipe.model_validate_json(raw)
+    except (binascii.Error, ValueError):
+        raise HTTPException(422, 'Use a valid version 1 video game import recipe') from None
+
+
+@router.get('/recipes/clz-games')
+def clz_games_recipe():
+    return CLZ_GAMES.model_dump(exclude_none=True)
+
+
 @router.post('/preview')
 async def preview(request: Request,source: Source,db: Session=Depends(get_db)):
     raw=await csv_body(request)
-    return await run_in_threadpool(preview_import,source,raw,db)
+    return await run_in_threadpool(preview_import,source,raw,db,request_recipe(request,source))
 
 
 @router.post('/commit')
@@ -225,7 +273,7 @@ async def commit(
     db: Session = Depends(get_db),
 ):
     raw = await csv_body(request)
-    return await run_in_threadpool(commit_import, source, raw, reviewed_sha256, db, duplicate_digest, skip_mask)
+    return await run_in_threadpool(commit_import, source, raw, reviewed_sha256, db, duplicate_digest, skip_mask, request_recipe(request,source))
 
 
 @router.get('')
@@ -250,7 +298,11 @@ def possible_duplicates(
     if batch is None:
         raise HTTPException(404, 'Import batch not found')
 
-    column = EXTERNAL_ID_COLUMNS[batch.source]
+    column = EXTERNAL_ID_COLUMNS.get(batch.source)
+    if column is None:
+        if anchor is not None:
+            raise HTTPException(404, 'Import comparison no longer available')
+        return []
     identifier = func.btrim(ImportCopy.source_row[column].astext, ID_WHITESPACE)
     in_batch = ImportCopy.batch_id == batch_id
     eligible = (
