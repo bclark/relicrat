@@ -211,6 +211,14 @@ export default function CsvImport({runSave,locked,changed,openCopy,browse}:{runS
     <p>Collection: <strong>{collections[source]}</strong></p>
     {source==='game_recipe'&&<details><summary>Create an import recipe with an agent</summary>
      <p>Give the prompt and your CSV export to your preferred agent. Return here with the recipe JSON.</p>
+     <button type="button" onClick={async()=>{
+      try {
+       await navigator.clipboard.writeText(IMPORT_RECIPE_PROMPT);
+       setNotice('Prompt copied.');
+      } catch {
+       setNotice('Could not copy the prompt. Use Download agent prompt instead.');
+      }
+     }}>Copy prompt</button>
      <button type="button" onClick={()=>downloadText(IMPORT_RECIPE_PROMPT,'relicrat-import-recipe-prompt.txt','text/plain')}>Download agent prompt</button>
      <button type="button" onClick={()=>void task(async()=>{
       const recipe=await api('imports/recipes/clz-games');
