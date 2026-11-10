@@ -197,12 +197,12 @@ for (const [layout, viewport] of [
   const result=imports.locator('section[aria-labelledby="csv-result-heading"]');
   const button=name=>imports.getByRole('button',{name,exact:true});
   const confirmImport=async count=>{
-   await imports.getByRole('checkbox',{name:`I reviewed the preview and want to create these ${count} physical copies.`,exact:true}).check();
+   await imports.getByRole('checkbox',{name:`I reviewed the preview and want to create ${count===1?'this physical copy':`these ${count} physical copies`}.`,exact:true}).check();
    const saved=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/imports/commit');
-   await button(`Import ${count} copies`).click();
+   await button(`Import ${count} ${count===1?'copy':'copies'}`).click();
    const response=await saved;
    assert.ok(response.ok(),await response.text());
-   await result.getByRole('status').filter({hasText:`Imported ${count} physical copies into Comics.`}).waitFor();
+   await result.getByRole('status').filter({hasText:`Imported ${count} physical ${count===1?'copy':'copies'} into Comics.`}).waitFor();
    return (await response.json()).batch;
   };
   const getJSON=async path=>{
