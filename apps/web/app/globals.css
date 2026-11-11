@@ -1096,3 +1096,5 @@ footer {
   .location-label-card { break-inside: avoid; }
   .location-label-card svg { width: 40mm; height: 40mm; }
 }
+
+.phone-import-shortcut { margin-top:12px; min-height:44px; }
