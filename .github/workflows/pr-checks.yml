@@ -173,7 +173,7 @@ jobs:
           sh scripts/linux-install-browser-check.sh
           python3 scripts/backup.py create --engine "$(docker info --format '{{.Name}}')" \
             --compose compose.linux.yaml --project relicrat --offline-confirmed "$RUNNER_TEMP/v010-backup"
-          docker compose exec -T db psql -U relicrat -d relicrat -At < ../scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/v010-state.jsonl"
+          docker compose exec -T db psql -v ON_ERROR_STOP=1 -U relicrat -d relicrat -At < ../scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/v010-state.jsonl"
           docker compose stop api web
       - name: Follow the private install guide
         run: |
@@ -203,7 +203,7 @@ jobs:
       - name: Verify the original copy IDs, photos, boxes and history after upgrade
         if: matrix.mode == 'upgrade'
         run: |
-          docker compose exec -T db psql -U relicrat -d relicrat -At < scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/upgraded-state.jsonl"
+          docker compose exec -T db psql -v ON_ERROR_STOP=1 -U relicrat -d relicrat -At < scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/upgraded-state.jsonl"
           diff -u "$RUNNER_TEMP/v010-state.jsonl" "$RUNNER_TEMP/upgraded-state.jsonl"
           RELICRAT_TEST_AFTER_RESTART=1 RELICRAT_TEST_V010_FIXTURES=1 sh scripts/linux-install-browser-check.sh
       - name: Add, photograph, move and find copies from desktop and phone

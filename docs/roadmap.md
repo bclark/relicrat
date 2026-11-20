@@ -34,13 +34,13 @@ remain the owner's decision.
 | Gate | Acceptance | Status |
 | --- | --- | --- |
 | Roadmap | Separate completed milestones, maintenance and deferred work; link evidence | Updated in this batch |
-| Clean install | Empty Ubuntu engine, private Compose, blocked app egress; desktop and phone add/photo/import/move/find, then recreation | Verification pending |
-| Upgrade | Start at immutable v0.1.0 `373873e58e495e09c7e064134909b66266c9692e`, populate on both layouts, take backup, migrate to candidate; preserve original UUIDs, photos, boxes and histories, then use new features | Verification pending |
-| Release handoff | Review fixes, green feature checks into develop, release PR to main with green checks and limitations | Pending |
+| Clean install | Empty Ubuntu engine, private Compose, blocked app egress; desktop and phone add/photo/import/move/find, then recreation | Passed in [PR #145 checks](https://github.com/bclark/relicrat/pull/145/checks) and on physical Android; [dated evidence](release-readiness.md) |
+| Upgrade | Start at immutable v0.1.0 `373873e58e495e09c7e064134909b66266c9692e`, populate on both layouts, take backup, migrate to candidate; preserve original UUIDs, photos, boxes and histories, then use new features | Passed in [PR #145 checks](https://github.com/bclark/relicrat/pull/145/checks) and on physical Android; [dated evidence](release-readiness.md) |
+| Release handoff | Review fixes, green checks and a reviewable release handoff with limitations; main merge/deployment stay manual | Prepared in [PR #145](https://github.com/bclark/relicrat/pull/145); release checks must remain green before owner merge |
 
-**Current completion: 25% (1 of 4 gates).** This is updated with the final evidence
-before the release handoff. It does not mean the already released application is
-25% implemented.
+**Current completion: 100% (4 of 4 gates prepared and verified).** This is the
+bounded release-confidence theme, not a claim that maintenance is finished.
+Release approval, main merge, tagging and deployment remain separate owner actions.
 
 ## After this theme
 

@@ -32,13 +32,16 @@ Start with a title. Add the details when you have them.
 | Your collection | What you can do |
 | --- | --- |
 | **Comics, albums and other finds** | Add a physical copy with just a title; attach notes, an edition label and photos later. Albums support artist and format; Comics support series, issue and publisher. |
-| **CLZ and Discogs imports** | Upload a CSV, review the mapping and samples, then explicitly import. Original fields stay attached to each copy; exact-file retries do not add duplicates. |
+| **Reviewed CSV imports** | Use CLZ Comics/Games, Discogs and Blu-ray presets, or bring an agent-authored custom recipe. Review the mapping and samples, then explicitly import. Original fields stay attached to each copy; exact-file retries do not add duplicates. |
 | **Review imported storage** | Map a CLZ box label to a physical location after previewing its copies. Existing placements and earlier manual unassignments stay intact. Discogs folders remain source information. |
-| **Movies** | Title-first entry, optional format/studio/packaging, title groups and a reviewed Blu-ray.com CSV preset. One row stays one owned item; original metadata and conflicting barcodes remain source evidence. [Movie guide](docs/movies.md). Requires migration 0013 and a reviewed rollout. |
+| **Movies** | Title-first entry, optional format/studio/packaging, title groups and a reviewed Blu-ray.com CSV preset. One row stays one owned item; original metadata and conflicting barcodes remain source evidence. [Movie guide](docs/movies.md). |
 | **Barcode intake** | Read UPC/EAN barcodes on-device, explicitly attach a reading, then save it with a find. Search saved barcodes and retain corrections in copy history. Album lookup can query configured MusicBrainz suggestions, review selected fields and fill a draft before the final save. Provider availability and private outbound access are separate rollout checks. [Trial guide](docs/barcode-scanning.md); [provider configuration and read-only overrides](docs/barcode-lookup.md#swap-with-an-operator-owned-config-mount). |
 | **Groups that make sense** | Browse Comics by series and Albums by artist, with counts and paginated copies. Search and filter by collection type or assigned storage location. |
 | **Agent-authored collections** | Describe a figure collection, download an agent prompt, validate its JSON and explicitly create an empty checklist. Add owned figures separately with optional custom text observations and retained edit history. |
-| **A place for every copy** | Create nested locations, assign a copy to a box or shelf, and retain its movement history. |
+| **A place for every copy** | Create, rename and move nested shelves/boxes; print QR labels; assign copies and retain movement history. Save/resume box audits and resolve findings without erasing the original audit. |
+| **Video games** | Start with a title; keep platform, region and edition on a release and contents on each physical copy. Optional barcode/title lookup fills a reviewed draft; a saved barcode shows existing copies and their boxes. |
+| **Portable owner data** | Export a versioned ZIP of records, photos and history inspectable with standard tools. [Export guide](docs/owner-export.md). |
+| **Read-only agents** | Search the collection, locate copies and summarize audit findings through a revocable API credential or the [MCP server](apps/mcp/README.md). |
 | **Details without losing history** | Edit personal copy details or optionally match a shared catalog item and edition. Physical copies keep their own identities, photos and history. |
 | **A look of your own** | Preview and apply themes for colors, fonts, spacing, corners and density. Import/export theme JSON or use the authoring guidelines with your chosen AI tool. |
 

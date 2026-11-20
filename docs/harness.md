@@ -2832,3 +2832,32 @@ whole-row skipping, original row numbers, no-op rejection and exact-file retry.
 The production web build and 37 Node checks passed. Chromium checked the preview
 at desktop and 320px widths and exercised a partial import with synthetic data.
 The full API and legacy browser suites were outside this increment.
+
+
+## Post-v0.1.0 Linux release regression · November 19, 2026
+
+PR #145 adds a second `linux-install` matrix lane, preserving the existing
+`Private Linux Compose install` check name and adding
+`Private Linux Compose install (v0.1.0 upgrade)`. Both use clean Ubuntu 24.04
+runners, synthetic fixtures and the private `compose.linux.yaml` runtime.
+The upgrade lane pins v0.1.0 to
+`373873e58e495e09c7e064134909b66266c9692e`; it never uses a moving tag to choose
+the baseline. The baseline's own browser test populates both layouts before a
+backup and migration. `scripts/linux-upgrade-state.sql` fingerprints pre-existing
+domain fields; psql stops on errors. After migration the current browser test
+checks original copies and photo bytes, then a fresh fixture suffix exercises
+current CSV/game behavior. Recreation verifies persistence again.
+
+Validation: [all five CI checks](https://github.com/bclark/relicrat/pull/145/checks)
+passed for the initial candidate. A separate empty Ubuntu VM ran the four-test
+current Linux browser suite and the two-test published-baseline suite. Both
+original-layout checks passed after upgrade, with the two inapplicable Games
+tests explicitly skipped for v0.1.0 fixtures. Physical Android Chrome verified
+clean intake/photo/box/search, the CSV shortcut/preview/import, and original UUID,
+location and photo bytes after upgrade. See [release evidence](release-readiness.md).
+
+Local `npm test --prefix apps/web`: 37 passed. The 11 operations tests initially
+failed in the restricted Mac sandbox because their localhost server could not
+bind; the socket-enabled rerun passed. API/migration tests ran on disposable
+PostgreSQL in CI. No real inventory, deployed services or backup archives were
+used. This adds no runtime dependency or database migration.
