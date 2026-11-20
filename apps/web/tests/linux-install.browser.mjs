@@ -6,6 +6,7 @@ import {chooseCollection, openDisclosure, showIntake, showTools} from './journey
 assert.equal(process.env.RELICRAT_TEST_LINUX_INSTALL, '1', 'Use only the disposable install runner');
 const origin = process.env.RELICRAT_TEST_WEB_URL ?? 'http://127.0.0.1:3000';
 assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/);
+const suffix = process.env.RELICRAT_TEST_FIXTURE_SUFFIX ? ` ${process.env.RELICRAT_TEST_FIXTURE_SUFFIX}` : '';
 const password = 'synthetic-only-linux-install-password';
 const photo = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgl1QGAACGAEwFRbXWAAAAAElFTkSuQmCC', 'base64');
 let browser;
@@ -28,8 +29,8 @@ for (const [layout, profile] of [
     await page.getByRole('button', {name: 'Sign in', exact: true}).click();
     await page.waitForURL(origin + '/');
 
-    const title = `Synthetic Linux copy for ${layout}`;
-    const box = `Synthetic Linux box for ${layout}`;
+    const title = `Synthetic Linux copy for ${layout}${suffix}`;
+    const box = `Synthetic Linux box for ${layout}${suffix}`;
     let boxId;
     await chooseCollection(page, 'other');
     if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
@@ -67,7 +68,10 @@ for (const [layout, profile] of [
     assert.equal(saved.status(), 200);
     assert.deepEqual(await saved.body(), photo);
 
-    const importedTitle = `Synthetic CSV game for ${layout}`;
+    // v0.1.0 predates Games and its CSV preset; verify those separately after upgrade.
+    if (process.env.RELICRAT_TEST_V010_FIXTURES === '1') return;
+
+    const importedTitle = `Synthetic CSV game for ${layout}${suffix}`;
     await page.getByRole('button', {name: 'Back to collection', exact: true}).click();
     if (process.env.RELICRAT_TEST_AFTER_RESTART !== '1') {
       if (layout === 'phone') {
@@ -106,7 +110,7 @@ for (const [layout, profile] of [
   });
 }
 
-test('video game release and physical contents survive reload', async t => {
+test('video game release and physical contents survive reload', {skip: process.env.RELICRAT_TEST_V010_FIXTURES === '1'}, async t => {
   const context = await browser.newContext({...devices['Pixel 7'], serviceWorkers: 'block'});
   t.after(() => context.close());
   await context.route('**/*', route =>
