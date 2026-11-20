@@ -73,6 +73,7 @@ test('only fixed inventory/storage routes and their methods can reach the API', 
   assert.equal((await forwardApi(request('inventory', { method: 'DELETE' }), ['inventory'])).status, 405);
   assert.equal((await forwardApi(request(`inventory/${id}`, post()), ['inventory', id])).status, 405);
   assert.equal((await forwardApi(request(`imports/${id}/possible-duplicates`, post()), ['imports', id, 'possible-duplicates'])).status, 405);
+  assert.equal((await forwardApi(request(`storage-locations/${id}/move-copies`), ['storage-locations', id, 'move-copies'])).status, 405);
   assert.equal(observed.length, count);
   for (const path of [`inventory/${id}`, `inventory/${id}/photos`, `inventory/${id}/reconciliations`,
     `inventory/${id}/locations`, `imports/${id}/possible-duplicates`, 'storage-locations', `storage-locations/${id}`]) {
@@ -87,7 +88,7 @@ test('same-origin JSON saves preserve body and upstream validation failures', as
   const response = await forwardApi(request('inventory?q=validation', post(body)), ['inventory']);
   assert.equal(response.status, 422);
   assert.deepEqual(await response.json(), { detail: 'Invalid synthetic input' });
-  for (const path of [`inventory/${id}/reconcile`, `inventory/${id}/location`, 'storage-locations']) {
+  for (const path of [`inventory/${id}/reconcile`, `inventory/${id}/location`, 'storage-locations', `storage-locations/${id}/move-copies`]) {
     assert.equal((await forwardApi(request(path, post()), path.split('/'))).status, 201);
   }
 });

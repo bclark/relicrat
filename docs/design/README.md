@@ -565,3 +565,13 @@ Implemented for review after the owner requested a clean Linux setup walkthrough
 Start a CSV import opens the existing import form from the phone collection home
 and focuses its heading. The desktop tools entry still opens the same form.
 Review and confirmation use singular wording for one physical copy.
+
+### Move selected copies · November 20, 2026
+
+Approved batch, implemented for review: collection/search results offer an
+explicit selection mode on the current page, followed by a destination and
+per-copy review. The same native checkboxes, selects and theme controls work on
+desktop and phone. Changing scope clears the selection; revision conflicts or
+unconfirmed saves require reload and a fresh review. History remains per copy.
+This extends the incumbent collection surface without changing themes or layout
+contracts. See `apps/web/app/bulk-move-copies.tsx`; deployment remains separate.

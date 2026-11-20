@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -148,6 +148,58 @@ def assign_location(db: Session, copy_id: UUID, location_id: UUID | None,
         stage_location_assignment(db, copy, location_id)
         db.commit()
         return copy
+    except Exception:
+        db.rollback()
+        raise
+
+
+class SelectedCopy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: UUID
+    expected_storage_revision: int = Field(ge=0, le=2147483646, strict=True)
+
+
+class MoveCopies(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    copies: list[SelectedCopy] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def distinct_copies(self):
+        if len({item.id for item in self.copies}) != len(self.copies):
+            raise ValueError("Select each physical copy only once")
+        return self
+
+
+@router.post("/{location_id}/move-copies")
+def move_copies(location_id: UUID, payload: MoveCopies, db: Session = Depends(get_db)):
+    try:
+        return assign_locations(db, location_id, payload.copies)
+    except AssignmentError as error:
+        raise HTTPException(error.status_code, error.detail) from None
+
+
+def assign_locations(db: Session, location_id: UUID, selection: list[SelectedCopy]):
+    """Move the reviewed selection atomically; reuse each copy's movement history."""
+    try:
+        if db.get(StorageLocation, location_id) is None:
+            raise AssignmentError(404, "Destination not found. Reload locations before moving copies.")
+        revisions = {item.id: item.expected_storage_revision for item in selection}
+        # All batch writers take row locks in UUID order, including overlapping selections.
+        copies = list(db.scalars(select(OwnedCopy).where(OwnedCopy.id.in_(revisions))
+                                .order_by(OwnedCopy.id).with_for_update()
+                                .execution_options(populate_existing=True)))
+        if len(copies) != len(revisions) or any(
+            copy.deleted_at is not None or copy.ownership_status != "owned"
+            or copy.storage_revision != revisions[copy.id] for copy in copies
+        ):
+            raise AssignmentError(409, "Selection changed. No copies moved. Reload the copies and review a new selection.")
+        moved = 0
+        for copy in copies:
+            if copy.storage_location_id != location_id:
+                stage_location_assignment(db, copy, location_id)
+                moved += 1
+        db.commit()
+        return {"moved_count": moved, "unchanged_count": len(copies) - moved}
     except Exception:
         db.rollback()
         raise
