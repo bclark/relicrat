@@ -111,9 +111,13 @@ jobs:
           fi
 
   linux-install:
-    name: Private Linux Compose install
+    name: Private Linux Compose install${{ matrix.mode == 'upgrade' && ' (v0.1.0 upgrade)' || '' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [clean, upgrade]
     env:
       COMPOSE_PROJECT_NAME: relicrat
       COMPOSE_FILE: compose.linux.yaml
@@ -131,20 +135,48 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      - name: Follow the private install guide
+      - name: Prepare private relay tooling
+        run: sudo apt-get install -y socat
+      - name: Check out the immutable v0.1.0 baseline
+        if: matrix.mode == 'upgrade'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 373873e58e495e09c7e064134909b66266c9692e
+          path: .baseline
+          persist-credentials: false
+      - name: Configure the private owner
         run: |
           export RELICRAT_RELEASE="$(git rev-parse HEAD)"
           printf 'RELICRAT_RELEASE=%s\n' "$RELICRAT_RELEASE" >> "$GITHUB_ENV"
-          python3 - <<'PY'
+          python3 - <<'PYOWNER'
           import runpy, sys
           from unittest.mock import patch
           sys.argv = ['scripts/configure-owner.py', '--origin', 'http://127.0.0.1:3000',
                       '--allow-loopback-http', '--generate-database-password', '--output', '.env']
           with patch('getpass.getpass', return_value='synthetic-only-linux-install-password'):
               runpy.run_path(sys.argv[0], run_name='__main__')
-          PY
+          PYOWNER
           test "$(stat -c %a .env)" = 600
           docker pull postgres:17-alpine
+      - name: Install and populate v0.1.0 on desktop and phone
+        if: matrix.mode == 'upgrade'
+        working-directory: .baseline
+        env:
+          RELICRAT_RELEASE: 373873e58e495e09c7e064134909b66266c9692e
+        run: |
+          cp ../.env .env
+          docker compose build --pull
+          docker compose up -d --wait db
+          docker compose run --rm --no-deps api alembic upgrade head
+          docker compose up -d --no-build --wait
+          ln -s "$GITHUB_WORKSPACE/apps/web/node_modules" apps/web/node_modules
+          sh scripts/linux-install-browser-check.sh
+          python3 scripts/backup.py create --engine "$(docker info --format '{{.Name}}')" \
+            --compose compose.linux.yaml --project relicrat --offline-confirmed "$RUNNER_TEMP/v010-backup"
+          docker compose exec -T db psql -U relicrat -d relicrat -At < ../scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/v010-state.jsonl"
+          docker compose stop api web
+      - name: Follow the private install guide
+        run: |
           docker compose build --pull
           docker compose up -d --wait db
           docker compose run --rm --no-deps api alembic upgrade head
@@ -168,9 +200,15 @@ jobs:
           else:
               raise AssertionError('The API reached an external address')
           PY
+      - name: Verify the original copy IDs, photos, boxes and history after upgrade
+        if: matrix.mode == 'upgrade'
+        run: |
+          docker compose exec -T db psql -U relicrat -d relicrat -At < scripts/linux-upgrade-state.sql > "$RUNNER_TEMP/upgraded-state.jsonl"
+          diff -u "$RUNNER_TEMP/v010-state.jsonl" "$RUNNER_TEMP/upgraded-state.jsonl"
+          RELICRAT_TEST_AFTER_RESTART=1 RELICRAT_TEST_V010_FIXTURES=1 sh scripts/linux-install-browser-check.sh
       - name: Add, photograph, move and find copies from desktop and phone
         run: |
-          sudo apt-get install -y socat
+          if [ "${{ matrix.mode }}" = upgrade ]; then export RELICRAT_TEST_FIXTURE_SUFFIX=after-upgrade; fi
           sh scripts/linux-install-browser-check.sh
       - name: Take the pre-upgrade backup and verify persistence after recreation
         run: |
@@ -179,6 +217,7 @@ jobs:
           test -s "$RUNNER_TEMP/relicrat-backup/manifest.json"
           docker compose down
           docker compose up -d --no-build --wait
+          if [ "${{ matrix.mode }}" = upgrade ]; then export RELICRAT_TEST_FIXTURE_SUFFIX=after-upgrade; fi
           RELICRAT_TEST_AFTER_RESTART=1 sh scripts/linux-install-browser-check.sh
       - name: Remove the disposable install
         if: always()
