@@ -43,7 +43,7 @@ export default function BulkMoveCopies({items,busy,runSave,types,selected,open,r
   }
  }
  return <section className="bulk-move" aria-label="Move selected copies">
-  <div className="bulk-move-actions"><h3>{copies.length} {copies.length===1?'copy':'copies'} selected</h3><button type="button" disabled={busy} onClick={close}>Cancel selection</button></div>
+  <div className="bulk-move-actions"><h3>{copies.length} {copies.length===1?'copy':'copies'} selected</h3><button type="button" disabled={busy} onClick={()=>{if(blocked)reload();close();}}>Cancel selection</button></div>
   {!review?<>
    <p>Select individual copies on this page. Changing the search, filters or page clears the selection.</p>
    <div className="bulk-move-actions"><button type="button" disabled={busy||copies.length===items.length} onClick={()=>setCopies(items)}>Select all copies on this page</button><button type="button" disabled={busy||!copies.length} onClick={()=>setCopies([])}>Clear selection</button></div>
@@ -58,7 +58,7 @@ export default function BulkMoveCopies({items,busy,runSave,types,selected,open,r
    <h4>Review move to {path(locations.find(l=>l.id===destination)!)}</h4>
    <ul className="bulk-move-review">{copies.map(copy=><li key={copy.id}><strong>{copyName(copy)}</strong><span>{copy.edition_label||'Edition not entered'} · Copy {copy.id.slice(0,8)}</span><span>From {copy.storage_location_name||(copy.storage_location_id?'assigned location':'Unassigned')}{copy.storage_location_id===destination?' · Already at destination':''}</span></li>)}</ul>
    <p>Each moved copy keeps its own history. If any selection has changed, none will move.</p>
-   <label><input type="checkbox" checked={confirmed} disabled={busy||blocked} onChange={e=>setConfirmed(e.target.checked)}/> I reviewed these copies and their destination.</label>
+   <label className="bulk-review-confirm"><input type="checkbox" checked={confirmed} disabled={busy||blocked} onChange={e=>setConfirmed(e.target.checked)}/><span>I reviewed these copies and their destination.</span></label>
    <div className="bulk-move-actions"><button type="button" disabled={busy||blocked} onClick={()=>{setReview(false);setConfirmed(false);setError('');}}>Change selection</button><button type="button" className="primary" disabled={busy||blocked||!confirmed} onClick={()=>void move()}>Move {copies.length} {copies.length===1?'copy':'copies'}</button></div>
   </>}
   {busy&&<p role="status">Saving move… Keep this page open.</p>}

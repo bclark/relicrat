@@ -26,10 +26,15 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   await page.goto(base);await chooseCollection(page,'other');
   async function search(){await page.getByLabel('Find a copy',{exact:true}).fill(prefix);await page.getByRole('button',{name:'Search',exact:true}).click();for(const copy of copies)await page.locator(`#copy-row-${copy.id}`).waitFor();}
   await search();
+  await page.locator(`#copy-row-${copies[0].id}`).click();
+  await page.getByText(`Current location: ${boxes[0].name}`,{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Back to collection',exact:true}).click();
+  let capturedSelection=false;
   async function select(destination,start=true){
    if(start)await page.getByRole('button',{name:'Select copies to move',exact:true}).click();
    for(const copy of copies)await page.getByRole('checkbox',{name:`Select ${copy.title} · Copy ${copy.id}`,exact:true}).check();
    await page.getByLabel('Move selected copies to',{exact:true}).selectOption(destination.id);
+   if(!capturedSelection){await capture('selection');capturedSelection=true;}
    await page.getByRole('button',{name:'Review move',exact:true}).click();
   }
   async function confirm(){await page.getByRole('checkbox',{name:'I reviewed these copies and their destination.',exact:true}).check();await page.getByRole('button',{name:'Move 2 copies',exact:true}).click();}
@@ -42,6 +47,9 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   assert.equal(await page.getByRole('button',{name:'Move 2 copies',exact:true}).isEnabled(),false);
   await capture('review');await confirm();
   await page.getByRole('status').filter({hasText:`Moved 2 copies to ${boxes[1].name}.`}).waitFor();
+  await page.locator(`#copy-row-${copies[0].id}`).click();
+  await page.getByText(`Current location: ${boxes[1].name}`,{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Back to collection',exact:true}).click();
   await page.reload();await chooseCollection(page,'other');await search();
   for(const copy of copies){
    const saved=await get(`inventory/${copy.id}`);assert.equal(saved.id,copy.id);assert.equal(saved.storage_location_id,boxes[1].id);
@@ -49,7 +57,8 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   }
   await page.locator(`#copy-row-${copies[0].id}`).click();
   await page.getByText(`Current location: ${boxes[1].name}`,{exact:true}).waitFor();
-  const summary=page.getByText('Movement history',{exact:true});await summary.click();
+  await page.locator('.movement-history > summary').click();
+  assert.equal(await page.locator('.movement-history li').count(),2);
   await page.getByRole('button',{name:'Back to collection',exact:true}).click();
   await select(boxes[0]);
   await post(`inventory/${copies[1].id}/location`,{storage_location_id:boxes[0].id,expected_storage_revision:2});

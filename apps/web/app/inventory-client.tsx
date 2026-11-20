@@ -339,7 +339,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
             <button type="button" className="phone-filters quiet" ref={phoneFilters} aria-expanded={filtersOpen} aria-controls="browse-options" onClick={()=>setFiltersOpen(open=>!open)}>Filters{filterCount?` (${filterCount})`:''}</button>
             <div id="browse-options" className="browse-options" data-expanded={filtersOpen}>
               {!locationBrowse&&<div className="storage-filter"><StorageFilter value={storageFilter} change={(id,label)=>{setStorage({id,label});setPage(0);}} busy={busy} refresh={refresh} /></div>}
-              <div className="browse-mode"><label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!locationBrowse||!!importBatchId||!!customCollectionId||!!typeFilter&&!types?.[typeFilter]?.grouping}>Grouped collection</option><option value="copies">Individual copies</option></select></div>
+              <div className="browse-mode"><label htmlFor="collection-browse-view">Browse view</label><select id="collection-browse-view" value={grouped?'groups':'copies'} disabled={busy} onChange={event=>{setSelecting(false);setBrowseView(event.target.value as 'groups'|'copies');setPage(0);}}><option value="groups" disabled={!!locationBrowse||!!importBatchId||!!customCollectionId||!!typeFilter&&!types?.[typeFilter]?.grouping}>Grouped collection</option><option value="copies">Individual copies</option></select></div>
               <div className="browse-sort">
                 <label htmlFor="copy-sort">Sort copies</label>
                 <select id="copy-sort" value={grouped?'':activeSort} disabled={busy} onChange={event=>{
@@ -362,7 +362,7 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
               {!grouped&&activeSort&&<span>Sort: <strong>{sortLabel}</strong></span>}
             </div>}
             {moveNotice&&<p role="status">{moveNotice}</p>}
-            {!selecting&&<button type="button" className="quiet" disabled={busy||!!listError} onClick={()=>{setSelecting(true);setMoveNotice('');setBrowseView('copies');setPage(0);}}>Select copies to move</button>}
+            {!selecting&&<button type="button" className="quiet" disabled={busy||!!listError} onClick={()=>{if(!detailGuard.current())return;setSelected(null);setSelecting(true);setMoveNotice('');setBrowseView('copies');setPage(0);}}>Select copies to move</button>}
             {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter]?.grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={openCopy} retry={reloadInventory} chooseType={(value,customId)=>chooseCollection(customId?'custom:'+customId:value)}/>:<>
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${customCollectionId?' · Custom collection':typeFilter ? ` · ${types?.[typeFilter]?.plural_label || typeFilter}` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} <button type="button" className="text-button" onClick={reloadInventory}>Try again</button></p>
