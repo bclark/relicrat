@@ -565,3 +565,20 @@ Implemented for review after the owner requested a clean Linux setup walkthrough
 Start a CSV import opens the existing import form from the phone collection home
 and focuses its heading. The desktop tools entry still opens the same form.
 Review and confirmation use singular wording for one physical copy.
+
+### Move selected copies · November 20, 2026
+
+Approved batch, implemented for review: collection/search results offer an
+explicit selection mode on the current page, followed by a destination and
+per-copy review. The same native checkboxes, selects and theme controls work on
+desktop and phone. Changing scope clears the selection; revision conflicts or
+unconfirmed saves require reload and a fresh review. History remains per copy.
+This extends the incumbent collection surface without changing themes or layout
+contracts. The independent finish reviewer returned SHIP after all six synthetic
+selection/review/stale captures at 1440px and 320px; the single detector pass found
+no issues. Existing theme tokens, native controls, 44px selection targets and
+explicit focus/error states are retained. `DESIGN.md` and its sidecar remain
+unchanged. See [the bulk surface record](../../.impeccable/surfaces/bulk-copy-moves.md)
+for evidence and [the behavior contract](../bulk-copy-moves.md) for scope and atomic
+save semantics. Final checks and develop integration are recorded in
+[PR #147](https://github.com/bclark/relicrat/pull/147); deployment remains separate.

@@ -1,6 +1,6 @@
 # Roadmap and release progress
 
-Updated November 19, 2026. The goal is a private, single-owner collection server
+Updated November 20, 2026. The goal is a private, single-owner collection server
 that a collector can install, use offline, recover, move their data out of and
 personalize. A percentage describes the acceptance gates in one bounded theme;
 it is not a percentage of every feature RelicRat might eventually support.
@@ -25,22 +25,30 @@ edition, per-copy contents, optional IGDB title lookup, barcode fallback and a
 saved-copy/box check before adding another. External catalog coverage is never
 promised for every barcode. See [lookup guide](barcode-lookup.md).
 
-## Current theme: release confidence after v0.1.0
+## Release confidence after v0.1.0 — complete
 
-Four acceptance gates define this maintenance theme. Mark a gate verified only
-with an executed check and a named source/CI run. Main merges and deployments
-remain the owner's decision.
+The four gates (roadmap, clean install, populated v0.1.0 upgrade and reviewed
+release handoff) are complete. [Release PR #146](https://github.com/bclark/relicrat/pull/146)
+remains the owner's main-merge decision. [Dated evidence](release-readiness.md)
+keeps the historical test results and limitations separate from deployment.
+
+## Current theme: everyday collection management
+
+The currently approved scope is moving selected physical copies into a box.
+Additional everyday-management batches are not yet scoped and do not enter this
+percentage. The three acceptance gates below define this bounded milestone.
 
 | Gate | Acceptance | Status |
 | --- | --- | --- |
-| Roadmap | Separate completed milestones, maintenance and deferred work; link evidence | Updated in this batch |
-| Clean install | Empty Ubuntu engine, private Compose, blocked app egress; desktop and phone add/photo/import/move/find, then recreation | Passed in [PR #145 checks](https://github.com/bclark/relicrat/pull/145/checks) and on physical Android; [dated evidence](release-readiness.md) |
-| Upgrade | Start at immutable v0.1.0 `373873e58e495e09c7e064134909b66266c9692e`, populate on both layouts, take backup, migrate to candidate; preserve original UUIDs, photos, boxes and histories, then use new features | Passed in [PR #145 checks](https://github.com/bclark/relicrat/pull/145/checks) and on physical Android; [dated evidence](release-readiness.md) |
-| Release handoff | Review fixes, green checks and a reviewable release handoff with limitations; main merge/deployment stay manual | Prepared in [PR #145](https://github.com/bclark/relicrat/pull/145); release checks must remain green before owner merge |
+| Select and review | Select copies from a visible collection/search page; show their locations and destination; explicit confirmation on desktop and mobile | Verified on desktop 1440px and mobile 320px; independent UI review: ship |
+| Safe movement and history | Atomic revision checks, retained per-copy history and identity, no extra events for unchanged copies; reject stale or inactive selections | Verified by disposable PostgreSQL tests, including overlapping batches and read-only agent denial |
+| Verified develop handoff | Desktop/mobile success, reload, stale-selection and lost-response regressions; green checks and merge into develop | All checks must pass before the authorized develop merge; tracked in PR #147 |
 
-**Current completion: 100% (4 of 4 gates prepared and verified).** This is the
-bounded release-confidence theme, not a claim that maintenance is finished.
-Release approval, main merge, tagging and deployment remain separate owner actions.
+**Completion on merge of PR #147: 100% (3/3 gates).** This percentage covers the
+currently approved bulk-move milestone; future batches are not yet scoped. See the [bulk-move contract](bulk-copy-moves.md) and
+[PR #147](https://github.com/bclark/relicrat/pull/147). Main merge and deployment
+remain separate owner actions. The earlier release-confidence milestone remains
+100% complete.
 
 ## After this theme
 

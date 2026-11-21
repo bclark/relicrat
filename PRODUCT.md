@@ -206,3 +206,18 @@ desktop-view.png, phone-view.png, phone-edit.png and phone-320.png. Older captur
 and verdicts above remain historical evidence for their original changes.
 This increment adds no dependency or migration. It is implemented for review,
 not deployed; no production-readiness or recovery completion is implied.
+
+
+## Move selected physical copies (implemented for review, 2026-11-20)
+
+Explicit current-page selection now leads to a destination and per-copy review
+before confirmation. One transaction moves the reviewed active copies and keeps
+each UUID and movement history; a stale member rejects the entire selection.
+Copies already at the destination gain no extra event. Conflicts and unconfirmed
+responses block another confirmation until reload and review. The desktop/phone
+flow extends the incumbent interface without changing theme tokens or ownership.
+Independent finish review returned SHIP for all six selection/review/stale
+captures. See [the bulk-move contract](docs/bulk-copy-moves.md) and
+[scoped finish evidence](.impeccable/surfaces/bulk-copy-moves.md). Final checks
+and develop integration are recorded in [PR #147](https://github.com/bclark/relicrat/pull/147);
+no deployment is included.
