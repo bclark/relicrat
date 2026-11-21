@@ -57,8 +57,9 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   }
   await page.locator(`#copy-row-${copies[0].id}`).click();
   await page.getByText(`Current location: ${boxes[1].name}`,{exact:true}).waitFor();
-  await page.locator('.movement-history > summary').click();
-  assert.equal(await page.locator('.movement-history li').count(),2);
+  const movement=page.locator('details.movement-history').filter({has:page.locator('summary').filter({hasText:/^Movement history/})});
+  await movement.locator('summary').click();
+  assert.equal(await movement.locator('li').count(),2);
   await page.getByRole('button',{name:'Back to collection',exact:true}).click();
   await select(boxes[0]);
   await post(`inventory/${copies[1].id}/location`,{storage_location_id:boxes[0].id,expected_storage_revision:2});
