@@ -1,6 +1,6 @@
 # Roadmap and release progress
 
-Updated November 19, 2026. The goal is a private, single-owner collection server
+Updated November 20, 2026. The goal is a private, single-owner collection server
 that a collector can install, use offline, recover, move their data out of and
 personalize. A percentage describes the acceptance gates in one bounded theme;
 it is not a percentage of every feature RelicRat might eventually support.
@@ -40,12 +40,12 @@ percentage. The three acceptance gates below define this bounded milestone.
 
 | Gate | Acceptance | Status |
 | --- | --- | --- |
-| Select and review | Select copies from a visible collection/search page; show their locations and destination; explicit confirmation on desktop and mobile | Implemented; final browser review pending |
-| Safe movement and history | Atomic revision checks, retained per-copy history and identity, no extra events for unchanged copies; reject stale or inactive selections | Implemented; final PostgreSQL checks pending |
-| Verified develop handoff | Desktop/mobile success, reload, stale-selection and lost-response regressions; green checks and merge into develop | Pending |
+| Select and review | Select copies from a visible collection/search page; show their locations and destination; explicit confirmation on desktop and mobile | Verified on desktop 1440px and mobile 320px; independent UI review: ship |
+| Safe movement and history | Atomic revision checks, retained per-copy history and identity, no extra events for unchanged copies; reject stale or inactive selections | Verified by disposable PostgreSQL tests, including overlapping batches and read-only agent denial |
+| Verified develop handoff | Desktop/mobile success, reload, stale-selection and lost-response regressions; green checks and merge into develop | All checks must pass before the authorized develop merge; tracked in PR #147 |
 
-**Current completion: 0% verified (0/3 gates).** Implementation alone does not
-close a gate. See the [bulk-move contract](bulk-copy-moves.md) and
+**Completion on merge of PR #147: 100% (3/3 gates).** This percentage covers the
+currently approved bulk-move milestone; future batches are not yet scoped. See the [bulk-move contract](bulk-copy-moves.md) and
 [PR #147](https://github.com/bclark/relicrat/pull/147). Main merge and deployment
 remain separate owner actions. The earlier release-confidence milestone remains
 100% complete.

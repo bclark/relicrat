@@ -52,10 +52,21 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   async function capture(state){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
    if(process.env.RELICRAT_SCREENSHOTS){
-    const sample=()=>page.evaluate(()=>({width:innerWidth,height:innerHeight,phone:matchMedia('(max-width:759px)').matches,selection:document.querySelector('.bulk-move h3')?.textContent}));
-    trace.push('capture-before-'+state+':'+JSON.stringify(await sample()));
-    await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.RELICRAT_SCREENSHOTS}/bulk-${layout}-${state}.png`,fullPage:true});
-    trace.push('capture-after-'+state+':'+JSON.stringify(await sample()));
+    // Chromium's beyond-viewport capture can briefly use a 1px viewport. Keep
+    // the real width and freeze the incumbent viewport-based minimum height.
+    const original=page.viewportSize();
+    const height=await page.evaluate(()=>document.documentElement.scrollHeight);
+    const minimum=await page.locator('.themed-app').evaluate(node=>getComputedStyle(node).minHeight);
+    const freeze=await page.addStyleTag({content:`.themed-app { min-height:${minimum} !important; }`});
+    try{
+     await page.setViewportSize({...original,height:Math.max(height,original.height)});
+     await page.evaluate(()=>scrollTo(0,0));
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'Capture includes the full document');
+     await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});
+     await page.screenshot({path:`${process.env.RELICRAT_SCREENSHOTS}/bulk-${layout}-${state}.png`});
+    }finally{await page.setViewportSize(original);await freeze.evaluate(node=>node.remove());}
+    assert.equal(await page.evaluate(()=>innerWidth),original.width);
+
    }
   }
   await select(boxes[1]);

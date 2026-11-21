@@ -574,4 +574,11 @@ per-copy review. The same native checkboxes, selects and theme controls work on
 desktop and phone. Changing scope clears the selection; revision conflicts or
 unconfirmed saves require reload and a fresh review. History remains per copy.
 This extends the incumbent collection surface without changing themes or layout
-contracts. See `apps/web/app/bulk-move-copies.tsx`; deployment remains separate.
+contracts. The independent finish reviewer returned SHIP after all six synthetic
+selection/review/stale captures at 1440px and 320px; the single detector pass found
+no issues. Existing theme tokens, native controls, 44px selection targets and
+explicit focus/error states are retained. `DESIGN.md` and its sidecar remain
+unchanged. See [the bulk surface record](../../.impeccable/surfaces/bulk-copy-moves.md)
+for evidence and [the behavior contract](../bulk-copy-moves.md) for scope and atomic
+save semantics. Final checks and develop integration are recorded in
+[PR #147](https://github.com/bclark/relicrat/pull/147); deployment remains separate.
