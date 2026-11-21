@@ -98,3 +98,21 @@ and build the new images. Stop web and API before migrating. Run
 `compose run --rm --no-deps api alembic upgrade head` and then
 `compose up -d --no-build --wait`. If a migration fails, keep the writers
 stopped and inspect it before reopening the app.
+
+
+## Release regression checks
+
+Every PR runs the clean Ubuntu install journey on desktop Chromium and an
+emulated Pixel 7 with browser requests and application egress restricted to the
+local install. A separate check starts at immutable v0.1.0 commit
+`373873e58e495e09c7e064134909b66266c9692e`, adds copies/photos/boxes on both layouts,
+takes a pre-upgrade backup and migrates the same volumes to the candidate.
+It compares pre-existing inventory field fingerprints and exact photo bytes,
+then tests current intake/import features and container recreation. The test
+excludes session counters and the three additive Games fields from the old-row
+comparison; it does not ignore changes to existing inventory values.
+
+These checks use disposable synthetic data. They do not perform a live upgrade,
+configure your backup destination or certify a particular phone/camera. See the
+[release evidence](release-readiness.md) for physical-device checks and limits,
+and the [roadmap](roadmap.md) for the current acceptance gates.

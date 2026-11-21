@@ -29,6 +29,7 @@ const customIntake = new RegExp(`^custom-collections/${uuid}/copies$`);
 const locationAudits = new RegExp(`^storage-locations/${uuid}/audits$`);
 const auditHistory = new RegExp(`^storage-locations/${uuid}/audits/(history|${uuid})$`);
 const auditResolution = new RegExp(`^storage-locations/${uuid}/audits/${uuid}/resolutions$`);
+const bulkLocation = new RegExp(`^storage-locations/${uuid}/move-copies$`);
 const locationPath = new RegExp(`^storage-locations/${uuid}$`);
 
 /** @param {Request} request @param {string[]} segments */
@@ -41,7 +42,7 @@ export async function forwardApi(request, segments) {
   const methods = locationAudits.test(path) || locationPath.test(path) || duplicateDecisions.test(path) || checklistMatch.test(path) || path === 'custom-collections' || path === 'appearance' || path === 'collection-settings' || path === 'inventory' || path === 'storage-locations' || photoPath.test(path) || catalogCollection.test(path) || releases.test(path)
     ? ['GET', 'POST']
     : path === 'storage-locations/audits/open' || auditHistory.test(path) || checklistProgress.test(path) || checklistHistory.test(path) || customHistory.test(path) || customCollection.test(path) || barcodeCover.test(path) || storageLabels.test(path) || path === 'collection-proposals/authoring' || path === 'collection-groups' || path === 'imports' || path === 'imports/recipes/clz-games' || importRows.test(path) || gameSuggestions.test(path) || path === 'collection-settings/studio-suggestions' || path === 'collection-settings/publisher-suggestions' || path === 'collection-settings/artist-suggestions' || path === 'collection-settings/types' || copyPath.test(path) || historyPath.test(path) || downloadPath.test(path) || catalogItem.test(path) || release.test(path)
-      ? ['GET'] : auditResolution.test(path) || undoDuplicate.test(path) || customDefinition.test(path) || customIntake.test(path) || barcodeLookup.test(path) || path === "title-lookups/game" || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
+      ? ['GET'] : bulkLocation.test(path) || auditResolution.test(path) || undoDuplicate.test(path) || customDefinition.test(path) || customIntake.test(path) || barcodeLookup.test(path) || path === "title-lookups/game" || storageMapping.test(path) || importUpload.test(path) || path === 'collection-proposals/preview' || path === 'appearance/preview' || actionPath.test(path) ? ['POST'] : [];
   if (!methods.length) return error(404, 'API route not found');
   if (!methods.includes(request.method)) return error(405, 'Method not allowed');
   let upstream;

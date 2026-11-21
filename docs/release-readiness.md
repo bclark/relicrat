@@ -4,6 +4,31 @@ The finish line is a private, single-owner installation that a collector can
 operate from a desktop and a phone, use with outbound internet blocked, and
 recover on a replacement host from an independently stored encrypted backup.
 
+## Post-v0.1.0 release confidence · November 19, 2026
+
+[PR #145](https://github.com/bclark/relicrat/pull/145) adds a distinct upgrade
+regression and refreshes the [roadmap](roadmap.md). Application candidate
+`93c4f4dd566990a1bb1b01b0026074418839d06c` was exercised on an independently
+initialized Ubuntu 24.04 VM, Docker 29.1.3 and Compose 2.40.3. All records and
+photos were synthetic. The live NAS application and its backups were not used.
+
+| Gate | Result |
+| --- | --- |
+| Clean current install | Empty engine and new persistent volumes; desktop Chromium and Pixel 7 profiles each added a copy/photo, created a box, moved and found the copy, imported a one-copy Games CSV, and inspected the result. The four-test Linux journey passed. |
+| Physical Android | Chrome 158 on Android model SM-S938U, through a USB loopback tunnel, added a copy/photo, created a box, moved and found that exact copy. The phone import shortcut produced a one-copy CSV preview, imported explicitly and opened the saved game. |
+| Published baseline | Installed immutable v0.1.0 `373873e58e495e09c7e064134909b66266c9692e` into separately named empty volumes. Its original desktop and Pixel 7 browser tests passed; physical Android added a third photographed, located copy. |
+| Populated upgrade | Took a pre-upgrade backup, stopped the baseline writers and migrated those same volumes from `0019_agent_credential` to `0021_game_import_recipes`. SHA-256 fingerprints of all populated pre-existing domain tables matched. The three additive Games fields are excluded; existing inventory fields are not. |
+| Browse after upgrade | Desktop and Pixel 7 reopened the original copies and verified exact photo bytes. Physical Android found its original UUID, box and exact photo bytes after the upgrade. The old-fixture verification intentionally skips Games tests because v0.1.0 predates that feature. |
+| Offline/private runtime | Internal Compose networks, no published service ports, `unless-stopped` policies and denied outbound API connection. Browser checks reject requests outside the loopback install. Build/download access occurred before runtime checks. |
+| Repeatable CI | Separate clean Ubuntu jobs exercise fresh install and populated v0.1.0 upgrade, new features after migration, pre-recreation backups and persistence. API/migrations, web build/tests and CSV/MCP regressions also passed. [PR checks](https://github.com/bclark/relicrat/pull/145/checks). |
+
+No application defect was found in these journeys. This batch fixes the missing
+upgrade coverage and makes fingerprint SQL errors fail the check immediately.
+The physical tests used browser automation; human touch/lighting, physical
+barcode-camera scans, iOS and public hosting are outside this evidence. No live
+deployment or new disaster-recovery drill is claimed. The v0.1.0 recovery and
+backup-policy evidence below remains dated historical evidence.
+
 ## Evidence for the Linux Compose candidate
 
 **Tested November 8, 2026.** Candidate

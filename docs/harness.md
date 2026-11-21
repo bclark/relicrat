@@ -2832,3 +2832,83 @@ whole-row skipping, original row numbers, no-op rejection and exact-file retry.
 The production web build and 37 Node checks passed. Chromium checked the preview
 at desktop and 320px widths and exercised a partial import with synthetic data.
 The full API and legacy browser suites were outside this increment.
+
+
+## Post-v0.1.0 Linux release regression · November 19, 2026
+
+PR #145 adds a second `linux-install` matrix lane, preserving the existing
+`Private Linux Compose install` check name and adding
+`Private Linux Compose install (v0.1.0 upgrade)`. Both use clean Ubuntu 24.04
+runners, synthetic fixtures and the private `compose.linux.yaml` runtime.
+The upgrade lane pins v0.1.0 to
+`373873e58e495e09c7e064134909b66266c9692e`; it never uses a moving tag to choose
+the baseline. The baseline's own browser test populates both layouts before a
+backup and migration. `scripts/linux-upgrade-state.sql` fingerprints pre-existing
+domain fields; psql stops on errors. After migration the current browser test
+checks original copies and photo bytes, then a fresh fixture suffix exercises
+current CSV/game behavior. Recreation verifies persistence again.
+
+Validation: [all five CI checks](https://github.com/bclark/relicrat/pull/145/checks)
+passed for the initial candidate. A separate empty Ubuntu VM ran the four-test
+current Linux browser suite and the two-test published-baseline suite. Both
+original-layout checks passed after upgrade, with the two inapplicable Games
+tests explicitly skipped for v0.1.0 fixtures. Physical Android Chrome verified
+clean intake/photo/box/search, the CSV shortcut/preview/import, and original UUID,
+location and photo bytes after upgrade. See [release evidence](release-readiness.md).
+
+Local `npm test --prefix apps/web`: 37 passed. The 11 operations tests initially
+failed in the restricted Mac sandbox because their localhost server could not
+bind; the socket-enabled rerun passed. API/migration tests ran on disposable
+PostgreSQL in CI. No real inventory, deployed services or backup archives were
+used. This adds no runtime dependency or database migration.
+
+
+## Bulk copy movement · November 20, 2026
+
+[PR #147](https://github.com/bclark/relicrat/pull/147) extends collection/search
+results with reviewed, page-scoped selection and atomic movement. One existing
+location event is staged per changed physical copy; all selected revisions are
+validated under UUID-ordered PostgreSQL row locks before any move. Inactive,
+missing or stale selections reject the entire batch. Same-location copies add no
+history. Read-only agent credentials are denied the new POST route.
+
+Validation on clean GitHub runners:
+
+- `sh scripts/test-api.sh`: **447 passed**, with migration downgrade to base and
+  upgrade through 0021. The seven new bulk tests cover exact copy identity,
+  catalog/release links, photos, movement history, unchanged destinations, invalid
+  or unavailable selections and overlapping batches. Existing auth coverage also
+  rejects a bulk write with the read-only credential. No API tests skipped.
+- `npm test`: **37 passed**; gateway tests include the fixed POST-only bulk path.
+  TypeScript and production build passed.
+- `node --test tests/bulk-move.browser.mjs`: **two passed**, desktop1440 and
+  mobile320. The journey checks entry/review/cancel/error/reload focus, explicit
+  confirmation, reopening an already inspected copy, persistence after reload,
+  exact movement history, one externally moved selection causing full rejection,
+  a fresh review with one unchanged copy, and a committed request with a lost
+  response. No automatic retry or duplicate event occurred. No bulk cases skipped.
+- Both existing Linux Compose lanes also run: clean install and populated
+  immutable-v0.1.0 upgrade/recreation. Their old-fixture phase intentionally skips
+  the two Games cases; the current fixture phase covers them separately.
+- Six loaded selection/review/conflict screenshots were inspected at both widths;
+  the independent full finish review returned **ship**. The one detector pass
+  returned no findings. Existing DESIGN.md/theme tokens remain unchanged.
+
+`python3 scripts/test-api-remote.py relicrat-worker tests/test_bulk_moves.py`
+could not start its disposable database because the worker's default Docker
+address pools were exhausted. That attempt ran no API tests, cleaned its owned
+image/temp files, and changed no live networks. PostgreSQL verification above
+ran on clean Ubuntu CI instead.
+
+Initial browser assertions confused the edit-history and movement-history
+summaries; they were corrected. Screenshot debugging independently reproduced
+Chromium's temporary 1px viewport during beyond-viewport capture, which crossed
+the responsive breakpoint and remounted the selection. The final capture helper
+keeps width fixed, freezes only the existing computed minimum height, expands
+height for the full document and restores it afterward. Functional assertions
+remain intact, including the retained stale-error state after capture.
+
+All fixtures are synthetic. These are desktop/mobile Chromium viewport checks,
+not physical phone/camera or iOS testing. No runtime dependency, migration,
+production deployment, retention deletion or backup-resource change is included.
+See the [bulk-move contract](bulk-copy-moves.md).

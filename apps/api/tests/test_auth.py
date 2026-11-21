@@ -167,6 +167,7 @@ def test_revocable_agent_credential_reads_only_collection_projections(setup, mon
         denied = api.post(base + location, headers=agent,
                           json={'storage_location_id': destination['id'], 'expected_storage_revision': 1})
         assert denied.status_code == 403
+        assert api.post(f"{base}/storage-locations/{destination['id']}/move-copies", headers=agent, json={'copies': [{'id': copy['id'], 'expected_storage_revision': 1}]}).status_code == 403
         assert api.get(f"{reads}/copies/{copy['id']}", headers=agent).json() == expected
         assert api.get(base + '/inventory', headers=agent).status_code == 403
         assert api.post(reads + '/copies', headers=agent).status_code == 403
