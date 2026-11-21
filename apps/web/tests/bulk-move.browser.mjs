@@ -23,9 +23,14 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
    await post(`inventory/${copy.id}/location`,{storage_location_id:boxes[0].id,expected_storage_revision:0});copies.push(copy);
   }
   const page=await context.newPage();const trace=[];
-  await page.addInitScript(()=>document.addEventListener('click',event=>{const button=event.target.closest?.('button');if(button)console.debug('bulk-test-click:'+button.textContent);},true));
-  page.on('console',message=>{if(message.text().startsWith('bulk-test-click:'))trace.push(message.text());});
-  page.on('request',request=>{if(request.url().includes('/inventory?')||request.url().endsWith('/move-copies'))trace.push(request.method()+' '+new URL(request.url()).pathname);});
+  await page.addInitScript(()=>{
+   document.addEventListener('click',event=>{const button=event.target.closest?.('button');if(button)console.debug('bulk-test-click:'+button.textContent);},true);
+   const media=matchMedia('(max-width:759px)');
+   media.addEventListener('change',()=>console.debug(`bulk-test-media:${media.matches}:${innerWidth}x${innerHeight}`));
+   window.addEventListener('resize',()=>console.debug(`bulk-test-resize:${innerWidth}x${innerHeight}`));
+  });
+  page.on('console',message=>{if(message.text().startsWith('bulk-test-'))trace.push(message.text());});
+  page.on('request',request=>{if(request.url().includes('/inventory?')||request.url().endsWith('/move-copies'))trace.push(request.method()+' '+new URL(request.url()).pathname+new URL(request.url()).search);});
   t.after(()=>t.diagnostic(JSON.stringify(trace.slice(-30))));
   const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
   await page.goto(base);await chooseCollection(page,'other');
@@ -46,7 +51,12 @@ for(const [layout,viewport] of [['desktop',{width:1440,height:1050}],['mobile',{
   async function confirm(){await page.getByRole('checkbox',{name:'I reviewed these copies and their destination.',exact:true}).check();await page.getByRole('button',{name:'Move 2 copies',exact:true}).click();}
   async function capture(state){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
-   if(process.env.RELICRAT_SCREENSHOTS){await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.RELICRAT_SCREENSHOTS}/bulk-${layout}-${state}.png`,fullPage:true});}
+   if(process.env.RELICRAT_SCREENSHOTS){
+    const sample=()=>page.evaluate(()=>({width:innerWidth,height:innerHeight,phone:matchMedia('(max-width:759px)').matches,selection:document.querySelector('.bulk-move h3')?.textContent}));
+    trace.push('capture-before-'+state+':'+JSON.stringify(await sample()));
+    await mkdir(process.env.RELICRAT_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.RELICRAT_SCREENSHOTS}/bulk-${layout}-${state}.png`,fullPage:true});
+    trace.push('capture-after-'+state+':'+JSON.stringify(await sample()));
+   }
   }
   await select(boxes[1]);
   await page.getByRole('heading',{name:`Review move to ${boxes[1].name}`,exact:true}).waitFor();
