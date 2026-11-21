@@ -27,6 +27,7 @@ type Sort = ''|'recent'|'title'|'artist';
 export default function InventoryClient({initialLocationId}: {initialLocationId?:string}) {
   const [selecting,setSelecting]=useState(false);
   const [moveNotice,setMoveNotice]=useState('');
+  const moveSelectButton=useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<'appearance' | 'collection' | null>(null);
   const [intakeVisible,setIntakeVisible]=useState(false);
@@ -194,6 +195,12 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
     finally { saveLock.current = false; setBusy(false); }
   }, []);
   const changed = useCallback(() => setRefresh(value => value + 1), []);
+  function reloadMoveSelection(){setLoading(true);changed();}
+  function finishMoveSelection(message?:string){
+    setSelecting(false);
+    if(message){setMoveNotice(message);reloadMoveSelection();}
+    requestAnimationFrame(()=>moveSelectButton.current?.focus());
+  }
 
   const [openingLocation,setOpeningLocation]=useState(!!initialLocationId);
   const [locationError,setLocationError]=useState('');
@@ -362,13 +369,13 @@ export default function InventoryClient({initialLocationId}: {initialLocationId?
               {!grouped&&activeSort&&<span>Sort: <strong>{sortLabel}</strong></span>}
             </div>}
             {moveNotice&&<p role="status">{moveNotice}</p>}
-            {!selecting&&<button type="button" className="quiet" disabled={busy||!!listError} onClick={()=>{if(!detailGuard.current())return;setSelected(null);setSelecting(true);setMoveNotice('');setBrowseView('copies');setPage(0);}}>Select copies to move</button>}
+            {!selecting&&<button ref={moveSelectButton} type="button" className="quiet" disabled={busy||!!listError} onClick={()=>{if(!detailGuard.current())return;setSelected(null);setSelecting(true);setMoveNotice('');setBrowseView('copies');setPage(0);}}>Select copies to move</button>}
             {grouped?<GroupedCollection key={filters} type={typeFilter as ''|'record'|'comic'|'movie'} noun={typeFilter?types?.[typeFilter]?.grouping?.plural_label||'Groups':'Collection types'} filters={filters} refresh={refresh} busy={busy||!types} selected={selected} open={openCopy} retry={reloadInventory} chooseType={(value,customId)=>chooseCollection(customId?'custom:'+customId:value)}/>:<>
             <div role="status" className="result-status">{loading ? 'Loading copies…' : listError ? 'Inventory unavailable' : `${items.length} ${items.length === 1 ? 'copy' : 'copies'} on this page${customCollectionId?' · Custom collection':typeFilter ? ` · ${types?.[typeFilter]?.plural_label || typeFilter}` : ''}`}</div>
             {listError ? <p className="error" role="alert">{listError} <button type="button" className="text-button" onClick={reloadInventory}>Try again</button></p>
               : loading ? <div className="loading-lines" aria-hidden="true"><span /><span /><span /></div>
               : items.length === 0 ? <div className="empty"><h3>{query || effectiveStorage || typeFilter || customCollectionId ? 'No matching copies' : page ? 'No more copies on this page' : 'Your first find starts here'}</h3><p>{query ? 'Clear the search to see more copies.' : locationBrowse ? 'There are no copies here.' : storageFilter ? 'Clear the storage filter to see more copies.' : typeFilter || customCollectionId ? importBatchId ? 'There are no active copies from this import.' : 'There are no saved copies in this collection yet.' : page ? 'Go back to the previous page or reload the inventory.' : 'Enter a title and save. You can add everything else later.'}</p></div>
-              : selecting?<BulkMoveCopies key={`${filters}:${copySort}:${page}:${refresh}`} items={items} types={types} busy={busy} runSave={runSave} selected={selected} open={openCopy} reload={changed} close={()=>setSelecting(false)} done={message=>{setMoveNotice(message);setSelecting(false);changed();}}/>
+              : selecting?<BulkMoveCopies key={`${filters}:${copySort}:${page}:${refresh}`} items={items} types={types} busy={busy} runSave={runSave} selected={selected} open={openCopy} reload={reloadMoveSelection} close={()=>finishMoveSelection()} done={finishMoveSelection}/>
               : <CollectionRows groupByType={!activeSort&&(!phone||!typeFilter&&!customCollectionId)} types={types} items={items} busy={busy} selected={selected} open={openCopy}/>}
 
             <nav className="pagination" data-single-page={page===0&&!more} aria-label="Inventory pages"><button disabled={busy || loading || page === 0} onClick={() => {setLoading(true);setPage(value => value - 1);}}>Previous</button><span>Page {page + 1}</span><button disabled={busy || loading || !!listError || !more} onClick={() => {setLoading(true);setPage(value => value + 1);}}>Next</button></nav>
